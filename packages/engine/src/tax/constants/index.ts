@@ -5,6 +5,8 @@ import {
   contributionLimits2026,
   federalBrackets2026,
   fica2026,
+  longTermCapGainsBrackets2026,
+  niit2026,
   standardDeduction2026,
 } from "./2026";
 
@@ -16,11 +18,18 @@ export interface FicaConstants {
   additionalMedicareThreshold: Record<FilingStatus, Money>;
 }
 
+export interface NiitConstants {
+  rate: string;
+  threshold: Record<FilingStatus, Money>;
+}
+
 export interface TaxConstants {
   year: number;
   standardDeduction: Record<FilingStatus, Money>;
   federalBrackets: Record<FilingStatus, Bracket[]>;
   fica: FicaConstants;
+  longTermCapGainsBrackets: Record<FilingStatus, Bracket[]>;
+  niit: NiitConstants;
   contributionLimits: typeof contributionLimits2026;
 }
 
@@ -30,6 +39,8 @@ const REGISTRY: Record<number, TaxConstants> = {
     standardDeduction: standardDeduction2026,
     federalBrackets: federalBrackets2026,
     fica: fica2026,
+    longTermCapGainsBrackets: longTermCapGainsBrackets2026,
+    niit: niit2026,
     contributionLimits: contributionLimits2026,
   },
 };
