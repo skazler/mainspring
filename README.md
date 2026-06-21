@@ -1,5 +1,7 @@
 # MAINSPRING
 
+[![CI](https://github.com/skazler/mainspring/actions/workflows/ci.yml/badge.svg)](https://github.com/skazler/mainspring/actions/workflows/ci.yml)
+
 > A private, offline-first financial independence/retire early planner.
 > You wind it up — and it drives everything.
 >
