@@ -39,6 +39,7 @@ A desktop app (Tauri) where the entire money model — tax, allocations, project
 | [`ARCHITECTURE.md`](./ARCHITECTURE.md) | system overview, diagrams, full stack, scaling & longevity, repo layout |
 | [`DOMAIN_MODEL.md`](./DOMAIN_MODEL.md) | entities, ER diagram, money-handling rules |
 | [`MONEY_ENGINE.md`](./MONEY_ENGINE.md) | the isomorphic TS core: cashflow + tax + allocation |
+| [`STOCK_MANAGEMENT.md`](./docs/STOCK_MANAGEMENT.md) | positions as a lot ledger, valuation, capital-gains tax |
 | [`PREDICTION_ENGINE.md`](./PREDICTION_ENGINE.md) | deterministic + Monte Carlo + FIRE metrics + Rust kernel + optional ML |
 | [`DATA_LAYER.md`](./DATA_LAYER.md) | PGlite + DuckDB, persistence, market data, optional sync |
 | [`FRONTEND.md`](./FRONTEND.md) | Svelte 5 + Tauri, the dial component, live recompute |

@@ -105,6 +105,14 @@ packages/schema/
 
 One definition produces: the migration, the runtime validator, and the static types. Agents import from `@mainspring/schema` everywhere; there is no second place a field can drift.
 
-## 4. Scenario versioning
+## 4. Positions as a lot ledger
+
+`HOLDING` above is the current-position snapshot. For cost-basis tracking, realized
+gains, and capital-gains tax, positions are modeled as an **event log** of `lots`
+(buy/sell) from which a holding and its basis are *derived* — see
+[`STOCK_MANAGEMENT.md`](./STOCK_MANAGEMENT.md). This is additive: it introduces one table
+and a capital-gains tax module, without changing the money or engine foundations.
+
+## 5. Scenario versioning
 
 `SCENARIO.dial_state` and `assumptions` are stored as JSONB with an explicit `schema_version`. When the dial schema evolves, a small migrator upgrades old blobs on read, so a plan you saved years ago still loads. `FORECAST.inputs_hash` keys cached Monte Carlo results so an unchanged scenario never re-runs 10k paths.
