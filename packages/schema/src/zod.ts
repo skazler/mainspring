@@ -36,6 +36,13 @@ export const accountKind = z.enum([
   "checking",
 ]);
 
+// Inferred enum types — the shared vocabulary consumed by the engine + UI.
+export type Frequency = z.infer<typeof frequency>;
+export type FilingStatus = z.infer<typeof filingStatus>;
+export type Bucket = z.infer<typeof bucket>;
+export type DialBase = z.infer<typeof dialBase>;
+export type AccountKind = z.infer<typeof accountKind>;
+
 // ── insert validators (what the engine/UI hand to the DB) ─────────
 export const profileInsert = z.object({
   id: z.string().uuid().optional(),
