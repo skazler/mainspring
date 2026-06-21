@@ -129,6 +129,15 @@ export class Money {
   toMinorUnits(): bigint {
     return BigInt(this.toMinorUnitsDecimal().toFixed(0));
   }
+  /**
+   * This ÷ other, as a dimensionless rate string (e.g. effective tax rate).
+   * Returns 0 when `other` is zero. Not money — a ratio of two money amounts.
+   */
+  ratioTo(other: Money, decimalPlaces = 6): string {
+    if (other.isZero()) return new Decimal(0).toFixed(decimalPlaces);
+    return this.d.div(other.d).toFixed(decimalPlaces, Decimal.ROUND_HALF_UP);
+  }
+
   /** Fixed-scale decimal string, e.g. "12345.6789". The persisted form. */
   toString(): string {
     return this.d.toFixed(MONEY_SCALE, Decimal.ROUND_HALF_UP);
