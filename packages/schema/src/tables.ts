@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
   customType,
@@ -95,6 +96,23 @@ export const holdings = pgTable("holdings", {
   costBasis: money("cost_basis").notNull(),
 });
 
+// Buy/sell event log. A holding + its cost basis are *derived* from open lots.
+// See docs/STOCK_MANAGEMENT.md.
+export const lots = pgTable("lots", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id")
+    .notNull()
+    .references(() => accounts.id, { onDelete: "cascade" }),
+  ticker: text("ticker").notNull(),
+  side: text("side").notNull(), // buy|sell
+  tradeDate: date("trade_date").notNull(),
+  shares: numeric("shares", { precision: 18, scale: 6 }).notNull(),
+  price: money("price").notNull(), // per-share execution price
+  fee: money("fee").notNull().default(sql`0`),
+  // a sell references the buy-lot it disposes (specific-ID); null for FIFO / buys
+  closesLotId: uuid("closes_lot_id"),
+});
+
 export const contributions = pgTable("contributions", {
   id: uuid("id").primaryKey().defaultRandom(),
   accountId: uuid("account_id")
@@ -147,6 +165,7 @@ export const schema = {
   dials,
   accounts,
   holdings,
+  lots,
   contributions,
   scenarios,
   forecasts,

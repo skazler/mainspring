@@ -4,7 +4,7 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 import { eq } from "drizzle-orm";
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
-import { Money, accounts, profiles, schema } from "../src/index";
+import { Money, accounts, lots, profiles, schema } from "../src/index";
 
 const migrationsFolder = fileURLToPath(new URL("../drizzle", import.meta.url));
 
@@ -78,6 +78,32 @@ describe("PGlite migration + exact-decimal round-trip", () => {
     // sum is exact — no float drift
     const total = rows.reduce((acc, r) => acc.add(r.balance), Money.zero());
     expect(total.toString()).toBe("1012345.6789");
+  });
+});
+
+describe("lots ledger round-trip", () => {
+  it("stores buy lots with exact per-share price and a default fee", async () => {
+    const db = await freshDb();
+    const [p] = await db
+      .insert(profiles)
+      .values({ displayName: "Investor", birthDate: "1990-01-01", targetRetireAge: 50, annualExpenses: Money.of("50000"), swr: "0.0400" })
+      .returning();
+    const [acct] = await db
+      .insert(accounts)
+      .values({ profileId: p!.id, kind: "brokerage", taxAdvantaged: false, balance: Money.of("0") })
+      .returning();
+
+    await db.insert(lots).values([
+      { accountId: acct!.id, ticker: "VTI", side: "buy", tradeDate: "2024-01-15", shares: "10", price: Money.of("200.1234") },
+      { accountId: acct!.id, ticker: "VTI", side: "buy", tradeDate: "2024-06-15", shares: "10", price: Money.of("250.5000"), fee: Money.of("4.95") },
+    ]);
+
+    const rows = await db.select().from(lots);
+    expect(rows).toHaveLength(2);
+    const byDate = rows.sort((a, b) => a.tradeDate.localeCompare(b.tradeDate));
+    expect(byDate[0]!.price.toString()).toBe("200.1234");
+    expect(byDate[0]!.fee.toString()).toBe("0.0000"); // DB default
+    expect(byDate[1]!.fee.toString()).toBe("4.9500");
   });
 });
 

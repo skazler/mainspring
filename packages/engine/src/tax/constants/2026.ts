@@ -1,7 +1,7 @@
 import { Money } from "@mainspring/schema";
 import type { FilingStatus } from "@mainspring/schema";
 import type { Bracket } from "../brackets";
-import type { FicaConstants } from "./index";
+import type { FicaConstants, NiitConstants } from "./index";
 
 /**
  * 2026 US federal tax constants.
@@ -69,6 +69,44 @@ export const fica2026: FicaConstants = {
   additionalMedicareRate: "0.009",
   // Statutory thresholds — NOT inflation-adjusted.
   additionalMedicareThreshold: {
+    single: m("200000"),
+    mfj: m("250000"),
+    mfs: m("125000"),
+    hoh: m("200000"),
+  },
+};
+
+/**
+ * Long-term capital-gains brackets (also for qualified dividends). Thresholds are
+ * *taxable-income* breakpoints; LT gains stack above ordinary taxable income.
+ */
+export const longTermCapGainsBrackets2026: Record<FilingStatus, Bracket[]> = {
+  single: [
+    { upTo: m("49450"), rate: "0.00" },
+    { upTo: m("545500"), rate: "0.15" },
+    { upTo: null, rate: "0.20" },
+  ],
+  mfj: [
+    { upTo: m("98900"), rate: "0.00" },
+    { upTo: m("613700"), rate: "0.15" },
+    { upTo: null, rate: "0.20" },
+  ],
+  mfs: [
+    { upTo: m("49450"), rate: "0.00" },
+    { upTo: m("306850"), rate: "0.15" },
+    { upTo: null, rate: "0.20" },
+  ],
+  hoh: [
+    { upTo: m("66200"), rate: "0.00" },
+    { upTo: m("579650"), rate: "0.15" },
+    { upTo: null, rate: "0.20" },
+  ],
+};
+
+/** Net Investment Income Tax — 3.8% over a statutory (non-indexed) MAGI threshold. */
+export const niit2026: NiitConstants = {
+  rate: "0.038",
+  threshold: {
     single: m("200000"),
     mfj: m("250000"),
     mfs: m("125000"),
