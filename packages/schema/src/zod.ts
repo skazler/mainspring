@@ -26,6 +26,8 @@ export const bucket = z.enum([
   "cash",
 ]);
 export const dialBase = z.enum(["gross", "net", "post_tax_savings"]);
+export const lotSide = z.enum(["buy", "sell"]);
+export const lotMethod = z.enum(["fifo", "specific-id"]);
 export const accountKind = z.enum([
   "401k",
   "roth_ira",
@@ -42,6 +44,8 @@ export type FilingStatus = z.infer<typeof filingStatus>;
 export type Bucket = z.infer<typeof bucket>;
 export type DialBase = z.infer<typeof dialBase>;
 export type AccountKind = z.infer<typeof accountKind>;
+export type LotSide = z.infer<typeof lotSide>;
+export type LotMethod = z.infer<typeof lotMethod>;
 
 // ── insert validators (what the engine/UI hand to the DB) ─────────
 export const profileInsert = z.object({
@@ -85,6 +89,18 @@ export const accountInsert = z.object({
   kind: accountKind,
   taxAdvantaged: z.boolean(),
   balance: zMoney,
+});
+
+export const lotInsert = z.object({
+  id: z.string().uuid().optional(),
+  accountId: z.string().uuid(),
+  ticker: z.string().min(1),
+  side: lotSide,
+  tradeDate: z.string(), // ISO date
+  shares: z.string(),
+  price: zMoney,
+  fee: zMoney.optional(),
+  closesLotId: z.string().uuid().nullable().optional(),
 });
 
 export const holdingInsert = z.object({
