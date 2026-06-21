@@ -49,6 +49,9 @@ src-tauri/gen/
 data/
 *.parquet
 
+# ───────── Local agent notes (keep shared AGENTS.md / CLAUDE.md, ignore personal) ─────────
+CLAUDE.local.md
+
 # ───────── OS / editor ─────────
 .DS_Store
 Thumbs.db
