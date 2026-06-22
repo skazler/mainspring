@@ -8,6 +8,7 @@ describe("recompute — income → pre-tax → tax → net → buckets", () => {
       incomeSources: [{ grossAmount: Money.of("100000"), frequency: "annual" }],
       annualExpenses: Money.of("40000"),
       taxProfile: { filingStatus: "single", state: "TX", taxYear: 2026 },
+      plan: { currentBalance: Money.of("100000"), swr: "0.04", realReturn: "0.05", currentAge: 35, targetRetireAge: 65 },
       dials: [
         // 50% of gross would be $50k, but the 401k cap clamps it to $24,500
         { bucket: "401k_pretax", base: "gross", pct: "0.5", priority: 1, annualCap: Money.of("24500") },
@@ -46,6 +47,7 @@ describe("recompute — income → pre-tax → tax → net → buckets", () => {
       incomeSources: [],
       annualExpenses: Money.of("40000"),
       taxProfile: { filingStatus: "single", state: "TX", taxYear: 2026 },
+      plan: { currentBalance: Money.of("0"), swr: "0.04", realReturn: "0.05", currentAge: 35, targetRetireAge: 65 },
       dials: [{ bucket: "brokerage", base: "post_tax_savings", pct: "0.2", priority: 1 }],
     });
     expect(r.gross.isZero()).toBe(true);
