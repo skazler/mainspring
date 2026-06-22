@@ -1,6 +1,7 @@
 import type { Money } from "@mainspring/schema";
 import type { Bucket, DialBase, FilingStatus, Frequency } from "@mainspring/schema";
 import type { TaxResult } from "./tax/engine";
+import type { FireMetrics } from "./fire/metrics";
 
 // ── engine inputs (clean value objects, not DB rows) ──────────────
 export interface IncomeSourceInput {
@@ -25,11 +26,24 @@ export interface TaxProfileInput {
   taxYear: number;
 }
 
+/** Assumptions + balances that drive the deterministic FIRE projection. */
+export interface PlanInput {
+  /** Total invested assets today. */
+  currentBalance: Money;
+  /** Safe withdrawal rate, e.g. "0.04". */
+  swr: string;
+  /** Assumed real return, e.g. "0.05". */
+  realReturn: string;
+  currentAge: number;
+  targetRetireAge: number;
+}
+
 export interface ProfileState {
   incomeSources: IncomeSourceInput[];
   dials: DialInput[];
   taxProfile: TaxProfileInput;
   annualExpenses: Money;
+  plan: PlanInput;
 }
 
 // ── engine outputs ────────────────────────────────────────────────
@@ -57,4 +71,6 @@ export interface RecomputeView {
   savingsRate: string;
   /** true if dial percentages on any shared base sum past 100%. */
   overAllocated: boolean;
+  /** Deterministic FIRE metrics (FI number, time-to-FI, coast). */
+  fire: FireMetrics;
 }
