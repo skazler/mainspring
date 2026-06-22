@@ -1,28 +1,16 @@
-import { Money } from "@mainspring/schema";
 import { constrainPct, remainingPct, type ProfileState } from "@mainspring/engine";
+import { buildProfileState, defaultSetupForm } from "$lib/setup-map";
 
-function initialProfile(): ProfileState {
-  return {
-    incomeSources: [{ grossAmount: Money.of("120000"), frequency: "annual" }],
-    annualExpenses: Money.of("45000"),
-    taxProfile: { filingStatus: "single", state: "TX", taxYear: 2026 },
-    plan: {
-      currentBalance: Money.of("150000"),
-      swr: "0.04",
-      realReturn: "0.05",
-      currentAge: 32,
-      targetRetireAge: 60,
-    },
-    dials: [
-      { bucket: "401k_pretax", base: "gross", pct: "0.15", priority: 1, annualCap: Money.of("24500") },
-      { bucket: "ira", base: "gross", pct: "0.05", priority: 2, annualCap: Money.of("7500") },
-      { bucket: "brokerage", base: "post_tax_savings", pct: "0.3", priority: 3 },
-      { bucket: "emergency", base: "post_tax_savings", pct: "0.1", priority: 4 },
-    ],
-  };
+export const profile = $state<ProfileState>(buildProfileState(defaultSetupForm()));
+
+/** Replace the whole profile from a freshly-built state (setup submit). */
+export function applySetup(next: ProfileState): void {
+  profile.incomeSources = next.incomeSources;
+  profile.annualExpenses = next.annualExpenses;
+  profile.taxProfile = next.taxProfile;
+  profile.plan = next.plan;
+  profile.dials = next.dials;
 }
-
-export const profile = $state<ProfileState>(initialProfile());
 
 /**
  * Set a dial's fraction, enforcing the "can't exceed 100% of base" constraint at
