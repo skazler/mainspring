@@ -1,0 +1,39 @@
+/* Steampunk token layer (DESIGN_SYSTEM.md). Plain CSS variables for now;
+   the Tailwind v4 @theme mapping + packages/ui extraction land in Phase 8. */
+:root {
+  /* surfaces — warm dark iron */
+  --color-iron: #161310;
+  --color-coal: #0f0d0b;
+  --color-panel: #1f1a15;
+  --color-raised: #2a231b;
+  --color-etch: #3a3023;
+
+  /* metals — primary data */
+  --color-brass: #c9a24b;
+  --color-gilt: #e8c874;
+  --color-copper: #b87333;
+
+  /* accents — one per state */
+  --color-patina: #4a9e8f;
+  --color-oxblood: #9b3b34;
+  --color-lime-rust: #8a9a3c;
+
+  /* text — parchment on iron */
+  --color-parchment: #ece0c6;
+  --color-soot: #a89a82;
+  --color-dim: #6b5f4d;
+
+  /* type (open-source fallbacks until fonts are self-hosted in Phase 8) */
+  --font-display: "Cinzel", "IM Fell English", serif;
+  --font-body: "Spectral", "EB Garamond", Georgia, serif;
+  --font-meter: "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(120% 120% at 50% 0%, var(--color-iron), var(--color-coal));
+  color: var(--color-parchment);
+  font-family: var(--font-body);
+}

@@ -2,8 +2,17 @@ export { recompute } from "./recompute";
 export { annualizeIncome, PERIODS_PER_YEAR } from "./cashflow/annualize";
 export { allocateBase } from "./allocation/allocate";
 export type { BaseAllocation } from "./allocation/allocate";
+export { remainingPct, constrainPct } from "./allocation/constraints";
+export {
+  projectBalances,
+  fireMetrics,
+  fiNumberFor,
+  coastNumberFor,
+} from "./fire";
+export type { ProjectionInput, FireInput, FireMetrics } from "./fire";
 export type {
   ProfileState,
+  PlanInput,
   DialInput,
   IncomeSourceInput,
   TaxProfileInput,

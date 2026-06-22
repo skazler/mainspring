@@ -2,6 +2,7 @@ import { Money } from "@mainspring/schema";
 import type { Bucket, DialBase } from "@mainspring/schema";
 import { allocateBase } from "./allocation/allocate";
 import { annualizeIncome } from "./cashflow/annualize";
+import { fireMetrics } from "./fire/metrics";
 import { maxMoney } from "./money-util";
 import { computeTax } from "./tax/engine";
 import type { ProfileState, RecomputeView } from "./types";
@@ -59,6 +60,16 @@ export function recompute(state: ProfileState): RecomputeView {
   };
   const totalContributions = buckets.reduce((sum, b) => sum.add(b.amount), Money.zero());
 
+  const fire = fireMetrics({
+    currentBalance: state.plan.currentBalance,
+    annualContribution: totalContributions,
+    annualExpenses: state.annualExpenses,
+    swr: state.plan.swr,
+    realReturn: state.plan.realReturn,
+    currentAge: state.plan.currentAge,
+    targetRetireAge: state.plan.targetRetireAge,
+  });
+
   return {
     gross,
     pretax,
@@ -69,5 +80,6 @@ export function recompute(state: ProfileState): RecomputeView {
     totalContributions,
     savingsRate: net.isZero() ? "0.000000" : totalContributions.ratioTo(net),
     overAllocated: grossAlloc.overAllocated || netAlloc.overAllocated || savingsAlloc.overAllocated,
+    fire,
   };
 }
