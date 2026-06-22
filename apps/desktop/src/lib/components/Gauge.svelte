@@ -1,5 +1,6 @@
 <script lang="ts">
   import { clamp01, pctToAngle, pointerToPct, tickPoint } from "$lib/gauge-math";
+  import { formatPct } from "$lib/format";
 
   interface Props {
     label: string;
@@ -88,7 +89,7 @@
   </svg>
   <div class="meta">
     <div class="label">{label}</div>
-    <div class="amount">{amount}</div>
+    <div class="readout"><span class="pct">{formatPct(pct)}</span><span class="amount">{amount}</span></div>
   </div>
 </div>
 
@@ -149,11 +150,24 @@
     letter-spacing: 0.04em;
     text-align: center;
   }
+  .readout {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.25;
+  }
+  .pct {
+    font-family: var(--font-meter);
+    color: var(--color-brass);
+    font-variant-numeric: tabular-nums;
+    font-size: 1.15rem;
+    font-weight: 600;
+  }
   .amount {
     font-family: var(--font-meter);
     color: var(--color-parchment);
     font-variant-numeric: tabular-nums;
-    font-size: 1rem;
+    font-size: 0.9rem;
     text-align: center;
   }
   .active .housing,
