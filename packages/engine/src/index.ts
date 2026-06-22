@@ -1,3 +1,16 @@
+export { recompute } from "./recompute";
+export { annualizeIncome, PERIODS_PER_YEAR } from "./cashflow/annualize";
+export { allocateBase } from "./allocation/allocate";
+export type { BaseAllocation } from "./allocation/allocate";
+export type {
+  ProfileState,
+  DialInput,
+  IncomeSourceInput,
+  TaxProfileInput,
+  BucketAllocation,
+  RecomputeView,
+} from "./types";
+
 export { computeTax } from "./tax/engine";
 export type { TaxInput, TaxResult } from "./tax/engine";
 export { applyBrackets, marginalBracketRate } from "./tax/brackets";
