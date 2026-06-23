@@ -106,6 +106,10 @@
     cursor: grab;
     touch-action: none;
     outline: none;
+    filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.5));
+  }
+  .gauge.active svg.face {
+    filter: drop-shadow(0 0 6px rgba(232, 200, 116, 0.35));
   }
   svg.face:active {
     cursor: grabbing;
