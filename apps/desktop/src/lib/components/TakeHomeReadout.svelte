@@ -26,6 +26,7 @@
     border-radius: 10px;
     padding: 1.1rem 1.3rem;
     min-width: 15rem;
+    box-shadow: var(--bevel);
   }
   .big {
     display: flex;

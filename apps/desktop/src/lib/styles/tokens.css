@@ -23,17 +23,40 @@
   --color-soot: #a89a82;
   --color-dim: #6b5f4d;
 
-  /* type (open-source fallbacks until fonts are self-hosted in Phase 8) */
+  /* type — self-hosted (Phase 8) */
   --font-display: "Cinzel", "IM Fell English", serif;
   --font-body: "Spectral", "EB Garamond", Georgia, serif;
   --font-meter: "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
+
+  /* metallic sheen + machined bevel (replaces neon glow) */
+  --sheen-brass: 0 1px 0 rgba(232, 200, 116, 0.35), inset 0 0 12px rgba(201, 162, 75, 0.12);
+  --bevel: inset 0 1px 0 rgba(255, 240, 200, 0.1), inset 0 -1px 0 rgba(0, 0, 0, 0.55),
+    0 2px 6px rgba(0, 0, 0, 0.45);
 }
 
 html,
 body {
   margin: 0;
   min-height: 100vh;
-  background: radial-gradient(120% 120% at 50% 0%, var(--color-iron), var(--color-coal));
   color: var(--color-parchment);
   font-family: var(--font-body);
+  /* warm iron with a faint brushed-metal texture + vignette toward the frame */
+  background-color: var(--color-coal);
+  background-image:
+    radial-gradient(140% 120% at 50% -10%, rgba(201, 162, 75, 0.06), transparent 60%),
+    radial-gradient(120% 130% at 50% 100%, rgba(0, 0, 0, 0.5), transparent 55%),
+    repeating-linear-gradient(
+      115deg,
+      rgba(255, 255, 255, 0.012) 0px,
+      rgba(255, 255, 255, 0.012) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    radial-gradient(120% 120% at 50% 0%, var(--color-iron), var(--color-coal));
+  background-attachment: fixed;
+}
+
+/* numbers read like instrument faces everywhere */
+input {
+  font-feature-settings: "tnum";
 }
