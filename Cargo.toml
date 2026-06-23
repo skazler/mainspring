@@ -1,0 +1,4 @@
+# Cargo workspace: the Tauri shell + the simulation kernel.
+[workspace]
+resolver = "2"
+members = ["apps/desktop/src-tauri", "crates/sim"]
