@@ -1,3 +1,4 @@
+mod copilot;
 mod market;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -19,7 +20,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             run_forecast,
-            market::fetch_market
+            market::fetch_market,
+            copilot::anthropic_message
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

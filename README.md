@@ -49,13 +49,41 @@ A desktop app (Tauri) where the entire money model — tax, allocations, project
 | [`TESTING.md`](./TESTING.md) | golden + property + E2E strategy |
 | [`COSTS.md`](./COSTS.md) | running-cost breakdown ($0 local) |
 
-## Quickstart (target state)
+## Quickstart
 
 ```bash
 pnpm install
-pnpm tauri dev        # launches the desktop app with a local PGlite store
-pnpm test             # vitest (engine) + cargo test (kernel)
+pnpm tauri dev        # launches the desktop app (local PGlite store)
+pnpm test             # vitest (schema + engine + app)
+cargo test --workspace # Rust kernel + market parser
+pnpm lint && pnpm typecheck
+pnpm --filter desktop tauri build   # packaged MAINSPRING.app
 ```
+
+First run shows a **setup page** (income, taxes, contributions); it persists locally and the dial console follows.
+
+## Build status
+
+Phases 0–8 of [`BUILD_PLAN.md`](./docs/BUILD_PLAN.md) are implemented, plus the optional AI copilot.
+
+| Area | State |
+|---|---|
+| Workspace + Tauri/Svelte 5 app, CI | ✅ |
+| Schema + `Money` (decimal.js) + PGlite | ✅ |
+| Tax engine (federal + FICA + TX, 2026) | ✅ golden-tested |
+| Positions + capital gains (lots, FIFO/spec-ID, NIIT) | ✅ engine + holdings UI |
+| Cashflow + allocation + `recompute` | ✅ property-tested |
+| Deterministic projection + steampunk gauges | ✅ |
+| Monte Carlo kernel (Rust) + fan chart | ✅ |
+| Market data (yfinance → PGlite, μ/σ) | ✅ |
+| Setup/onboarding + persistence | ✅ |
+| Scenarios (save/load/compare) | ✅ |
+| Stock trend estimations (per-holding fan chart) | ✅ |
+| Theme polish + packaged `.app` build | ✅ |
+| AI copilot (NL → validated dial changes) | ✅ (bring your own Anthropic key) |
+| Multi-device sync (ElectricSQL) | scaffold only — [`infra/sync`](./infra/sync) |
+
+Known follow-ups: macOS code-signing (needs an Apple Developer cert), Finnhub live quotes (needs a key), normalized persistence (currently JSON snapshots), a full buy/sell lot-ledger UI, and end-to-end sync wiring.
 
 ## Non-negotiables
 

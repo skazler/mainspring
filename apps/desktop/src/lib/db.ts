@@ -138,3 +138,20 @@ export async function deleteScenario(id: string): Promise<void> {
   const d = await db();
   await d.query("DELETE FROM scenarios WHERE id = $1;", [id]);
 }
+
+export async function saveApiKey(key: string): Promise<void> {
+  if (!browser) return;
+  const d = await db();
+  await d.query(
+    `INSERT INTO app_state (key, value) VALUES ('anthropic_key', $1::jsonb)
+     ON CONFLICT (key) DO UPDATE SET value = $1::jsonb;`,
+    [JSON.stringify(key)],
+  );
+}
+
+export async function loadApiKey(): Promise<string> {
+  if (!browser) return "";
+  const d = await db();
+  const res = await d.query<{ value: string }>("SELECT value FROM app_state WHERE key = 'anthropic_key';");
+  return res.rows[0]?.value ?? "";
+}

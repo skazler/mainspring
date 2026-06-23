@@ -38,3 +38,10 @@ export interface Bar {
 /** Fetch daily history via the Rust core (native HTTP, no CORS). */
 export const fetchMarket = (ticker: string, range = "5y", interval = "1d") =>
   invoke<Bar[]>("fetch_market", { ticker, range, interval });
+
+/**
+ * POST a pre-built Anthropic Messages API body through the Rust core (key stays
+ * native, no CORS). Returns the raw response JSON text. (FRONTEND §4 / AI_WORKFLOWS.)
+ */
+export const anthropicMessage = (apiKey: string, body: string) =>
+  invoke<string>("anthropic_message", { apiKey, body });
