@@ -15,3 +15,12 @@ export function formatMoney(m: Money, opts?: { cents?: boolean }): string {
 export function formatPct(pct: string | number): string {
   return `${Math.round(Number(pct) * 100)}%`;
 }
+
+/** Format a plain number as USD (for market values, which are float estimates). */
+export function formatUsd(n: number, opts?: { cents?: boolean }): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: opts?.cents ? 2 : 0,
+  }).format(n);
+}
