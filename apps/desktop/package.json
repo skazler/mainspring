@@ -15,10 +15,12 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@electric-sql/pglite": "^0.5.3",
     "@mainspring/engine": "workspace:*",
     "@mainspring/schema": "workspace:*",
     "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-opener": "^2"
+    "@tauri-apps/plugin-opener": "^2",
+    "uplot": "^1.6.32"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.6",
