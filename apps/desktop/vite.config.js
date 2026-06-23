@@ -8,9 +8,10 @@ export default defineConfig(async () => ({
   plugins: [sveltekit()],
 
   // The workspace engine/schema packages ship TS source; let Vite transpile them
-  // instead of trying to pre-bundle them as external deps.
+  // instead of pre-bundling them. PGlite must also be excluded — pre-bundling
+  // mangles its .wasm/.data asset URLs and 404s them at runtime.
   optimizeDeps: {
-    exclude: ["@mainspring/engine", "@mainspring/schema"],
+    exclude: ["@mainspring/engine", "@mainspring/schema", "@electric-sql/pglite"],
   },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
