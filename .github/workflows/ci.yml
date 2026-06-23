@@ -91,13 +91,9 @@ jobs:
 
       - name: Cache Rust build
         uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: apps/desktop/src-tauri
 
       - name: Rustfmt
         run: cargo fmt --check
-        working-directory: apps/desktop/src-tauri
 
-      - name: Cargo test
-        run: cargo test
-        working-directory: apps/desktop/src-tauri
+      - name: Cargo test (workspace — kernel + Tauri crate)
+        run: cargo test --workspace

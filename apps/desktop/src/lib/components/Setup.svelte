@@ -1,12 +1,14 @@
 <script lang="ts">
   import { bucketLabel } from "$lib/buckets";
   import { formatMoney } from "$lib/format";
-  import { buildProfileState, defaultSetupForm } from "$lib/setup-map";
+  import { saveSetupForm } from "$lib/db";
+  import { buildProfileState } from "$lib/setup-map";
   import { applySetup } from "$lib/stores/profile.svelte";
   import { session } from "$lib/stores/session.svelte";
+  import { setupForm } from "$lib/stores/setup-form.svelte";
   import { Money } from "@mainspring/schema";
 
-  let form = $state(defaultSetupForm());
+  const form = setupForm;
 
   const FREQUENCIES = [
     { v: "annual", l: "Annual" },
@@ -23,9 +25,10 @@
   // Only no-income-tax states are modeled so far (see engine/tax/state.ts).
   const STATES = ["TX", "FL", "WA", "NV", "TN", "NH", "SD", "WY", "AK"];
 
-  function start(e: Event) {
+  async function start(e: Event) {
     e.preventDefault();
     applySetup(buildProfileState(form));
+    await saveSetupForm(form);
     session.configured = true;
   }
 </script>

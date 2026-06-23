@@ -17,6 +17,9 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@electric-sql/pglite':
+        specifier: ^0.5.3
+        version: 0.5.3
       '@mainspring/engine':
         specifier: workspace:*
         version: link:../../packages/engine
@@ -29,6 +32,9 @@ importers:
       '@tauri-apps/plugin-opener':
         specifier: ^2
         version: 2.5.4
+      uplot:
+        specifier: ^1.6.32
+        version: 1.6.32
     devDependencies:
       '@sveltejs/adapter-static':
         specifier: ^3.0.6
@@ -1567,6 +1573,9 @@ packages:
   undici-types@8.3.0:
     resolution: {integrity: sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ==}
 
+  uplot@1.6.32:
+    resolution: {integrity: sha512-KIMVnG68zvu5XXUbC4LQEPnhwOxBuLyW1AHtpm6IKTXImkbLgkMy+jabjLgSLMasNuGGzQm/ep3tOkyTxpiQIw==}
+
   uri-js@4.4.1:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
 
@@ -2842,6 +2851,8 @@ snapshots:
   typescript@5.6.3: {}
 
   undici-types@8.3.0: {}
+
+  uplot@1.6.32: {}
 
   uri-js@4.4.1:
     dependencies:

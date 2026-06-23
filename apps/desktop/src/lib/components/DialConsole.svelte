@@ -5,9 +5,11 @@
   import { profile, setDialPct } from "$lib/stores/profile.svelte";
   import { view } from "$lib/stores/derived.svelte";
   import { session } from "$lib/stores/session.svelte";
+  import { forecast } from "$lib/stores/forecast.svelte";
   import Gauge from "./Gauge.svelte";
   import TakeHomeReadout from "./TakeHomeReadout.svelte";
   import FireSummary from "./FireSummary.svelte";
+  import FanChart from "./FanChart.svelte";
 
   const v = $derived(view.current);
 
@@ -43,6 +45,23 @@
   {#if v.overAllocated}
     <p class="warn">Allocations exceed a base — trim a dial.</p>
   {/if}
+
+  <div class="forecast">
+    <button class="run" onclick={() => forecast.run()} disabled={forecast.running}>
+      {forecast.running ? "Running…" : "Run forecast"}
+    </button>
+    {#if forecast.error}
+      <p class="warn">{forecast.error}</p>
+    {/if}
+    {#if forecast.result}
+      <p class="success">
+        Success probability:
+        <strong>{Math.round(forecast.result.successProbability * 100)}%</strong>
+        <span class="caption">— Monte Carlo projection from historical trends, an estimate, not advice.</span>
+      </p>
+      <FanChart forecast={forecast.result} currentAge={profile.plan.currentAge} />
+    {/if}
+  </div>
 </section>
 
 <style>
@@ -97,5 +116,46 @@
     text-align: center;
     color: var(--color-oxblood);
     font-family: var(--font-body);
+  }
+  .forecast {
+    margin-top: 3rem;
+    border-top: 1px solid var(--color-etch);
+    padding-top: 2rem;
+    text-align: center;
+  }
+  .run {
+    background: transparent;
+    border: 1px solid var(--color-brass);
+    border-radius: 8px;
+    color: var(--color-brass);
+    font-family: var(--font-display);
+    letter-spacing: 0.1em;
+    font-size: 0.95rem;
+    padding: 0.6rem 1.6rem;
+    cursor: pointer;
+  }
+  .run:hover:not(:disabled) {
+    background: var(--color-brass);
+    color: var(--color-coal);
+  }
+  .run:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+  .success {
+    font-family: var(--font-body);
+    color: var(--color-parchment);
+    margin: 1.25rem 0;
+  }
+  .success strong {
+    font-family: var(--font-meter);
+    color: var(--color-lime-rust);
+    font-size: 1.2rem;
+  }
+  .caption {
+    display: block;
+    color: var(--color-dim);
+    font-size: 0.78rem;
+    margin-top: 0.25rem;
   }
 </style>
