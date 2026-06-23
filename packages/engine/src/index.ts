@@ -33,6 +33,10 @@ export { getTaxConstants, supportedTaxYears } from "./tax/constants";
 export type { TaxConstants, FicaConstants, NiitConstants } from "./tax/constants";
 export { minMoney, maxMoney, addRates } from "./money-util";
 
+// market
+export { periodReturns, mean, stdev, annualizedStats } from "./market/stats";
+export type { MarketStats } from "./market/stats";
+
 // positions
 export {
   positionValue,

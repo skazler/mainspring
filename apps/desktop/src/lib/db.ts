@@ -1,4 +1,5 @@
 import { browser } from "$app/environment";
+import type { Bar } from "$lib/bridge/invoke";
 import type { SetupForm } from "$lib/setup-map";
 
 /**
@@ -12,7 +13,15 @@ let dbPromise: Promise<import("@electric-sql/pglite").PGlite> | null = null;
 async function open() {
   const { PGlite } = await import("@electric-sql/pglite");
   const db = await PGlite.create("idb://mainspring");
-  await db.exec("CREATE TABLE IF NOT EXISTS app_state (key text PRIMARY KEY, value jsonb NOT NULL);");
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS app_state (key text PRIMARY KEY, value jsonb NOT NULL);
+    CREATE TABLE IF NOT EXISTS market_bars (
+      ticker text NOT NULL,
+      d date NOT NULL,
+      close double precision NOT NULL,
+      PRIMARY KEY (ticker, d)
+    );
+  `);
   return db;
 }
 
@@ -36,4 +45,35 @@ export async function loadSetupForm(): Promise<SetupForm | null> {
   const d = await db();
   const res = await d.query<{ value: SetupForm }>("SELECT value FROM app_state WHERE key = 'setup';");
   return res.rows[0]?.value ?? null;
+}
+
+/** Replace a ticker's stored history with a freshly-fetched series. */
+export async function saveBars(ticker: string, bars: Bar[]): Promise<void> {
+  if (!browser || bars.length === 0) return;
+  const d = await db();
+  await d.transaction(async (tx) => {
+    await tx.query("DELETE FROM market_bars WHERE ticker = $1;", [ticker]);
+    const values: string[] = [];
+    const params: unknown[] = [];
+    bars.forEach((b, i) => {
+      const o = i * 3;
+      values.push(`($${o + 1}, $${o + 2}, $${o + 3})`);
+      params.push(ticker, b.date, b.close);
+    });
+    await tx.query(
+      `INSERT INTO market_bars (ticker, d, close) VALUES ${values.join(",")};`,
+      params,
+    );
+  });
+}
+
+/** Local close series for a ticker, oldest first. The simulator reads this, never live. */
+export async function loadCloses(ticker: string): Promise<number[]> {
+  if (!browser) return [];
+  const d = await db();
+  const res = await d.query<{ close: number }>(
+    "SELECT close FROM market_bars WHERE ticker = $1 ORDER BY d;",
+    [ticker],
+  );
+  return res.rows.map((r) => r.close);
 }
