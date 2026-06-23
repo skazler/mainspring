@@ -1,6 +1,7 @@
 import { runForecast, type Forecast, type SimParams } from "$lib/bridge/invoke";
 import { profile } from "./profile.svelte";
 import { view } from "./derived.svelte";
+import { market } from "./market.svelte";
 
 const num = (s: string) => Number(s);
 
@@ -24,8 +25,9 @@ class ForecastStore {
         annualExpenses: num(profile.annualExpenses.toString()),
         yearsAccumulation,
         yearsTotal: Math.max(yearsAccumulation + 1, 95 - profile.plan.currentAge),
-        mu: Number(profile.plan.realReturn),
-        sigma: 0.15, // assumed equity-ish volatility; derive from allocation later
+        // Prefer μ/σ derived from local market history; fall back to the assumption.
+        mu: market.mu ?? Number(profile.plan.realReturn),
+        sigma: market.sigma ?? 0.15,
         nPaths: 10_000,
         seed: 42,
         model: "gbm",

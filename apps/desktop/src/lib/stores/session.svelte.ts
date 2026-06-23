@@ -2,6 +2,7 @@ import { buildProfileState } from "$lib/setup-map";
 import { loadSetupForm } from "$lib/db";
 import { applySetup } from "./profile.svelte";
 import { setupForm } from "./setup-form.svelte";
+import { market } from "./market.svelte";
 
 /**
  * Session UI state. `configured` gates the setup page vs. the dial console;
@@ -17,5 +18,6 @@ export async function initSession(): Promise<void> {
     applySetup(buildProfileState(saved));
     session.configured = true;
   }
+  await market.loadCached();
   session.loaded = true;
 }
