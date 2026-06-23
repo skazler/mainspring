@@ -16,6 +16,9 @@
   "license": "MIT",
   "dependencies": {
     "@electric-sql/pglite": "^0.5.3",
+    "@fontsource/cinzel": "^5.2.8",
+    "@fontsource/jetbrains-mono": "^5.2.8",
+    "@fontsource/spectral": "^5.2.8",
     "@mainspring/engine": "workspace:*",
     "@mainspring/schema": "workspace:*",
     "@tauri-apps/api": "^2",
