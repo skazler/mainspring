@@ -1,6 +1,7 @@
 import { browser } from "$app/environment";
 import type { Bar } from "$lib/bridge/invoke";
 import type { Holding } from "$lib/holdings";
+import type { Scenario } from "$lib/scenario";
 import type { SetupForm } from "$lib/setup-map";
 
 /**
@@ -21,6 +22,12 @@ async function open() {
       d date NOT NULL,
       close double precision NOT NULL,
       PRIMARY KEY (ticker, d)
+    );
+    CREATE TABLE IF NOT EXISTS scenarios (
+      id text PRIMARY KEY,
+      name text NOT NULL,
+      form jsonb NOT NULL,
+      created_at timestamptz NOT NULL DEFAULT now()
     );
   `);
   return db;
@@ -105,4 +112,29 @@ export async function loadHoldings(): Promise<Holding[]> {
   const d = await db();
   const res = await d.query<{ value: Holding[] }>("SELECT value FROM app_state WHERE key = 'holdings';");
   return res.rows[0]?.value ?? [];
+}
+
+export async function saveScenario(s: Scenario): Promise<void> {
+  if (!browser) return;
+  const d = await db();
+  await d.query(
+    `INSERT INTO scenarios (id, name, form) VALUES ($1, $2, $3::jsonb)
+     ON CONFLICT (id) DO UPDATE SET name = $2, form = $3::jsonb;`,
+    [s.id, s.name, JSON.stringify(s.form)],
+  );
+}
+
+export async function listScenarios(): Promise<Scenario[]> {
+  if (!browser) return [];
+  const d = await db();
+  const res = await d.query<{ id: string; name: string; form: Scenario["form"]; created_at: string }>(
+    "SELECT id, name, form, created_at FROM scenarios ORDER BY created_at;",
+  );
+  return res.rows.map((r) => ({ id: r.id, name: r.name, form: r.form, createdAt: r.created_at }));
+}
+
+export async function deleteScenario(id: string): Promise<void> {
+  if (!browser) return;
+  const d = await db();
+  await d.query("DELETE FROM scenarios WHERE id = $1;", [id]);
 }

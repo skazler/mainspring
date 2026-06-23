@@ -11,6 +11,7 @@
   import TakeHomeReadout from "./TakeHomeReadout.svelte";
   import FireSummary from "./FireSummary.svelte";
   import FanChart from "./FanChart.svelte";
+  import ScenarioBar from "./ScenarioBar.svelte";
 
   const v = $derived(view.current);
 
@@ -24,6 +25,8 @@
     <span>MAINSPRING</span>
     <button class="edit" onclick={() => (session.configured = false)}>Edit setup</button>
   </header>
+
+  <ScenarioBar />
 
   <div class="readouts">
     <TakeHomeReadout net={v.net} gross={v.gross} tax={v.tax.total} />
