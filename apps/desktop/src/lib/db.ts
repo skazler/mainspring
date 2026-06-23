@@ -1,5 +1,6 @@
 import { browser } from "$app/environment";
 import type { Bar } from "$lib/bridge/invoke";
+import type { Holding } from "$lib/holdings";
 import type { SetupForm } from "$lib/setup-map";
 
 /**
@@ -76,4 +77,32 @@ export async function loadCloses(ticker: string): Promise<number[]> {
     [ticker],
   );
   return res.rows.map((r) => r.close);
+}
+
+/** Most recent cached close for a ticker, or null if none stored. */
+export async function latestClose(ticker: string): Promise<number | null> {
+  if (!browser) return null;
+  const d = await db();
+  const res = await d.query<{ close: number }>(
+    "SELECT close FROM market_bars WHERE ticker = $1 ORDER BY d DESC LIMIT 1;",
+    [ticker],
+  );
+  return res.rows[0]?.close ?? null;
+}
+
+export async function saveHoldings(holdings: Holding[]): Promise<void> {
+  if (!browser) return;
+  const d = await db();
+  await d.query(
+    `INSERT INTO app_state (key, value) VALUES ('holdings', $1::jsonb)
+     ON CONFLICT (key) DO UPDATE SET value = $1::jsonb;`,
+    [JSON.stringify(holdings)],
+  );
+}
+
+export async function loadHoldings(): Promise<Holding[]> {
+  if (!browser) return [];
+  const d = await db();
+  const res = await d.query<{ value: Holding[] }>("SELECT value FROM app_state WHERE key = 'holdings';");
+  return res.rows[0]?.value ?? [];
 }
