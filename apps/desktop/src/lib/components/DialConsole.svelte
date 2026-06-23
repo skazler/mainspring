@@ -12,6 +12,7 @@
   import FireSummary from "./FireSummary.svelte";
   import FanChart from "./FanChart.svelte";
   import ScenarioBar from "./ScenarioBar.svelte";
+  import Copilot from "./Copilot.svelte";
 
   const v = $derived(view.current);
 
@@ -26,6 +27,7 @@
     <button class="edit" onclick={() => (session.configured = false)}>Edit setup</button>
   </header>
 
+  <Copilot />
   <ScenarioBar />
 
   <div class="readouts">

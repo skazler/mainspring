@@ -47,6 +47,23 @@ export type AccountKind = z.infer<typeof accountKind>;
 export type LotSide = z.infer<typeof lotSide>;
 export type LotMethod = z.infer<typeof lotMethod>;
 
+/**
+ * AI copilot output — a structured, Zod-validated set of dial adjustments the
+ * engine applies. The LLM only ever produces this shape; raw account data never
+ * leaves the device (see docs/AI_WORKFLOWS.md).
+ */
+export const dialAdjustment = z.object({
+  bucket,
+  base: dialBase,
+  pct: zRate,
+});
+export const copilotCommand = z.object({
+  adjustments: z.array(dialAdjustment),
+  note: z.string().optional(),
+});
+export type DialAdjustment = z.infer<typeof dialAdjustment>;
+export type CopilotCommand = z.infer<typeof copilotCommand>;
+
 // ── insert validators (what the engine/UI hand to the DB) ─────────
 export const profileInsert = z.object({
   id: z.string().uuid().optional(),

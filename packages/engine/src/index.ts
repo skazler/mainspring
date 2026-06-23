@@ -47,3 +47,6 @@ export {
   isLongTerm,
 } from "./positions";
 export type { OpenLot, SaleInput, SaleResult, RealizedGains } from "./positions";
+
+// AI copilot
+export { applyCopilotCommand } from "./copilot";
