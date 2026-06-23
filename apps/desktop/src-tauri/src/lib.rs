@@ -1,3 +1,5 @@
+mod market;
+
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -14,7 +16,11 @@ fn run_forecast(params: sim::SimParams) -> sim::Forecast {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet, run_forecast])
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            run_forecast,
+            market::fetch_market
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
