@@ -1,6 +1,5 @@
 import { browser } from "$app/environment";
 import type { Bar } from "$lib/bridge/invoke";
-import type { Holding } from "$lib/holdings";
 import type { Scenario } from "$lib/scenario";
 import type { SetupForm } from "$lib/setup-map";
 
@@ -28,6 +27,15 @@ async function open() {
       name text NOT NULL,
       form jsonb NOT NULL,
       created_at timestamptz NOT NULL DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS lots (
+      id text PRIMARY KEY,
+      ticker text NOT NULL,
+      side text NOT NULL,
+      trade_date date NOT NULL,
+      shares numeric(18, 6) NOT NULL,
+      price numeric(18, 4) NOT NULL,
+      fee numeric(18, 4) NOT NULL DEFAULT 0
     );
   `);
   return db;
@@ -97,21 +105,50 @@ export async function latestClose(ticker: string): Promise<number | null> {
   return res.rows[0]?.close ?? null;
 }
 
-export async function saveHoldings(holdings: Holding[]): Promise<void> {
+/** A buy/sell lot as stored in the normalized `lots` table (money as exact strings). */
+export interface LotRow {
+  id: string;
+  ticker: string;
+  side: "buy" | "sell";
+  tradeDate: string;
+  shares: string;
+  price: string;
+  fee: string;
+}
+
+export async function loadLots(): Promise<LotRow[]> {
+  if (!browser) return [];
+  const d = await db();
+  const res = await d.query<{ id: string; ticker: string; side: "buy" | "sell"; trade_date: string; shares: string; price: string; fee: string }>(
+    "SELECT id, ticker, side, trade_date, shares, price, fee FROM lots ORDER BY trade_date, id;",
+  );
+  return res.rows.map((r) => ({
+    id: r.id,
+    ticker: r.ticker,
+    side: r.side,
+    tradeDate: r.trade_date,
+    shares: r.shares,
+    price: r.price,
+    fee: r.fee,
+  }));
+}
+
+export async function saveLot(lot: LotRow): Promise<void> {
   if (!browser) return;
   const d = await db();
   await d.query(
-    `INSERT INTO app_state (key, value) VALUES ('holdings', $1::jsonb)
-     ON CONFLICT (key) DO UPDATE SET value = $1::jsonb;`,
-    [JSON.stringify(holdings)],
+    `INSERT INTO lots (id, ticker, side, trade_date, shares, price, fee)
+     VALUES ($1, $2, $3, $4, $5::numeric, $6::numeric, $7::numeric)
+     ON CONFLICT (id) DO UPDATE SET
+       ticker = $2, side = $3, trade_date = $4, shares = $5::numeric, price = $6::numeric, fee = $7::numeric;`,
+    [lot.id, lot.ticker, lot.side, lot.tradeDate, lot.shares, lot.price, lot.fee],
   );
 }
 
-export async function loadHoldings(): Promise<Holding[]> {
-  if (!browser) return [];
+export async function deleteLot(id: string): Promise<void> {
+  if (!browser) return;
   const d = await db();
-  const res = await d.query<{ value: Holding[] }>("SELECT value FROM app_state WHERE key = 'holdings';");
-  return res.rows[0]?.value ?? [];
+  await d.query("DELETE FROM lots WHERE id = $1;", [id]);
 }
 
 export async function saveScenario(s: Scenario): Promise<void> {

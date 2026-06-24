@@ -48,21 +48,21 @@ export type LotSide = z.infer<typeof lotSide>;
 export type LotMethod = z.infer<typeof lotMethod>;
 
 /**
- * AI copilot output — a structured, Zod-validated set of dial adjustments the
- * engine applies. The LLM only ever produces this shape; raw account data never
- * leaves the device (see docs/AI_WORKFLOWS.md).
+ * AI assistant output — a structured, Zod-validated reply plus optional dial
+ * adjustments the engine applies. The model answers plan questions and may
+ * propose changes; raw account data never leaves the device (docs/AI_WORKFLOWS.md).
  */
 export const dialAdjustment = z.object({
   bucket,
   base: dialBase,
   pct: zRate,
 });
-export const copilotCommand = z.object({
-  adjustments: z.array(dialAdjustment),
-  note: z.string().optional(),
+export const assistantResponse = z.object({
+  reply: z.string(),
+  adjustments: z.array(dialAdjustment).optional(),
 });
 export type DialAdjustment = z.infer<typeof dialAdjustment>;
-export type CopilotCommand = z.infer<typeof copilotCommand>;
+export type AssistantResponse = z.infer<typeof assistantResponse>;
 
 // ── insert validators (what the engine/UI hand to the DB) ─────────
 export const profileInsert = z.object({
