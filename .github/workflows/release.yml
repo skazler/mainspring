@@ -1,0 +1,60 @@
+name: Release
+
+# Push a version tag to build the desktop app and publish a GitHub Release
+# with the installers attached (they appear under the repo's "Releases", which
+# is where app binaries live — GitHub "Packages" is for npm/Docker/etc.):
+#
+#   pnpm version 0.1.0 --no-git-tag-version   # optional: bump versions first
+#   git tag v0.1.0 && git push origin v0.1.0
+#
+# The release is created as a DRAFT — review it, then publish to make the
+# downloads public. Builds are UNSIGNED (no Apple Developer cert wired in);
+# first launch on macOS: right-click → Open. Add signing secrets later via
+# tauri-action's env (APPLE_CERTIFICATE, etc.).
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  release:
+    # macOS only for now (the primary target). Add windows-latest / ubuntu-latest
+    # to this matrix to ship those installers too (ubuntu needs the Tauri apt deps).
+    strategy:
+      matrix:
+        os: [macos-latest]
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build + publish release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: apps/desktop
+          tagName: ${{ github.ref_name }}
+          releaseName: "MAINSPRING ${{ github.ref_name }}"
+          releaseBody: "Local-first FIRE planner. Download the installer below. macOS builds are unsigned — first launch: right-click → Open."
+          releaseDraft: true
+          prerelease: false
