@@ -64,14 +64,14 @@ First run shows a **setup page** (income, taxes, contributions); it persists loc
 
 ## Build status
 
-Phases 0–8 of [`BUILD_PLAN.md`](./docs/BUILD_PLAN.md) are implemented, plus the optional AI copilot.
+Phases 0–8 of [`BUILD_PLAN.md`](./docs/BUILD_PLAN.md) are implemented, plus the optional AI assistant (the Almanac).
 
 | Area | State |
 |---|---|
 | Workspace + Tauri/Svelte 5 app, CI | ✅ |
 | Schema + `Money` (decimal.js) + PGlite | ✅ |
 | Tax engine (federal + FICA + TX, 2026) | ✅ golden-tested |
-| Positions + capital gains (lots, FIFO/spec-ID, NIIT) | ✅ engine + holdings UI |
+| Positions + capital gains (lots, FIFO/spec-ID, NIIT) | ✅ engine + lot-ledger UI (normalized `lots` table) |
 | Cashflow + allocation + `recompute` | ✅ property-tested |
 | Deterministic projection + steampunk gauges | ✅ |
 | Monte Carlo kernel (Rust) + fan chart | ✅ |
@@ -80,10 +80,10 @@ Phases 0–8 of [`BUILD_PLAN.md`](./docs/BUILD_PLAN.md) are implemented, plus th
 | Scenarios (save/load/compare) | ✅ |
 | Stock trend estimations (per-holding fan chart) | ✅ |
 | Theme polish + packaged `.app` build | ✅ |
-| AI assistant (plan Q&A + NL → validated dial changes) | ✅ (bring your own Anthropic key) |
+| AI assistant — the Almanac (plan Q&A + NL → validated dial changes) | ✅ (bring your own Anthropic key) |
 | Multi-device sync (ElectricSQL) | scaffold only — [`infra/sync`](./infra/sync) |
 
-Known follow-ups: macOS code-signing (needs an Apple Developer cert), Finnhub live quotes (needs a key), normalized persistence (currently JSON snapshots), a full buy/sell lot-ledger UI, and end-to-end sync wiring.
+Known follow-ups: macOS code-signing (needs an Apple Developer cert), Finnhub live quotes (needs a key), full *relational* profile persistence (the profile is a jsonb snapshot today; positions are normalized), and end-to-end sync wiring.
 
 ## Non-negotiables
 

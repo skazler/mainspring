@@ -1,24 +1,24 @@
 <script lang="ts">
-  import { assistant } from "$lib/stores/assistant.svelte";
+  import { almanac } from "$lib/stores/almanac.svelte";
 
   let showKey = $state(false);
 
   function onkeydown(e: KeyboardEvent) {
-    if (e.key === "Enter") assistant.ask();
+    if (e.key === "Enter") almanac.ask();
   }
 </script>
 
-<section class="assistant">
+<section class="almanac">
   <div class="row">
-    <span class="label">Assistant</span>
+    <span class="label">The Almanac<span class="sub">plan assistant</span></span>
     <input
       class="req"
-      placeholder="Ask about your plan, or say 'shift 5% from brokerage to my 401k'"
-      bind:value={assistant.request}
+      placeholder="Consult the Almanac — ask about your plan, or say 'shift 5% to my 401k'"
+      bind:value={almanac.request}
       {onkeydown}
     />
-    <button class="run" onclick={() => assistant.ask()} disabled={assistant.running}>
-      {assistant.running ? "Thinking…" : "Ask"}
+    <button class="run" onclick={() => almanac.ask()} disabled={almanac.running}>
+      {almanac.running ? "Consulting…" : "Consult"}
     </button>
   </div>
 
@@ -27,21 +27,21 @@
       class="apikey"
       type={showKey ? "text" : "password"}
       placeholder="Anthropic API key (stored locally)"
-      bind:value={assistant.apiKey}
+      bind:value={almanac.apiKey}
     />
     <button class="toggle" onclick={() => (showKey = !showKey)}>{showKey ? "hide" : "show"}</button>
   </div>
 
-  {#if assistant.error}<p class="warn">{assistant.error}</p>{/if}
-  {#if assistant.reply}
-    <p class="reply">{assistant.reply}</p>
-    {#if assistant.applied > 0}<p class="applied">Applied {assistant.applied} dial change{assistant.applied === 1 ? "" : "s"}.</p>{/if}
+  {#if almanac.error}<p class="warn">{almanac.error}</p>{/if}
+  {#if almanac.reply}
+    <p class="reply">{almanac.reply}</p>
+    {#if almanac.applied > 0}<p class="applied">Applied {almanac.applied} dial change{almanac.applied === 1 ? "" : "s"}.</p>{/if}
   {/if}
   <p class="disclaimer">Answers plan questions and can apply validated dial changes. Only dial percentages and derived ratios/ages are sent — never balances or income. Informational, not advice.</p>
 </section>
 
 <style>
-  .assistant {
+  .almanac {
     border: 1px solid var(--color-etch);
     border-radius: 10px;
     background: var(--color-panel);
@@ -58,9 +58,18 @@
     margin-top: 0.6rem;
   }
   .label {
+    display: flex;
+    flex-direction: column;
     font-family: var(--font-display);
     letter-spacing: 0.1em;
     color: var(--color-gilt);
+    white-space: nowrap;
+  }
+  .sub {
+    font-family: var(--font-body);
+    letter-spacing: 0.02em;
+    color: var(--color-dim);
+    font-size: 0.65rem;
   }
   input {
     background: var(--color-coal);

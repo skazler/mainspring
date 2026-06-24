@@ -67,7 +67,7 @@ function buildBody(request: string): string {
 }
 
 /** A general planning assistant: answers questions and may apply validated dial changes. */
-class AssistantStore {
+class AlmanacStore {
   apiKey = $state("");
   request = $state("");
   running = $state(false);
@@ -113,4 +113,4 @@ class AssistantStore {
   }
 }
 
-export const assistant = new AssistantStore();
+export const almanac = new AlmanacStore();
