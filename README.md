@@ -62,6 +62,16 @@ pnpm --filter desktop tauri build   # packaged MAINSPRING.app
 
 First run shows a **setup page** (income, taxes, contributions); it persists locally and the dial console follows.
 
+## Download
+
+Packaged installers are published under **[Releases](../../releases)** (GitHub "Packages" is for npm/Docker registries, not app binaries). To cut one, push a version tag — the [release workflow](./.github/workflows/release.yml) builds the app and attaches the installer:
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0   # creates a draft Release; publish it to share
+```
+
+macOS builds are currently **unsigned** (no Apple Developer cert) — first launch: right-click → **Open**.
+
 ## Build status
 
 Phases 0–8 of [`BUILD_PLAN.md`](./docs/BUILD_PLAN.md) are implemented, plus the optional AI assistant (the Almanac).
