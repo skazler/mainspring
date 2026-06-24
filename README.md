@@ -30,24 +30,24 @@ A desktop app (Tauri) where the entire money model — tax, allocations, project
 | Styling | Tailwind v4 + steampunk token layer |
 | Market data | yfinance + Finnhub (both free) |
 | Optional sync | ElectricSQL → self-hosted Postgres (multi-device only) |
-| Optional AI | local NL→dial copilot, MCP server for agent control |
+| Optional AI | general planning assistant (Q&A + NL→validated dial changes) via your own Anthropic key |
 
 ## Doc index (handled by agents)
 
 | File | For the agent building… |
 |---|---|
-| [`ARCHITECTURE.md`](./ARCHITECTURE.md) | system overview, diagrams, full stack, scaling & longevity, repo layout |
-| [`DOMAIN_MODEL.md`](./DOMAIN_MODEL.md) | entities, ER diagram, money-handling rules |
-| [`MONEY_ENGINE.md`](./MONEY_ENGINE.md) | the isomorphic TS core: cashflow + tax + allocation |
+| [`ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | system overview, diagrams, full stack, scaling & longevity, repo layout |
+| [`DOMAIN_MODEL.md`](./docs/DOMAIN_MODEL.md) | entities, ER diagram, money-handling rules |
+| [`MONEY_ENGINE.md`](./docs/MONEY_ENGINE.md) | the isomorphic TS core: cashflow + tax + allocation |
 | [`STOCK_MANAGEMENT.md`](./docs/STOCK_MANAGEMENT.md) | positions as a lot ledger, valuation, capital-gains tax |
-| [`PREDICTION_ENGINE.md`](./PREDICTION_ENGINE.md) | deterministic + Monte Carlo + FIRE metrics + Rust kernel + optional ML |
-| [`DATA_LAYER.md`](./DATA_LAYER.md) | PGlite + DuckDB, persistence, market data, optional sync |
-| [`FRONTEND.md`](./FRONTEND.md) | Svelte 5 + Tauri, the dial component, live recompute |
-| [`DESIGN_SYSTEM.md`](./DESIGN_SYSTEM.md) | steampunk design tokens, gauges, type |
-| [`AI_WORKFLOWS.md`](./AI_WORKFLOWS.md) | how to build it *with* agents + optional in-app AI |
-| [`BUILD_PLAN.md`](./BUILD_PLAN.md) | phased milestones with acceptance criteria |
-| [`TESTING.md`](./TESTING.md) | golden + property + E2E strategy |
-| [`COSTS.md`](./COSTS.md) | running-cost breakdown ($0 local) |
+| [`PREDICTION_ENGINE.md`](./docs/PREDICTION_ENGINE.md) | deterministic + Monte Carlo + FIRE metrics + Rust kernel + optional ML |
+| [`DATA_LAYER.md`](./docs/DATA_LAYER.md) | PGlite + DuckDB, persistence, market data, optional sync |
+| [`FRONTEND.md`](./docs/FRONTEND.md) | Svelte 5 + Tauri, the dial component, live recompute |
+| [`DESIGN_SYSTEM.md`](./docs/DESIGN_SYSTEM.md) | steampunk design tokens, gauges, type |
+| [`AI_WORKFLOWS.md`](./docs/AI_WORKFLOWS.md) | how to build it *with* agents + optional in-app AI |
+| [`BUILD_PLAN.md`](./docs/BUILD_PLAN.md) | phased milestones with acceptance criteria |
+| [`TESTING.md`](./docs/TESTING.md) | golden + property + E2E strategy |
+| [`COSTS.md`](./docs/COSTS.md) | running-cost breakdown ($0 local) |
 
 ## Quickstart
 
@@ -80,7 +80,7 @@ Phases 0–8 of [`BUILD_PLAN.md`](./docs/BUILD_PLAN.md) are implemented, plus th
 | Scenarios (save/load/compare) | ✅ |
 | Stock trend estimations (per-holding fan chart) | ✅ |
 | Theme polish + packaged `.app` build | ✅ |
-| AI copilot (NL → validated dial changes) | ✅ (bring your own Anthropic key) |
+| AI assistant (plan Q&A + NL → validated dial changes) | ✅ (bring your own Anthropic key) |
 | Multi-device sync (ElectricSQL) | scaffold only — [`infra/sync`](./infra/sync) |
 
 Known follow-ups: macOS code-signing (needs an Apple Developer cert), Finnhub live quotes (needs a key), normalized persistence (currently JSON snapshots), a full buy/sell lot-ledger UI, and end-to-end sync wiring.

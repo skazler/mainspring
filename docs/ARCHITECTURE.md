@@ -177,3 +177,78 @@ Bounded contexts map to packages so an agent can own one at a time:
 | Data & persistence | `packages/schema` + `apps/desktop/src-tauri` | [`DATA_LAYER.md`](./DATA_LAYER.md) |
 | UI & dials | `apps/desktop/src` + `packages/ui` | [`FRONTEND.md`](./FRONTEND.md) |
 | Theme | `packages/ui` | [`DESIGN_SYSTEM.md`](./DESIGN_SYSTEM.md) |
+
+---
+
+## 8. As-built module map
+
+What's actually implemented today (phases 0–8 + the AI assistant). UI components and the steampunk token layer currently live in `apps/desktop/src/lib` rather than a separate `packages/ui` (extraction is a later refactor).
+
+```mermaid
+graph TB
+    subgraph schema["packages/schema"]
+        MONEY["Money (decimal.js)"]
+        TABLES["Drizzle tables + Zod\n(incl. assistantResponse)"]
+    end
+    subgraph engine["packages/engine (pure TS)"]
+        TAX["tax/ (brackets·fica·state·capgains)"]
+        ALLOC["allocation/ (allocate·constraints)"]
+        CASH["cashflow/"]
+        FIRE["fire/ (projection·metrics)"]
+        POS["positions/ (lots·ledger·value)"]
+        MKT["market/ (μ/σ stats)"]
+        ASSIST["copilot (applyDialAdjustments)"]
+        RECOMPUTE["recompute()"]
+    end
+    SIM["crates/sim (Rust MC kernel)\nnative + wasm-ready"]
+    subgraph desktop["apps/desktop"]
+        subgraph web["WebView — Svelte 5"]
+            STORES["stores/ (profile·derived·forecast·\nmarket·lots·scenarios·assistant·session)"]
+            COMPONENTS["components/ (Gauge·DialConsole·FanChart·\nHoldings·ScenarioBar·Assistant·Setup)"]
+            DB["db.ts → PGlite (IndexedDB)"]
+            BRIDGE["bridge/invoke.ts"]
+        end
+        subgraph rust["src-tauri (Rust)"]
+            CMDS["commands: run_forecast ·\nfetch_market · anthropic_message"]
+        end
+    end
+    EXT["yfinance · Anthropic API"]
+
+    TABLES --> MONEY
+    engine --> schema
+    RECOMPUTE --> TAX & ALLOC & CASH & FIRE
+    STORES --> RECOMPUTE
+    COMPONENTS --> STORES
+    STORES --> DB
+    STORES --> BRIDGE --> CMDS
+    CMDS --> SIM
+    CMDS --> EXT
+    POS --> SIM
+```
+
+## 9. Implemented runtime flows
+
+```mermaid
+sequenceDiagram
+    participant U as You
+    participant S as Svelte stores
+    participant E as engine (TS, in-webview)
+    participant R as Rust commands
+    participant X as external
+
+    U->>S: drag gauge / edit setup
+    S->>E: recompute(profile)
+    E-->>S: net · buckets · FIRE date (same frame)
+    Note over S,X: on demand only ↓
+    U->>S: Run forecast
+    S->>R: invoke run_forecast
+    R-->>S: p10/p50/p90 + success prob → FanChart
+    U->>S: Refresh market data
+    S->>R: invoke fetch_market
+    R->>X: yfinance (native HTTP)
+    R-->>S: bars → PGlite → μ/σ
+    U->>S: Ask the assistant
+    S->>R: invoke anthropic_message (key native)
+    R->>X: Anthropic API (claude-opus-4-8, structured output)
+    R-->>S: reply + validated adjustments → engine applies (clamped)
+```
