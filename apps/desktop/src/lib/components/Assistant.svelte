@@ -1,24 +1,24 @@
 <script lang="ts">
-  import { copilot } from "$lib/stores/copilot.svelte";
+  import { assistant } from "$lib/stores/assistant.svelte";
 
   let showKey = $state(false);
 
   function onkeydown(e: KeyboardEvent) {
-    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) copilot.run();
+    if (e.key === "Enter") assistant.ask();
   }
 </script>
 
-<section class="copilot">
+<section class="assistant">
   <div class="row">
-    <span class="label">Copilot</span>
+    <span class="label">Assistant</span>
     <input
       class="req"
-      placeholder="e.g. max out my 401k and put the rest in brokerage"
-      bind:value={copilot.request}
+      placeholder="Ask about your plan, or say 'shift 5% from brokerage to my 401k'"
+      bind:value={assistant.request}
       {onkeydown}
     />
-    <button class="run" onclick={() => copilot.run()} disabled={copilot.running}>
-      {copilot.running ? "Thinking…" : "Ask"}
+    <button class="run" onclick={() => assistant.ask()} disabled={assistant.running}>
+      {assistant.running ? "Thinking…" : "Ask"}
     </button>
   </div>
 
@@ -27,18 +27,21 @@
       class="apikey"
       type={showKey ? "text" : "password"}
       placeholder="Anthropic API key (stored locally)"
-      bind:value={copilot.apiKey}
+      bind:value={assistant.apiKey}
     />
     <button class="toggle" onclick={() => (showKey = !showKey)}>{showKey ? "hide" : "show"}</button>
   </div>
 
-  {#if copilot.error}<p class="warn">{copilot.error}</p>{/if}
-  {#if copilot.note}<p class="note">{copilot.note}</p>{/if}
-  <p class="disclaimer">Natural-language requests become validated dial changes the engine applies. Only your dial percentages are sent — never balances or income.</p>
+  {#if assistant.error}<p class="warn">{assistant.error}</p>{/if}
+  {#if assistant.reply}
+    <p class="reply">{assistant.reply}</p>
+    {#if assistant.applied > 0}<p class="applied">Applied {assistant.applied} dial change{assistant.applied === 1 ? "" : "s"}.</p>{/if}
+  {/if}
+  <p class="disclaimer">Answers plan questions and can apply validated dial changes. Only dial percentages and derived ratios/ages are sent — never balances or income. Informational, not advice.</p>
 </section>
 
 <style>
-  .copilot {
+  .assistant {
     border: 1px solid var(--color-etch);
     border-radius: 10px;
     background: var(--color-panel);
@@ -101,10 +104,16 @@
     color: var(--color-oxblood);
     margin: 0.6rem 0 0;
   }
-  .note {
-    color: var(--color-lime-rust);
+  .reply {
+    color: var(--color-parchment);
     font-family: var(--font-body);
     margin: 0.6rem 0 0;
+    white-space: pre-wrap;
+  }
+  .applied {
+    color: var(--color-lime-rust);
+    font-family: var(--font-body);
+    margin: 0.3rem 0 0;
   }
   .disclaimer {
     color: var(--color-dim);

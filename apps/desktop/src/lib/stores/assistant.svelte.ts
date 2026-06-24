@@ -1,25 +1,25 @@
-import { applyCopilotCommand } from "@mainspring/engine";
-import { copilotCommand } from "@mainspring/schema";
+import { applyDialAdjustments } from "@mainspring/engine";
+import { assistantResponse } from "@mainspring/schema";
 import { BUCKET_OPTIONS } from "$lib/buckets";
 import { anthropicMessage } from "$lib/bridge/invoke";
 import { loadApiKey, saveApiKey } from "$lib/db";
 import { profile } from "./profile.svelte";
+import { view } from "./derived.svelte";
 
 const BUCKETS = BUCKET_OPTIONS.map((o) => o.bucket);
 const BASES = ["gross", "net", "post_tax_savings"] as const;
 
-const SYSTEM = `You translate a natural-language request into allocation-dial adjustments for a personal FIRE (financial independence) planner.
-- Only adjust allocation percentages. Each adjustment sets a dial's fraction of its base.
-- pct is a decimal STRING in [0,1] (e.g. "0.15" for 15%).
-- Only use buckets and bases from the provided lists. Do not invent new ones.
-- You receive only the user's current dial percentages — never their balances or income. Reason about percentages only.
-- Return the structured command. Use "note" for a one-line plain explanation.`;
+const SYSTEM = `You are a financial-independence (FIRE) planning assistant inside a private desktop app.
+- Answer the user's question about their plan clearly and concisely using the provided context.
+- If (and only if) they ask to change their allocations, include "adjustments": each sets a dial's fraction of its base (pct is a decimal STRING in [0,1]). Use only the listed buckets/bases.
+- You receive only allocation percentages and derived ratios/ages — never the user's actual income, balances, or dollar amounts. Don't claim to know dollar figures.
+- This is informational, not financial advice. Always put your answer in "reply".`;
 
-// JSON-schema for structured output (mirrors @mainspring/schema copilotCommand).
 const schema = {
   type: "object",
   additionalProperties: false,
   properties: {
+    reply: { type: "string" },
     adjustments: {
       type: "array",
       items: {
@@ -33,18 +33,28 @@ const schema = {
         required: ["bucket", "base", "pct"],
       },
     },
-    note: { type: "string" },
   },
-  required: ["adjustments"],
+  required: ["reply"],
 };
 
 function buildBody(request: string): string {
-  const currentDials = profile.dials.map((d) => ({ bucket: d.bucket, base: d.base, pct: d.pct }));
+  const v = view.current;
+  const context = {
+    dials: profile.dials.map((d) => ({ bucket: d.bucket, base: d.base, pct: d.pct })),
+    metrics: {
+      savingsRate: v.savingsRate,
+      fiAge: v.fire.fiAge,
+      yearsToFI: v.fire.yearsToFI,
+      alreadyFI: v.fire.alreadyFI,
+      effectiveTaxRate: v.tax.effectiveRate,
+      marginalTaxRate: v.tax.marginalRate,
+    },
+  };
   const userContent = [
     `Available buckets: ${BUCKETS.join(", ")}`,
     `Available bases: ${BASES.join(", ")}`,
-    `Current dials: ${JSON.stringify(currentDials)}`,
-    `Request: ${request}`,
+    `Plan context (ratios/ages only): ${JSON.stringify(context)}`,
+    `User: ${request}`,
   ].join("\n");
 
   return JSON.stringify({
@@ -56,19 +66,20 @@ function buildBody(request: string): string {
   });
 }
 
-/** Natural-language → validated dial adjustments the engine applies. */
-class CopilotStore {
+/** A general planning assistant: answers questions and may apply validated dial changes. */
+class AssistantStore {
   apiKey = $state("");
   request = $state("");
   running = $state(false);
   error = $state<string | null>(null);
-  note = $state<string | null>(null);
+  reply = $state<string | null>(null);
+  applied = $state(0);
 
   async loadKey(): Promise<void> {
     this.apiKey = await loadApiKey();
   }
 
-  async run(): Promise<void> {
+  async ask(): Promise<void> {
     if (!this.apiKey.trim()) {
       this.error = "Set your Anthropic API key first.";
       return;
@@ -76,7 +87,6 @@ class CopilotStore {
     if (!this.request.trim()) return;
     this.running = true;
     this.error = null;
-    this.note = null;
     try {
       await saveApiKey(this.apiKey);
       const raw = await anthropicMessage(this.apiKey, buildBody(this.request));
@@ -88,9 +98,12 @@ class CopilotStore {
       if (resp.type === "error") throw new Error(resp.error?.message ?? "API error");
       const text = resp.content?.find((b) => b.type === "text")?.text;
       if (!text) throw new Error("No structured output returned.");
-      const command = copilotCommand.parse(JSON.parse(text));
-      profile.dials = applyCopilotCommand(profile.dials, command);
-      this.note = command.note ?? "Applied.";
+      const answer = assistantResponse.parse(JSON.parse(text));
+      this.reply = answer.reply;
+      this.applied = answer.adjustments?.length ?? 0;
+      if (answer.adjustments?.length) {
+        profile.dials = applyDialAdjustments(profile.dials, answer.adjustments);
+      }
       this.request = "";
     } catch (e) {
       this.error = e instanceof Error ? e.message : String(e);
@@ -100,4 +113,4 @@ class CopilotStore {
   }
 }
 
-export const copilot = new CopilotStore();
+export const assistant = new AssistantStore();

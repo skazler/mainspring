@@ -45,8 +45,9 @@ export {
   openShares,
   realizeSale,
   isLongTerm,
+  rollUpLots,
 } from "./positions";
-export type { OpenLot, SaleInput, SaleResult, RealizedGains } from "./positions";
+export type { OpenLot, SaleInput, SaleResult, RealizedGains, LedgerLot, TickerPosition } from "./positions";
 
-// AI copilot
-export { applyCopilotCommand } from "./copilot";
+// AI assistant
+export { applyDialAdjustments } from "./copilot";

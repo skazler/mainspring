@@ -3,7 +3,7 @@ import { loadSetupForm } from "$lib/db";
 import { applySetup } from "./profile.svelte";
 import { setupForm } from "./setup-form.svelte";
 import { market } from "./market.svelte";
-import { copilot } from "./copilot.svelte";
+import { assistant } from "./assistant.svelte";
 
 /**
  * Session UI state. `configured` gates the setup page vs. the dial console;
@@ -24,6 +24,6 @@ export async function initSession(): Promise<void> {
     session.configured = true;
   }
   await market.loadCached();
-  await copilot.loadKey();
+  await assistant.loadKey();
   session.loaded = true;
 }
