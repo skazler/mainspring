@@ -39,7 +39,8 @@ export function defaultSetupForm(): SetupForm {
     currentAge: 32,
     targetRetireAge: 60,
     currentBalance: 150000,
-    annualExpenses: 45000,
+    // No unitemized lump — essentials are itemized as bills in Outflows.
+    annualExpenses: 0,
     swrPercent: 4,
     realReturnPercent: 5,
     employerMatchPercent: 0,
@@ -78,5 +79,30 @@ export function buildProfileState(form: SetupForm): ProfileState {
       targetRetireAge: form.targetRetireAge,
     },
     dials,
+  };
+}
+
+function defaultContribution(o: (typeof BUCKET_OPTIONS)[number]): ContributionForm {
+  return {
+    bucket: o.bucket,
+    base: o.base,
+    enabled: o.defaultEnabled ?? false,
+    percent: o.defaultPercent ?? 0,
+    ...(o.cap ? { cap: o.cap } : {}),
+  };
+}
+
+/**
+ * Reconcile a loaded form with the current bucket catalog: keep the user's
+ * values for buckets that still exist, add any newly-introduced ones with their
+ * defaults, and drop retired ones. Also clears any legacy unitemized expense
+ * lump so essentials come only from itemized bills.
+ */
+export function normalizeSetupForm(form: SetupForm): SetupForm {
+  const byBucket = new Map(form.contributions.map((c) => [c.bucket, c]));
+  return {
+    ...form,
+    annualExpenses: 0,
+    contributions: BUCKET_OPTIONS.map((o) => byBucket.get(o.bucket) ?? defaultContribution(o)),
   };
 }

@@ -84,7 +84,7 @@ describe("recompute — income → pre-tax → tax → net → buckets", () => {
     const b1 = withBills.buckets.find((b) => b.bucket === "brokerage")!;
     expect(b1.amount.compare(b0.amount)).toBe(-1);
     // Essentials = baseline living (40k) + bills (9k); slices still sum to gross
-    expect(withBills.whereItGoes.find((s) => s.label === "Essentials")!.amount.toString()).toBe("49000.0000");
+    expect(withBills.whereItGoes.find((s) => s.label === "Bills & essentials")!.amount.toString()).toBe("49000.0000");
     expect(withBills.whereItGoes.find((s) => s.label === "Bills")).toBeUndefined();
     const sum = withBills.whereItGoes.reduce((a, s) => a.add(s.amount), Money.zero());
     expect(sum.toString()).toBe("120000.0000");

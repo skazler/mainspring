@@ -1,9 +1,14 @@
-import { goalStatus, type GoalStatus } from "@mainspring/engine";
+import { annualizeItem, goalStatus, type GoalStatus } from "@mainspring/engine";
 import { Money } from "@mainspring/schema";
 import { deleteGoal, loadGoals, saveGoal, type GoalRow } from "$lib/db";
 import { profile } from "./profile.svelte";
 
 const today = () => new Date().toISOString().slice(0, 10);
+
+/** Annual amount a goal's contribution adds up to (0 if none). */
+function annualContribution(g: GoalRow): Money {
+  return g.contribution ? annualizeItem({ amount: Money.of(g.contribution), cadence: g.cadence }) : Money.zero();
+}
 
 /** Which stage a goal is at in the checklist. */
 export type GoalPhase = "done" | "active" | "planned";
@@ -19,15 +24,22 @@ class GoalsStore {
   error = $state<string | null>(null);
 
   status(g: GoalRow): GoalStatus {
+    // The engine works in months; convert whatever cadence to a monthly figure.
+    const monthly = g.contribution ? annualContribution(g).multiply(String(1 / 12)) : null;
     return goalStatus(
       {
         target: Money.of(g.targetAmount),
         saved: Money.of(g.savedAmount),
-        ...(g.monthlyContribution ? { monthlyContribution: Money.of(g.monthlyContribution) } : {}),
+        ...(monthly ? { monthlyContribution: monthly } : {}),
         ...(g.targetDate ? { targetDate: g.targetDate } : {}),
       },
       today(),
     );
+  }
+
+  /** Annualized contribution for a goal (for readouts and the budget drill-down). */
+  annual(g: GoalRow): Money {
+    return annualContribution(g);
   }
 
   private complete(g: GoalRow): boolean {
@@ -51,8 +63,7 @@ class GoalsStore {
   /** Only the active goal claims the savings pool; planned goals wait their turn. */
   private syncPlan(): void {
     const active = this.rows.find((g) => g.id === this.activeId);
-    const monthly = active?.monthlyContribution ? Money.of(active.monthlyContribution) : Money.zero();
-    profile.annualGoalContributions = monthly.multiply("12");
+    profile.annualGoalContributions = active ? annualContribution(active) : Money.zero();
   }
 
   async load(): Promise<void> {

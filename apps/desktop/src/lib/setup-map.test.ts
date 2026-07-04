@@ -9,10 +9,11 @@ describe("buildProfileState", () => {
     expect(p.taxProfile).toEqual({ filingStatus: "single", state: "TX", taxYear: 2026 });
     expect(p.plan.swr).toBe("0.04");
     expect(p.plan.realReturn).toBe("0.05");
-    expect(p.annualExpenses.toString()).toBe("45000.0000");
+    // no unitemized baseline — essentials come from itemized bills
+    expect(p.annualExpenses.toString()).toBe("0.0000");
 
-    // only the enabled buckets become dials: 401k, ira, brokerage, emergency
-    expect(p.dials.map((d) => d.bucket)).toEqual(["401k_pretax", "ira", "brokerage", "emergency"]);
+    // only the enabled buckets become dials: 401k, ira, brokerage
+    expect(p.dials.map((d) => d.bucket)).toEqual(["401k_pretax", "ira", "brokerage"]);
     const k401 = p.dials.find((d) => d.bucket === "401k_pretax")!;
     expect(k401.pct).toBe("0.15");
     expect(k401.annualCap?.toString()).toBe("24500.0000");
@@ -25,10 +26,7 @@ describe("buildProfileState", () => {
     const form = defaultSetupForm();
     form.state = "tx";
     form.contributions = form.contributions.map((c) =>
-      c.bucket === "brokerage" ? { ...c, enabled: false } : c,
-    );
-    form.contributions = form.contributions.map((c) =>
-      c.bucket === "emergency" ? { ...c, percent: 0 } : c,
+      c.bucket === "brokerage" ? { ...c, percent: 0 } : c,
     );
     const p = buildProfileState(form);
     expect(p.taxProfile.state).toBe("TX");

@@ -57,10 +57,12 @@ async function open() {
       saved_amount numeric(18, 4) NOT NULL DEFAULT 0,
       target_date date,
       monthly_contribution numeric(18, 4),
+      contribution_cadence text NOT NULL DEFAULT 'monthly',
       sort_order integer NOT NULL DEFAULT 0,
       created_at timestamptz NOT NULL DEFAULT now()
     );
     ALTER TABLE goals ADD COLUMN IF NOT EXISTS sort_order integer NOT NULL DEFAULT 0;
+    ALTER TABLE goals ADD COLUMN IF NOT EXISTS contribution_cadence text NOT NULL DEFAULT 'monthly';
     CREATE TABLE IF NOT EXISTS recurring (
       id text PRIMARY KEY,
       label text NOT NULL,
@@ -222,14 +224,19 @@ export async function deleteSpending(id: string): Promise<void> {
   await d.query("DELETE FROM spending WHERE id = $1;", [id]);
 }
 
-/** A savings goal (money as exact strings). `sortOrder` sequences the checklist. */
+/**
+ * A savings goal (money as exact strings). `contribution` is the amount set aside
+ * per `cadence`; `sortOrder` sequences the checklist. (The physical column is still
+ * `monthly_contribution` for back-compat, but the value is per-cadence now.)
+ */
 export interface GoalRow {
   id: string;
   name: string;
   targetAmount: string;
   savedAmount: string;
   targetDate: string | null;
-  monthlyContribution: string | null;
+  contribution: string | null;
+  cadence: "weekly" | "biweekly" | "monthly" | "quarterly" | "annual";
   sortOrder: number;
 }
 
@@ -243,9 +250,10 @@ export async function loadGoals(): Promise<GoalRow[]> {
     saved_amount: string;
     target_date: string | null;
     monthly_contribution: string | null;
+    contribution_cadence: GoalRow["cadence"];
     sort_order: number;
   }>(
-    "SELECT id, name, target_amount, saved_amount, target_date::text AS target_date, monthly_contribution, sort_order, created_at FROM goals ORDER BY sort_order, created_at;",
+    "SELECT id, name, target_amount, saved_amount, target_date::text AS target_date, monthly_contribution, contribution_cadence, sort_order, created_at FROM goals ORDER BY sort_order, created_at;",
   );
   return res.rows.map((r) => ({
     id: r.id,
@@ -253,7 +261,8 @@ export async function loadGoals(): Promise<GoalRow[]> {
     targetAmount: r.target_amount,
     savedAmount: r.saved_amount,
     targetDate: r.target_date,
-    monthlyContribution: r.monthly_contribution,
+    contribution: r.monthly_contribution,
+    cadence: r.contribution_cadence,
     sortOrder: r.sort_order,
   }));
 }
@@ -262,11 +271,11 @@ export async function saveGoal(g: GoalRow): Promise<void> {
   if (!browser) return;
   const d = await db();
   await d.query(
-    `INSERT INTO goals (id, name, target_amount, saved_amount, target_date, monthly_contribution, sort_order)
-     VALUES ($1, $2, $3::numeric, $4::numeric, $5, $6, $7)
+    `INSERT INTO goals (id, name, target_amount, saved_amount, target_date, monthly_contribution, contribution_cadence, sort_order)
+     VALUES ($1, $2, $3::numeric, $4::numeric, $5, $6, $7, $8)
      ON CONFLICT (id) DO UPDATE SET
-       name = $2, target_amount = $3::numeric, saved_amount = $4::numeric, target_date = $5, monthly_contribution = $6, sort_order = $7;`,
-    [g.id, g.name, g.targetAmount, g.savedAmount, g.targetDate, g.monthlyContribution, g.sortOrder],
+       name = $2, target_amount = $3::numeric, saved_amount = $4::numeric, target_date = $5, monthly_contribution = $6, contribution_cadence = $7, sort_order = $8;`,
+    [g.id, g.name, g.targetAmount, g.savedAmount, g.targetDate, g.contribution, g.cadence, g.sortOrder],
   );
 }
 

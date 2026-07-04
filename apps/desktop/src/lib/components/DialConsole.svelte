@@ -22,7 +22,7 @@
 
   // Every dollar of income as a read-only dial — taxes, essentials (bills),
   // spending, investing, goals, leftover. Consuming slices read as outflow (red).
-  const CONSUMING = new Set(["Taxes", "Essentials", "Spending"]);
+  const CONSUMING = new Set(["Taxes", "Bills & essentials", "Spending"]);
   const grossN = $derived(Number(v.gross.toString()));
   const flowDials = $derived(
     v.whereItGoes

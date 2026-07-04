@@ -1,0 +1,1 @@
+ALTER TABLE "goals" ADD COLUMN "contribution_cadence" text DEFAULT 'monthly' NOT NULL;
