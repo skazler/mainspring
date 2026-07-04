@@ -32,3 +32,5 @@ export type Spending = InferSelectModel<typeof t.spending>;
 export type NewSpending = InferInsertModel<typeof t.spending>;
 export type NetWorthSnapshot = InferSelectModel<typeof t.netWorthSnapshots>;
 export type NewNetWorthSnapshot = InferInsertModel<typeof t.netWorthSnapshots>;
+export type Goal = InferSelectModel<typeof t.goals>;
+export type NewGoal = InferInsertModel<typeof t.goals>;

@@ -46,6 +46,10 @@ export interface ProfileState {
   annualExpenses: Money;
   /** Annualized variable/discretionary spending (from the spending tracker). Default 0. */
   variableAnnualSpending?: Money;
+  /** Annualized recurring commitments — insurance, car, subscriptions, API costs. Default 0. */
+  annualCommitments?: Money;
+  /** Annualized savings-goal contributions (from the goals tracker). Default 0. */
+  annualGoalContributions?: Money;
   plan: PlanInput;
 }
 
@@ -69,8 +73,14 @@ export interface RecomputeView {
   buckets: BucketAllocation[];
   /** Unallocated remainder per base. */
   leftover: Record<DialBase, Money>;
-  /** annualExpenses + variable spending — drives the savings pool and FI number. */
+  /** annualExpenses + recurring commitments + variable spending — drives the savings pool and FI number. */
   totalExpenses: Money;
+  /** Annualized recurring commitments (bills). */
+  commitments: Money;
+  /** Annualized savings-goal contributions (claims the pool alongside dials). */
+  goalContributions: Money;
+  /** Where each gross dollar goes; slices sum to gross (for the proportions graph). */
+  whereItGoes: { label: string; amount: Money }[];
   totalContributions: Money;
   /** totalContributions / net. */
   savingsRate: string;
