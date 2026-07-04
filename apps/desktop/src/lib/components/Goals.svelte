@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { formatUsd } from "$lib/format";
   import { goals } from "$lib/stores/goals.svelte";
+  import { hints } from "$lib/stores/hints.svelte";
   import type { GoalRow } from "$lib/db";
   import ConfirmButton from "./ConfirmButton.svelte";
 
@@ -55,7 +56,9 @@
 
 <section class="goals">
   <header class="title">Savings goals</header>
-  <p class="lede">An ordered checklist of sinking funds. Goals fund <strong>one at a time</strong> — the top unfinished goal is active and claims its contribution from your plan; the rest are planned and wait their turn. Reorder with ▲▼.</p>
+  {#if hints.show}
+    <p class="lede">An ordered checklist of sinking funds. Goals fund <strong>one at a time</strong> — the top unfinished goal is active and claims its contribution from your plan; the rest are planned and wait their turn. Reorder with ▲▼.</p>
+  {/if}
 
   <form class="add" onsubmit={add}>
     <input class="nm" placeholder="Goal (e.g. house down payment)" bind:value={draft.name} />

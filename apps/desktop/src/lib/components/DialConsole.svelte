@@ -7,6 +7,7 @@
   import { session } from "$lib/stores/session.svelte";
   import { forecast } from "$lib/stores/forecast.svelte";
   import { market } from "$lib/stores/market.svelte";
+  import { hints } from "$lib/stores/hints.svelte";
   import Gauge from "./Gauge.svelte";
   import TakeHomeReadout from "./TakeHomeReadout.svelte";
   import FireSummary from "./FireSummary.svelte";
@@ -20,19 +21,36 @@
 
   const propSlices = $derived(v.whereItGoes.map((s) => ({ label: s.label, amount: Number(s.amount.toString()) })));
 
-  // Every dollar of income as a read-only dial — taxes, essentials (bills),
-  // spending, investing, goals, leftover. Consuming slices read as outflow (red).
-  const CONSUMING = new Set(["Taxes", "Bills & essentials", "Spending"]);
-  const grossN = $derived(Number(v.gross.toString()));
-  const flowDials = $derived(
-    v.whereItGoes
-      .filter((s) => Number(s.amount.toString()) > 0)
-      .map((s) => ({
-        label: s.label,
-        pct: grossN > 0 ? Number(s.amount.toString()) / grossN : 0,
-        amount: formatMoney(s.amount),
-        outflow: CONSUMING.has(s.label),
-      })),
+  // Editable contribution dials, split by tax treatment.
+  const dialIdx = $derived(profile.dials.map((d, i) => ({ d, i })));
+  const preTaxDials = $derived(dialIdx.filter((x) => x.d.base === "gross"));
+  const postTaxDialsEditable = $derived(dialIdx.filter((x) => x.d.base !== "gross"));
+
+  // Read-only "post-tax distribution": where take-home (net) actually goes.
+  const sliceOf = (label: string) => v.whereItGoes.find((s) => s.label === label)?.amount ?? Money.zero();
+  const netN = $derived(Number(v.net.toString()));
+  const CONSUMING = new Set(["Bills & essentials", "Spending"]);
+  const distribution = $derived(
+    (() => {
+      const preTaxContrib = v.buckets
+        .filter((b) => b.base === "gross")
+        .reduce((sum, b) => sum.add(b.amount), Money.zero());
+      const taxableInvesting = v.ownContributions.subtract(preTaxContrib);
+      const rows = [
+        { label: "Bills & essentials", amount: sliceOf("Bills & essentials") },
+        { label: "Spending", amount: sliceOf("Spending") },
+        { label: "Goals", amount: sliceOf("Goals") },
+        { label: "Taxable investing", amount: taxableInvesting },
+      ];
+      return rows
+        .filter((r) => Number(r.amount.toString()) > 0)
+        .map((r) => ({
+          label: r.label,
+          pct: netN > 0 ? Number(r.amount.toString()) / netN : 0,
+          amount: formatMoney(r.amount),
+          outflow: CONSUMING.has(r.label),
+        }));
+    })(),
   );
 
   function allocFor(bucket: string, base: string) {
@@ -46,22 +64,20 @@
     <button class="edit" onclick={() => (session.configured = false)}>Edit setup</button>
   </header>
 
-  <div class="dashboard">
-    <div class="panel">
-      <h3>Net worth → coast & FI</h3>
-      <NetWorthChart
-        currentBalance={profile.plan.currentBalance}
-        annualContribution={v.totalContributions}
-        realReturn={profile.plan.realReturn}
-        currentAge={profile.plan.currentAge}
-        targetRetireAge={profile.plan.targetRetireAge}
-        coast={v.fire.coastNumber}
-        fi={v.fire.fiNumber}
-        discretionary={v.commitments.add(profile.variableAnnualSpending ?? Money.zero())}
-      />
-    </div>
-    <div class="panel">
-      <h3>Where every dollar goes</h3>
+  <div class="panel graph">
+    <h3>Net worth → coast & FI</h3>
+    <NetWorthChart
+      currentBalance={profile.plan.currentBalance}
+      annualContribution={v.totalContributions}
+      realReturn={profile.plan.realReturn}
+      currentAge={profile.plan.currentAge}
+      targetRetireAge={profile.plan.targetRetireAge}
+      coast={v.fire.coastNumber}
+      fi={v.fire.fiNumber}
+      discretionary={v.commitments.add(profile.variableAnnualSpending ?? Money.zero())}
+    />
+    <div class="dollar-bar">
+      <span class="bar-label">Where every dollar goes</span>
       <Proportions slices={propSlices} total={Number(v.gross.toString())} />
     </div>
   </div>
@@ -71,27 +87,48 @@
     <FireSummary fire={v.fire} savingsRate={v.savingsRate} employerMatch={v.employerMatch} />
   </div>
 
-  <div class="gauges">
-    {#each profile.dials as dial, i (dial.bucket + "/" + dial.base)}
-      {@const a = allocFor(dial.bucket, dial.base)}
-      <Gauge
-        label={bucketLabel(dial.bucket)}
-        pct={Number(dial.pct)}
-        amount={formatMoney(a ? a.amount : Money.zero())}
-        clamped={a?.clampedByCap ?? false}
-        onChange={(p) => setDialPct(i, p)}
-      />
-    {/each}
-  </div>
+  {#if preTaxDials.length > 0}
+    <h3 class="group-title">Pre-tax contributions</h3>
+    <div class="gauges">
+      {#each preTaxDials as { d, i } (d.bucket + "/" + d.base)}
+        {@const a = allocFor(d.bucket, d.base)}
+        <Gauge
+          label={bucketLabel(d.bucket)}
+          pct={Number(d.pct)}
+          amount={formatMoney(a ? a.amount : Money.zero())}
+          clamped={a?.clampedByCap ?? false}
+          onChange={(p) => setDialPct(i, p)}
+        />
+      {/each}
+    </div>
+  {/if}
+
+  {#if postTaxDialsEditable.length > 0}
+    <h3 class="group-title">Post-tax investing</h3>
+    <div class="gauges">
+      {#each postTaxDialsEditable as { d, i } (d.bucket + "/" + d.base)}
+        {@const a = allocFor(d.bucket, d.base)}
+        <Gauge
+          label={bucketLabel(d.bucket)}
+          pct={Number(d.pct)}
+          amount={formatMoney(a ? a.amount : Money.zero())}
+          clamped={a?.clampedByCap ?? false}
+          onChange={(p) => setDialPct(i, p)}
+        />
+      {/each}
+    </div>
+  {/if}
 
   {#if v.overAllocated}
     <p class="warn">Allocations exceed a base — trim a dial.</p>
   {/if}
 
-  <h3 class="flow-title">Where your income goes</h3>
-  <p class="flow-sub">Every dollar of gross income as a dial — from taxes to subscriptions. Read-only; adjust the levers above or in Outflows.</p>
+  <h3 class="flow-title">Post-tax distribution</h3>
+  {#if hints.show}
+    <p class="flow-sub">Where your take-home pay lands after taxes — as a share of net income. Read-only; adjust the levers above or in Outflows.</p>
+  {/if}
   <div class="gauges flow-gauges">
-    {#each flowDials as f (f.label)}
+    {#each distribution as f (f.label)}
       <Gauge label={f.label} pct={f.pct} amount={f.amount} outflow={f.outflow} />
     {/each}
   </div>
@@ -141,17 +178,6 @@
     margin: 0 auto;
     padding: 2rem 1.5rem 4rem;
   }
-  .dashboard {
-    display: grid;
-    grid-template-columns: 1.4fr 1fr;
-    gap: 1.25rem;
-    margin-bottom: 2.5rem;
-  }
-  @media (max-width: 720px) {
-    .dashboard {
-      grid-template-columns: 1fr;
-    }
-  }
   .panel {
     border: 1px solid var(--color-etch);
     border-radius: 10px;
@@ -161,6 +187,33 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
+  }
+  .panel.graph {
+    margin-bottom: 2.5rem;
+  }
+  /* Slim "where every dollar goes" bar integrated under the chart. */
+  .dollar-bar {
+    margin-top: 1rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--color-etch);
+  }
+  .bar-label {
+    display: block;
+    text-align: center;
+    font-family: var(--font-body);
+    color: var(--color-dim);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+  .group-title {
+    text-align: center;
+    font-family: var(--font-display);
+    color: var(--color-gilt);
+    letter-spacing: 0.1em;
+    font-size: 0.9rem;
+    margin: 0 0 1.2rem;
   }
   .panel h3 {
     font-family: var(--font-display);
@@ -210,6 +263,7 @@
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 1.5rem 1rem;
     justify-items: center;
+    margin-bottom: 2.2rem;
   }
   .flow-title {
     text-align: center;
@@ -217,18 +271,19 @@
     color: var(--color-gilt);
     letter-spacing: 0.1em;
     font-size: 0.95rem;
-    margin: 3rem 0 0.2rem;
+    border-top: 1px solid var(--color-etch);
+    padding-top: 1.8rem;
+    margin: 1.5rem 0 0.2rem;
   }
   .flow-sub {
     text-align: center;
     color: var(--color-dim);
     font-family: var(--font-body);
     font-size: 0.82rem;
-    margin: 0 0 1.5rem;
+    margin: 0.2rem 0 1.5rem;
   }
   .flow-gauges {
-    border-top: 1px solid var(--color-etch);
-    padding-top: 1.8rem;
+    margin-top: 1.2rem;
   }
   .warn {
     margin-top: 1.5rem;

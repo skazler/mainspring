@@ -7,6 +7,7 @@
   import { recurring } from "$lib/stores/recurring.svelte";
   import { goals } from "$lib/stores/goals.svelte";
   import { view } from "$lib/stores/derived.svelte";
+  import { hints } from "$lib/stores/hints.svelte";
   import Donut from "./Donut.svelte";
   import Proportions from "./Proportions.svelte";
   import ConfirmButton from "./ConfirmButton.svelte";
@@ -144,7 +145,9 @@
 
 <section class="spending">
   <header class="title">Outflows</header>
-  <p class="lede">Everything leaving your account — fixed commitments and day-to-day spending. Both feed your total expenses, so your savings pool and freedom date move with them.</p>
+  {#if hints.show}
+    <p class="lede">Everything leaving your account — fixed commitments and day-to-day spending. Both feed your total expenses, so your savings pool and freedom date move with them.</p>
+  {/if}
 
   <div class="cashflow" class:over={spareN < 0}>
     <div class="verdict">
@@ -210,7 +213,9 @@
 
   <div class="block">
     <h2 class="section">Bills &amp; essentials</h2>
-    <p class="hint">Everything fixed and recurring — rent/mortgage, groceries, utilities, insurance, car, subscriptions, API costs. Itemize them here and they drill down under "Bills &amp; essentials" in your budget.</p>
+    {#if hints.show}
+      <p class="hint">Everything fixed and recurring — rent/mortgage, groceries, utilities, insurance, car, subscriptions, API costs. Itemize them here and they drill down under "Bills &amp; essentials" in your budget.</p>
+    {/if}
 
     <form class="add" onsubmit={addBill}>
       <input class="lbl" placeholder="What is it? (e.g. Rent, Car insurance)" bind:value={bill.label} />
@@ -257,7 +262,9 @@
   </div>
 
   <h2 class="section">Variable spending</h2>
-  <p class="hint">Discretionary purchases. The plan uses <strong>this month's</strong> spending projected out, and resets at the start of each month — so one heavy month doesn't haunt your budget forever.</p>
+  {#if hints.show}
+    <p class="hint">Discretionary purchases. The plan uses <strong>this month's</strong> spending projected out, and resets at the start of each month — so one heavy month doesn't haunt your budget forever.</p>
+  {/if}
 
   <form class="add" onsubmit={add}>
     <input class="cat" list="cats" placeholder="Category" bind:value={draft.category} />

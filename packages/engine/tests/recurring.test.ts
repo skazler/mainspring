@@ -37,7 +37,7 @@ describe("recurring commitments", () => {
       { amount: Money.of("999"), cadence: "monthly", category: "car", active: false }, // skipped
     ]);
     expect(rows.map((r) => r.category)).toEqual(["insurance", "software dev"]);
-    expect(rows[0].annual.toString()).toBe("1200.0000");
-    expect(rows[1].annual.toString()).toBe("540.0000");
+    expect(rows[0]!.annual.toString()).toBe("1200.0000");
+    expect(rows[1]!.annual.toString()).toBe("540.0000");
   });
 });

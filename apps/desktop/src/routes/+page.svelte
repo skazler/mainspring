@@ -6,6 +6,7 @@
   import Goals from "$lib/components/Goals.svelte";
   import Setup from "$lib/components/Setup.svelte";
   import { initSession, session } from "$lib/stores/session.svelte";
+  import { hints } from "$lib/stores/hints.svelte";
 
   onMount(() => {
     void initSession();
@@ -20,6 +21,7 @@
     <button class:active={session.tab === "holdings"} onclick={() => (session.tab = "holdings")}>Holdings</button>
     <button class:active={session.tab === "spending"} onclick={() => (session.tab = "spending")}>Outflows</button>
     <button class:active={session.tab === "goals"} onclick={() => (session.tab = "goals")}>Goals</button>
+    <button class="tips" class:on={hints.show} title="Show or hide explanatory tips" onclick={() => hints.toggle()}>ⓘ</button>
   </nav>
   {#if session.tab === "plan"}
     <DialConsole />
@@ -62,5 +64,13 @@
     color: var(--color-coal);
     background: var(--color-brass);
     border-color: var(--color-brass);
+  }
+  .tabs button.tips {
+    padding: 0.4rem 0.7rem;
+    color: var(--color-dim);
+  }
+  .tabs button.tips.on {
+    color: var(--color-gilt);
+    border-color: var(--color-gilt);
   }
 </style>
