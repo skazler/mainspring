@@ -4,7 +4,7 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 import { eq } from "drizzle-orm";
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
-import { Money, accounts, lots, profiles, schema } from "../src/index";
+import { Money, accounts, lots, profiles, schema, spending } from "../src/index";
 
 const migrationsFolder = fileURLToPath(new URL("../drizzle", import.meta.url));
 
@@ -104,6 +104,26 @@ describe("lots ledger round-trip", () => {
     expect(byDate[0]!.price.toString()).toBe("200.1234");
     expect(byDate[0]!.fee.toString()).toBe("0.0000"); // DB default
     expect(byDate[1]!.fee.toString()).toBe("4.9500");
+  });
+});
+
+describe("variable spending round-trip", () => {
+  it("stores discretionary purchases with exact amounts", async () => {
+    const db = await freshDb();
+    const [p] = await db
+      .insert(profiles)
+      .values({ displayName: "Spender", birthDate: "1990-01-01", targetRetireAge: 55, annualExpenses: Money.of("40000"), swr: "0.0400", realReturn: "0.0500" })
+      .returning();
+    expect(p!.realReturn).toBe("0.0500"); // new profiles column round-trips
+
+    await db.insert(spending).values([
+      { profileId: p!.id, category: "coffee", amount: Money.of("4.75"), spentAt: "2026-07-01" },
+      { profileId: p!.id, category: "clothes", label: "jacket", amount: Money.of("129.99"), spentAt: "2026-07-03" },
+    ]);
+    const rows = await db.select().from(spending);
+    expect(rows).toHaveLength(2);
+    const total = rows.reduce((a, r) => a.add(r.amount), Money.zero());
+    expect(total.toString()).toBe("134.7400");
   });
 });
 

@@ -120,6 +120,15 @@ export const lotInsert = z.object({
   closesLotId: z.string().uuid().nullable().optional(),
 });
 
+export const spendingInsert = z.object({
+  id: z.string().uuid().optional(),
+  profileId: z.string().uuid(),
+  category: z.string().min(1),
+  label: z.string().nullable().optional(),
+  amount: zMoney,
+  spentAt: z.string(), // ISO date
+});
+
 export const holdingInsert = z.object({
   id: z.string().uuid().optional(),
   accountId: z.string().uuid(),

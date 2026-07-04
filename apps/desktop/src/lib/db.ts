@@ -37,6 +37,19 @@ async function open() {
       price numeric(18, 4) NOT NULL,
       fee numeric(18, 4) NOT NULL DEFAULT 0
     );
+    CREATE TABLE IF NOT EXISTS spending (
+      id text PRIMARY KEY,
+      category text NOT NULL,
+      label text,
+      amount numeric(18, 4) NOT NULL,
+      spent_at date NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS net_worth_snapshots (
+      id text PRIMARY KEY,
+      captured_at timestamptz NOT NULL DEFAULT now(),
+      total numeric(18, 4) NOT NULL,
+      breakdown jsonb
+    );
   `);
   return db;
 }
@@ -149,6 +162,51 @@ export async function deleteLot(id: string): Promise<void> {
   if (!browser) return;
   const d = await db();
   await d.query("DELETE FROM lots WHERE id = $1;", [id]);
+}
+
+/** A variable-spending entry (amount as an exact string). */
+export interface SpendingRow {
+  id: string;
+  category: string;
+  label: string | null;
+  amount: string;
+  spentAt: string;
+}
+
+export async function loadSpending(): Promise<SpendingRow[]> {
+  if (!browser) return [];
+  const d = await db();
+  const res = await d.query<{ id: string; category: string; label: string | null; amount: string; spent_at: string }>(
+    "SELECT id, category, label, amount, spent_at FROM spending ORDER BY spent_at DESC, id;",
+  );
+  return res.rows.map((r) => ({ id: r.id, category: r.category, label: r.label, amount: r.amount, spentAt: r.spent_at }));
+}
+
+export async function saveSpending(row: SpendingRow): Promise<void> {
+  if (!browser) return;
+  const d = await db();
+  await d.query(
+    `INSERT INTO spending (id, category, label, amount, spent_at)
+     VALUES ($1, $2, $3, $4::numeric, $5)
+     ON CONFLICT (id) DO UPDATE SET category = $2, label = $3, amount = $4::numeric, spent_at = $5;`,
+    [row.id, row.category, row.label, row.amount, row.spentAt],
+  );
+}
+
+export async function deleteSpending(id: string): Promise<void> {
+  if (!browser) return;
+  const d = await db();
+  await d.query("DELETE FROM spending WHERE id = $1;", [id]);
+}
+
+/** Append a net-worth snapshot (history for the dashboard's net-worth line). */
+export async function recordNetWorth(total: string, breakdown?: unknown): Promise<void> {
+  if (!browser) return;
+  const d = await db();
+  await d.query(
+    "INSERT INTO net_worth_snapshots (id, total, breakdown) VALUES ($1, $2::numeric, $3::jsonb);",
+    [crypto.randomUUID(), total, breakdown ? JSON.stringify(breakdown) : null],
+  );
 }
 
 export async function saveScenario(s: Scenario): Promise<void> {
