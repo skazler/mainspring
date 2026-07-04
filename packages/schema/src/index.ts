@@ -28,3 +28,7 @@ export type Forecast = InferSelectModel<typeof t.forecasts>;
 export type NewForecast = InferInsertModel<typeof t.forecasts>;
 export type MarketBar = InferSelectModel<typeof t.marketBars>;
 export type NewMarketBar = InferInsertModel<typeof t.marketBars>;
+export type Spending = InferSelectModel<typeof t.spending>;
+export type NewSpending = InferInsertModel<typeof t.spending>;
+export type NetWorthSnapshot = InferSelectModel<typeof t.netWorthSnapshots>;
+export type NewNetWorthSnapshot = InferInsertModel<typeof t.netWorthSnapshots>;

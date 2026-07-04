@@ -15,6 +15,44 @@ Single-user. Local-first. Privacy-critical (this holds your real money, so by de
 
 A desktop app (Tauri) where the entire money model — tax, allocations, projections — is one shared TypeScript engine that runs instantly on-device, persisted to a local Postgres-compatible store, with a Rust simulation kernel for Monte Carlo forecasting. No server required. No round-trip to move a dial.
 
+## How it works (at a glance)
+
+Everything lives on your machine. A **pure TypeScript engine** does all the money math *in the app*, so the dials feel instant; a **Rust kernel** handles the one heavy job (Monte Carlo); a **local Postgres (PGlite)** holds your data. Two things only happen if you opt in: fetching market prices, and asking the AI.
+
+```mermaid
+flowchart TB
+    subgraph machine["🖥️ Your machine — nothing leaves it by default"]
+      direction TB
+      subgraph app["MAINSPRING (Tauri desktop app)"]
+        UI["Steampunk UI\ngauges · dashboard · charts"]
+        ENGINE["Money engine — TypeScript\ntax · allocation · spending · FIRE · positions"]
+        KERNEL["Monte Carlo kernel — Rust"]
+      end
+      DB[("Local Postgres · PGlite\nyour data, on disk")]
+    end
+    OPT["yfinance · Anthropic\n(opt-in only)"]
+
+    UI <-->|"drag a dial"| ENGINE
+    ENGINE -->|"instant: take-home, buckets, freedom date"| UI
+    UI -->|"'Run forecast' (heavy)"| KERNEL
+    app <-->|"read / write"| DB
+    app -. "you choose" .-> OPT
+```
+
+**The core loop is a straight line — no network, no server, same frame:**
+
+```mermaid
+sequenceDiagram
+    participant You
+    participant App as UI (Svelte)
+    participant Engine as Engine (TS, in-app)
+    You->>App: drag a gauge / log a coffee
+    App->>Engine: recompute(profile)
+    Engine-->>App: take-home · every bucket · FI date (<16ms)
+```
+
+**Why it's built this way:** the money engine is a *pure, framework-free* package with no UI/DB/network dependencies — it's the durable asset. UI (Svelte), shell (Tauri), store (PGlite), and kernel (Rust) are all replaceable around it. Deep dives: [`ARCHITECTURE.md`](./docs/ARCHITECTURE.md) (as-built diagrams) · [`SCHEMA.md`](./docs/SCHEMA.md) (every table).
+
 ## Stack at a glance
 
 | Concern | Choice |
@@ -38,6 +76,7 @@ A desktop app (Tauri) where the entire money model — tax, allocations, project
 |---|---|
 | [`ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | system overview, diagrams, full stack, scaling & longevity, repo layout |
 | [`DOMAIN_MODEL.md`](./docs/DOMAIN_MODEL.md) | entities, ER diagram, money-handling rules |
+| [`SCHEMA.md`](./docs/SCHEMA.md) | full backend schema reference — every table + column |
 | [`MONEY_ENGINE.md`](./docs/MONEY_ENGINE.md) | the isomorphic TS core: cashflow + tax + allocation |
 | [`STOCK_MANAGEMENT.md`](./docs/STOCK_MANAGEMENT.md) | positions as a lot ledger, valuation, capital-gains tax |
 | [`PREDICTION_ENGINE.md`](./docs/PREDICTION_ENGINE.md) | deterministic + Monte Carlo + FIRE metrics + Rust kernel + optional ML |

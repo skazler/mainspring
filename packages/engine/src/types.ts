@@ -42,7 +42,10 @@ export interface ProfileState {
   incomeSources: IncomeSourceInput[];
   dials: DialInput[];
   taxProfile: TaxProfileInput;
+  /** Fixed/essential annual expenses. */
   annualExpenses: Money;
+  /** Annualized variable/discretionary spending (from the spending tracker). Default 0. */
+  variableAnnualSpending?: Money;
   plan: PlanInput;
 }
 
@@ -66,6 +69,8 @@ export interface RecomputeView {
   buckets: BucketAllocation[];
   /** Unallocated remainder per base. */
   leftover: Record<DialBase, Money>;
+  /** annualExpenses + variable spending — drives the savings pool and FI number. */
+  totalExpenses: Money;
   totalContributions: Money;
   /** totalContributions / net. */
   savingsRate: string;

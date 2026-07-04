@@ -49,5 +49,9 @@ export {
 } from "./positions";
 export type { OpenLot, SaleInput, SaleResult, RealizedGains, LedgerLot, TickerPosition } from "./positions";
 
+// spending
+export { annualizeSpending, spendingByCategory } from "./spending/annualize";
+export type { SpendingEntry } from "./spending/annualize";
+
 // AI assistant
 export { applyDialAdjustments } from "./copilot";

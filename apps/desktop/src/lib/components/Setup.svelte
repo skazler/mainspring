@@ -5,10 +5,14 @@
   import { buildProfileState } from "$lib/setup-map";
   import { applySetup } from "$lib/stores/profile.svelte";
   import { session } from "$lib/stores/session.svelte";
-  import { setupForm } from "$lib/stores/setup-form.svelte";
+  import { markSetupSaved, setupBaseline, setupForm } from "$lib/stores/setup-form.svelte";
   import { Money } from "@mainspring/schema";
 
   const form = setupForm;
+  let error = $state<string | null>(null);
+
+  // Changed from the last saved state? Drives the disabled/confirm behavior.
+  const dirty = $derived(JSON.stringify(form) !== setupBaseline.json);
 
   const FREQUENCIES = [
     { v: "annual", l: "Annual" },
@@ -25,18 +29,42 @@
   // Only no-income-tax states are modeled so far (see engine/tax/state.ts).
   const STATES = ["TX", "FL", "WA", "NV", "TN", "NH", "SD", "WY", "AK"];
 
-  async function start(e: Event) {
+  function start(e: Event) {
     e.preventDefault();
-    applySetup(buildProfileState(form));
-    await saveSetupForm(form);
+    error = null;
+    try {
+      applySetup(buildProfileState(form));
+    } catch (err) {
+      error = err instanceof Error ? err.message : String(err);
+      return;
+    }
+    // Advance immediately — don't block the UI on persistence (it can hang/fail
+    // in a packaged build). Save in the background and surface any error.
+    session.configured = true;
+    session.hasProfile = true;
+    markSetupSaved();
+    saveSetupForm(form).catch((err) => {
+      error = `Saved in memory, but couldn't persist: ${err instanceof Error ? err.message : String(err)}`;
+    });
+  }
+
+  function back() {
+    if (dirty && !confirm("Return without saving your changes?")) return;
+    // discard unsaved edits by reverting to the saved baseline
+    Object.assign(form, JSON.parse(setupBaseline.json));
+    error = null;
     session.configured = true;
   }
 </script>
 
 <form class="setup" onsubmit={start}>
   <header>
+    {#if session.hasProfile}
+      <button type="button" class="back" onclick={back}>← Back</button>
+    {/if}
     <h1>MAINSPRING</h1>
     <p class="sub">Set the scene — your income, taxes, and what you're saving into.</p>
+    {#if error}<p class="err">{error}</p>{/if}
   </header>
 
   <fieldset>
@@ -87,7 +115,9 @@
     {/each}
   </fieldset>
 
-  <button type="submit">Wind it up →</button>
+  <button type="submit" disabled={session.hasProfile && !dirty}>
+    {session.hasProfile ? "Save changes →" : "Wind it up →"}
+  </button>
 </form>
 
 <style>
@@ -101,6 +131,27 @@
   }
   header {
     text-align: center;
+    position: relative;
+  }
+  .back {
+    position: absolute;
+    left: 0;
+    top: 0;
+    background: transparent;
+    border: 1px solid var(--color-etch);
+    border-radius: 6px;
+    color: var(--color-soot);
+    font-family: var(--font-body);
+    padding: 0.4rem 0.8rem;
+    cursor: pointer;
+  }
+  .back:hover {
+    color: var(--color-gilt);
+    border-color: var(--color-gilt);
+  }
+  .err {
+    color: var(--color-oxblood);
+    font-family: var(--font-body);
   }
   h1 {
     font-family: var(--font-display);
@@ -204,7 +255,11 @@
     padding: 0.7rem 2rem;
     cursor: pointer;
   }
-  button[type="submit"]:hover {
+  button[type="submit"]:hover:not(:disabled) {
     background: var(--color-gilt);
+  }
+  button[type="submit"]:disabled {
+    opacity: 0.45;
+    cursor: default;
   }
 </style>

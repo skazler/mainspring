@@ -41,6 +41,8 @@ export const profiles = pgTable("profiles", {
   targetRetireAge: integer("target_retire_age").notNull(),
   annualExpenses: money("annual_expenses").notNull(),
   swr: rate("swr").notNull(),
+  /** Assumed real (inflation-adjusted) return for projections, e.g. 0.05. */
+  realReturn: rate("real_return"),
 });
 
 export const incomeSources = pgTable("income_sources", {
@@ -158,6 +160,31 @@ export const marketBars = pgTable(
   (t) => [primaryKey({ columns: [t.ticker, t.d] })],
 );
 
+// Variable / discretionary spending (coffee, clothes, dining…). Feeds total
+// expenses, so it flows into the savings pool, FI number, and net worth.
+export const spending = pgTable("spending", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  profileId: uuid("profile_id")
+    .notNull()
+    .references(() => profiles.id, { onDelete: "cascade" }),
+  category: text("category").notNull(),
+  label: text("label"),
+  amount: money("amount").notNull(),
+  spentAt: date("spent_at").notNull(),
+});
+
+// Point-in-time net-worth captures → the historical net-worth line.
+export const netWorthSnapshots = pgTable("net_worth_snapshots", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  profileId: uuid("profile_id")
+    .notNull()
+    .references(() => profiles.id, { onDelete: "cascade" }),
+  capturedAt: timestamp("captured_at", { withTimezone: true }).notNull().defaultNow(),
+  total: money("total").notNull(),
+  /** Per-account/section breakdown. */
+  breakdown: jsonb("breakdown"),
+});
+
 export const schema = {
   profiles,
   incomeSources,
@@ -170,4 +197,6 @@ export const schema = {
   scenarios,
   forecasts,
   marketBars,
+  spending,
+  netWorthSnapshots,
 };

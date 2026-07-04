@@ -43,8 +43,10 @@ export function recompute(state: ProfileState): RecomputeView {
   });
   const net = tax.net;
 
-  // 4. Net- and post-tax-savings-base dials. The savings pool is take-home after living expenses.
-  const postTaxSavings = maxMoney(net.subtract(state.annualExpenses), Money.zero());
+  // 4. Net- and post-tax-savings-base dials. Total expenses = fixed + variable
+  //    spending; the savings pool is take-home after all living expenses.
+  const totalExpenses = state.annualExpenses.add(state.variableAnnualSpending ?? Money.zero());
+  const postTaxSavings = maxMoney(net.subtract(totalExpenses), Money.zero());
   const netAlloc = allocateBase(net, "net", state.dials.filter((d) => d.base === "net"));
   const savingsAlloc = allocateBase(
     postTaxSavings,
@@ -63,7 +65,7 @@ export function recompute(state: ProfileState): RecomputeView {
   const fire = fireMetrics({
     currentBalance: state.plan.currentBalance,
     annualContribution: totalContributions,
-    annualExpenses: state.annualExpenses,
+    annualExpenses: totalExpenses,
     swr: state.plan.swr,
     realReturn: state.plan.realReturn,
     currentAge: state.plan.currentAge,
@@ -77,6 +79,7 @@ export function recompute(state: ProfileState): RecomputeView {
     net,
     buckets,
     leftover,
+    totalExpenses,
     totalContributions,
     savingsRate: net.isZero() ? "0.000000" : totalContributions.ratioTo(net),
     overAllocated: grossAlloc.overAllocated || netAlloc.overAllocated || savingsAlloc.overAllocated,

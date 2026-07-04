@@ -42,6 +42,28 @@ describe("recompute — income → pre-tax → tax → net → buckets", () => {
     expect(r.overAllocated).toBe(false);
   });
 
+  it("variable spending raises total expenses, the FI number, and shrinks the savings pool", () => {
+    const base: ProfileState = {
+      incomeSources: [{ grossAmount: Money.of("120000"), frequency: "annual" }],
+      annualExpenses: Money.of("40000"),
+      taxProfile: { filingStatus: "single", state: "TX", taxYear: 2026 },
+      plan: { currentBalance: Money.of("0"), swr: "0.04", realReturn: "0.05", currentAge: 35, targetRetireAge: 65 },
+      dials: [{ bucket: "brokerage", base: "post_tax_savings", pct: "0.5", priority: 1 }],
+    };
+    const without = recompute(base);
+    const withSpend = recompute({ ...base, variableAnnualSpending: Money.of("12000") });
+
+    expect(without.totalExpenses.toString()).toBe("40000.0000");
+    expect(withSpend.totalExpenses.toString()).toBe("52000.0000");
+    // FI number = totalExpenses / swr → 40k/.04=1,000,000 vs 52k/.04=1,300,000
+    expect(without.fire.fiNumber.toString()).toBe("1000000.0000");
+    expect(withSpend.fire.fiNumber.toString()).toBe("1300000.0000");
+    // savings pool (post_tax_savings base) shrinks by the extra spend, so the brokerage dial contributes less
+    const b0 = without.buckets.find((b) => b.bucket === "brokerage")!;
+    const b1 = withSpend.buckets.find((b) => b.bucket === "brokerage")!;
+    expect(b1.amount.compare(b0.amount)).toBe(-1);
+  });
+
   it("handles zero income without dividing by zero", () => {
     const r = recompute({
       incomeSources: [],

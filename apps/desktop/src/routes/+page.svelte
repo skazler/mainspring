@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import DialConsole from "$lib/components/DialConsole.svelte";
   import Holdings from "$lib/components/Holdings.svelte";
+  import Spending from "$lib/components/Spending.svelte";
   import Setup from "$lib/components/Setup.svelte";
   import { initSession, session } from "$lib/stores/session.svelte";
 
@@ -16,11 +17,14 @@
   <nav class="tabs">
     <button class:active={session.tab === "plan"} onclick={() => (session.tab = "plan")}>Plan</button>
     <button class:active={session.tab === "holdings"} onclick={() => (session.tab = "holdings")}>Holdings</button>
+    <button class:active={session.tab === "spending"} onclick={() => (session.tab = "spending")}>Spending</button>
   </nav>
   {#if session.tab === "plan"}
     <DialConsole />
-  {:else}
+  {:else if session.tab === "holdings"}
     <Holdings />
+  {:else}
+    <Spending />
   {/if}
 {:else}
   <Setup />
