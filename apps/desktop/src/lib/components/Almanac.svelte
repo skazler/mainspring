@@ -1,10 +1,19 @@
 <script lang="ts">
   import { almanac } from "$lib/stores/almanac.svelte";
 
+  // The key field stays hidden until it's actually needed.
   let showKey = $state(false);
 
+  function consult() {
+    if (!almanac.apiKey.trim()) {
+      showKey = true; // no key yet — reveal the field to enter one
+      return;
+    }
+    showKey = false;
+    almanac.ask();
+  }
   function onkeydown(e: KeyboardEvent) {
-    if (e.key === "Enter") almanac.ask();
+    if (e.key === "Enter") consult();
   }
 </script>
 
@@ -17,27 +26,33 @@
       bind:value={almanac.request}
       {onkeydown}
     />
-    <button class="run" onclick={() => almanac.ask()} disabled={almanac.running}>
+    <button class="run" onclick={consult} disabled={almanac.running}>
       {almanac.running ? "Consulting…" : "Consult"}
     </button>
   </div>
 
-  <div class="row key">
-    <input
-      class="apikey"
-      type={showKey ? "text" : "password"}
-      placeholder="Anthropic API key (stored locally)"
-      bind:value={almanac.apiKey}
-    />
-    <button class="toggle" onclick={() => (showKey = !showKey)}>{showKey ? "hide" : "show"}</button>
-  </div>
+  {#if showKey}
+    <div class="row key">
+      <input
+        class="apikey"
+        type="password"
+        placeholder="Paste your Anthropic API key to enable the Almanac (stored locally)"
+        bind:value={almanac.apiKey}
+        onkeydown={(e) => e.key === "Enter" && consult()}
+      />
+      <button class="toggle" onclick={consult}>Save</button>
+    </div>
+  {/if}
 
   {#if almanac.error}<p class="warn">{almanac.error}</p>{/if}
   {#if almanac.reply}
     <p class="reply">{almanac.reply}</p>
     {#if almanac.applied > 0}<p class="applied">Applied {almanac.applied} dial change{almanac.applied === 1 ? "" : "s"}.</p>{/if}
   {/if}
-  <p class="disclaimer">Answers plan questions and can apply validated dial changes. Only dial percentages and derived ratios/ages are sent — never balances or income. Informational, not advice.</p>
+  <p class="disclaimer">
+    Answers plan questions and can apply validated dial changes. Only dial percentages and derived ratios/ages are sent — never balances or income. Informational, not advice.{#if almanac.apiKey.trim()}
+      <button class="linkkey" onclick={() => (showKey = !showKey)}>· change API key</button>{/if}
+  </p>
 </section>
 
 <style>
@@ -128,5 +143,18 @@
     color: var(--color-dim);
     font-size: 0.75rem;
     margin: 0.6rem 0 0;
+  }
+  .linkkey {
+    background: transparent;
+    border: none;
+    color: var(--color-dim);
+    font-size: 0.75rem;
+    cursor: pointer;
+    padding: 0;
+    font-family: var(--font-body);
+  }
+  .linkkey:hover {
+    color: var(--color-soot);
+    text-decoration: underline;
   }
 </style>

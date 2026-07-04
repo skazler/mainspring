@@ -38,6 +38,7 @@ A desktop app (Tauri) where the entire money model — tax, allocations, project
 |---|---|
 | [`ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | system overview, diagrams, full stack, scaling & longevity, repo layout |
 | [`DOMAIN_MODEL.md`](./docs/DOMAIN_MODEL.md) | entities, ER diagram, money-handling rules |
+| [`SCHEMA.md`](./docs/SCHEMA.md) | full backend schema reference — every table + column |
 | [`MONEY_ENGINE.md`](./docs/MONEY_ENGINE.md) | the isomorphic TS core: cashflow + tax + allocation |
 | [`STOCK_MANAGEMENT.md`](./docs/STOCK_MANAGEMENT.md) | positions as a lot ledger, valuation, capital-gains tax |
 | [`PREDICTION_ENGINE.md`](./docs/PREDICTION_ENGINE.md) | deterministic + Monte Carlo + FIRE metrics + Rust kernel + optional ML |
