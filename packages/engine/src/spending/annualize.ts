@@ -21,6 +21,22 @@ export function annualizeSpending(entries: readonly SpendingEntry[]): Money {
   return total.multiply(new Decimal(12).div(months.size));
 }
 
+/**
+ * Current run-rate: the given month's spending × 12. Resets naturally each month
+ * (a new month starts from zero), so the plan reflects "this month, projected
+ * out" rather than a lifetime average.
+ */
+export function annualizeMonth(entries: readonly SpendingEntry[], month: string): Money {
+  return monthTotal(entries, month).multiply("12");
+}
+
+/** Sum of a single month's entries (YYYY-MM), no annualization. */
+export function monthTotal(entries: readonly SpendingEntry[], month: string): Money {
+  return entries
+    .filter((e) => String(e.spentAt).slice(0, 7) === month)
+    .reduce((sum, e) => sum.add(e.amount), Money.zero());
+}
+
 /** Totals per category, largest first — for the spending breakdown. */
 export function spendingByCategory(entries: readonly SpendingEntry[]): { category: string; total: Money }[] {
   const map = new Map<string, Money>();

@@ -1,4 +1,4 @@
-import { annualizeSpending, spendingByCategory, type SpendingEntry } from "@mainspring/engine";
+import { annualizeMonth, monthTotal, spendingByCategory, type SpendingEntry } from "@mainspring/engine";
 import { Money } from "@mainspring/schema";
 import { deleteSpending, loadSpending, saveSpending, type SpendingRow } from "$lib/db";
 import { profile } from "./profile.svelte";
@@ -7,17 +7,24 @@ function toEntry(r: SpendingRow): SpendingEntry {
   return { category: r.category, amount: Money.of(r.amount), spentAt: r.spentAt };
 }
 
+const thisMonth = () => new Date().toISOString().slice(0, 7);
+
 /**
- * Variable/discretionary spending. Annualized and pushed onto the profile so it
- * flows through recompute — raising total expenses (and the FI number) and
- * shrinking the savings pool.
+ * Variable/discretionary spending. The plan uses the CURRENT month's spending,
+ * projected out (×12) and resetting each month — so a big month doesn't haunt
+ * the budget forever, and each month starts fresh. History is kept for the lists.
  */
 class SpendingStore {
   rows = $state<SpendingRow[]>([]);
   error = $state<string | null>(null);
 
+  /** This month's spending × 12 — the figure that feeds the plan. */
   get annualized(): Money {
-    return annualizeSpending(this.rows.map(toEntry));
+    return annualizeMonth(this.rows.map(toEntry), thisMonth());
+  }
+  /** This month's spending so far (not annualized). */
+  get thisMonthTotal(): Money {
+    return monthTotal(this.rows.map(toEntry), thisMonth());
   }
   get byCategory(): { category: string; total: Money }[] {
     return spendingByCategory(this.rows.map(toEntry));

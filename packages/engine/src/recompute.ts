@@ -83,8 +83,8 @@ export function recompute(state: ProfileState): RecomputeView {
     { label: "Taxes", amount: tax.total },
     { label: "Investing", amount: ownContributions },
     { label: "Goals", amount: goalContributions },
-    { label: "Living", amount: state.annualExpenses },
-    { label: "Bills", amount: commitments },
+    // Essentials = the baseline living lump + itemized recurring bills.
+    { label: "Essentials", amount: state.annualExpenses.add(commitments) },
     { label: "Spending", amount: state.variableAnnualSpending ?? Money.zero() },
   ];
   const accounted = whereItGoes.reduce((sum, s) => sum.add(s.amount), Money.zero());

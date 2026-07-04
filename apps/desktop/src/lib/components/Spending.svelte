@@ -6,6 +6,7 @@
   import { spending } from "$lib/stores/spending.svelte";
   import { recurring } from "$lib/stores/recurring.svelte";
   import { goals } from "$lib/stores/goals.svelte";
+  import { profile } from "$lib/stores/profile.svelte";
   import { view } from "$lib/stores/derived.svelte";
   import Donut from "./Donut.svelte";
   import Proportions from "./Proportions.svelte";
@@ -19,7 +20,7 @@
   // money that's gone; the rest goes to the future (goals + investing). Spare is
   // whatever income is left after everything — negative means over budget.
   const slice = (label: string) => v.whereItGoes.find((s) => s.label === label)?.amount ?? Money.zero();
-  const consumption = $derived(slice("Living").add(slice("Bills")).add(slice("Spending")));
+  const consumption = $derived(slice("Essentials").add(slice("Spending")));
   const toFuture = $derived(slice("Goals").add(slice("Investing")));
   const spare = $derived(v.gross.subtract(slice("Taxes")).subtract(consumption).subtract(toFuture));
   const spareN = $derived(Number(spare.toString()));
@@ -74,10 +75,14 @@
         if (auto > 0) items.push({ name: "Auto-invest (recurring)", amount: auto });
         return items.filter((d) => d.amount > 0);
       }
-      case "Bills":
-        return recurring.bills
+      case "Essentials": {
+        const items = recurring.bills
           .filter((r) => r.active)
           .map((r) => ({ name: r.label, amount: Number(recurring.annual(r).toString()) }));
+        const baseline = Number(profile.annualExpenses.toString());
+        if (baseline > 0) items.unshift({ name: "Baseline (unitemized)", amount: baseline });
+        return items;
+      }
       case "Goals": {
         const active = goals.rows.find((g) => g.id === goals.activeId);
         return active?.monthlyContribution ? [{ name: active.name, amount: Number(active.monthlyContribution) * 12 }] : [];
@@ -96,7 +101,7 @@
   }
 
   const CATEGORIES = ["coffee", "dining", "groceries", "clothes", "entertainment", "transport", "subscriptions", "other"];
-  const BILL_CATEGORIES = ["software dev", "insurance", "car", "housing", "utilities", "phone", "api", "subscription", "loan", "other"];
+  const BILL_CATEGORIES = ["rent", "mortgage", "groceries", "utilities", "insurance", "car", "phone", "software dev", "api", "subscription", "loan", "other"];
   const CADENCES = ["weekly", "biweekly", "monthly", "quarterly", "annual"] as const;
   const today = () => new Date().toISOString().slice(0, 10);
   let draft = $state({ category: "coffee", label: "", amount: 0, date: today() });
@@ -162,7 +167,7 @@
     <div class="flow">
       <span class="item"><span class="k">Take-home</span><span class="mono">{formatUsd(mo(v.net))}/mo</span></span>
       <span class="op">−</span>
-      <span class="item"><span class="k">Living + bills + spending</span><span class="mono">{formatUsd(mo(consumption))}/mo</span></span>
+      <span class="item"><span class="k">Essentials + spending</span><span class="mono">{formatUsd(mo(consumption))}/mo</span></span>
       <span class="op">−</span>
       <span class="item"><span class="k">Goals + investing</span><span class="mono">{formatUsd(mo(toFuture))}/mo</span></span>
       <span class="op">=</span>
@@ -209,11 +214,11 @@
   </div>
 
   <div class="block">
-    <h2 class="section">Recurring commitments</h2>
-    <p class="hint">Insurance, car payment, subscriptions, API costs — anything charged on a schedule.</p>
+    <h2 class="section">Bills &amp; essentials</h2>
+    <p class="hint">Everything fixed and recurring — rent/mortgage, groceries, utilities, insurance, car, subscriptions, API costs. Itemize them here and they drill down under "Essentials" in your budget.</p>
 
     <form class="add" onsubmit={addBill}>
-      <input class="lbl" placeholder="What is it? (e.g. Car insurance)" bind:value={bill.label} />
+      <input class="lbl" placeholder="What is it? (e.g. Rent, Car insurance)" bind:value={bill.label} />
       <input class="cat" list="bills" placeholder="Category" bind:value={bill.category} />
       <datalist id="bills">{#each BILL_CATEGORIES as c (c)}<option value={c}></option>{/each}</datalist>
       <input type="number" min="0" step="any" placeholder="Amount" bind:value={bill.amount} />
@@ -224,7 +229,7 @@
     </form>
 
     <div class="summary">
-      <span>Committed: <strong>{formatUsd(Number(recurring.billsAnnual.toString()))}</strong>/yr</span>
+      <span>Bills &amp; essentials: <strong>{formatUsd(Number(recurring.billsAnnual.toString()))}</strong>/yr</span>
     </div>
 
     {#if recurring.error}<p class="warn">{recurring.error}</p>{/if}
@@ -257,7 +262,7 @@
   </div>
 
   <h2 class="section">Variable spending</h2>
-  <p class="hint">Discretionary purchases — logged and annualized from the months they span.</p>
+  <p class="hint">Discretionary purchases. The plan uses <strong>this month's</strong> spending projected out, and resets at the start of each month — so one heavy month doesn't haunt your budget forever.</p>
 
   <form class="add" onsubmit={add}>
     <input class="cat" list="cats" placeholder="Category" bind:value={draft.category} />
@@ -269,7 +274,7 @@
   </form>
 
   <div class="summary">
-    <span>Annualized: <strong>{formatUsd(Number(spending.annualized.toString()))}</strong>/yr</span>
+    <span>This month: <strong>{formatUsd(Number(spending.thisMonthTotal.toString()))}</strong> · ~{formatUsd(Number(spending.annualized.toString()))}/yr projected</span>
   </div>
 
   {#if spending.error}<p class="warn">{spending.error}</p>{/if}

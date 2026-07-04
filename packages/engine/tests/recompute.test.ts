@@ -64,7 +64,7 @@ describe("recompute — income → pre-tax → tax → net → buckets", () => {
     expect(b1.amount.compare(b0.amount)).toBe(-1);
   });
 
-  it("recurring commitments raise total expenses and appear as a Bills slice", () => {
+  it("recurring commitments raise total expenses and merge into the Essentials slice", () => {
     const base: ProfileState = {
       incomeSources: [{ grossAmount: Money.of("120000"), frequency: "annual" }],
       annualExpenses: Money.of("40000"),
@@ -83,8 +83,9 @@ describe("recompute — income → pre-tax → tax → net → buckets", () => {
     const b0 = without.buckets.find((b) => b.bucket === "brokerage")!;
     const b1 = withBills.buckets.find((b) => b.bucket === "brokerage")!;
     expect(b1.amount.compare(b0.amount)).toBe(-1);
-    // Bills shows up in the breakdown and the slices still sum to gross
-    expect(withBills.whereItGoes.find((s) => s.label === "Bills")!.amount.toString()).toBe("9000.0000");
+    // Essentials = baseline living (40k) + bills (9k); slices still sum to gross
+    expect(withBills.whereItGoes.find((s) => s.label === "Essentials")!.amount.toString()).toBe("49000.0000");
+    expect(withBills.whereItGoes.find((s) => s.label === "Bills")).toBeUndefined();
     const sum = withBills.whereItGoes.reduce((a, s) => a.add(s.amount), Money.zero());
     expect(sum.toString()).toBe("120000.0000");
   });
