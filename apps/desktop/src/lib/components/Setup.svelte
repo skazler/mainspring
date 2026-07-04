@@ -97,7 +97,6 @@
     <label>Current age<input type="number" min="0" max="100" bind:value={form.currentAge} /></label>
     <label>Target retire age<input type="number" min="0" max="100" bind:value={form.targetRetireAge} /></label>
     <label>Invested assets today<input type="number" min="0" step="1000" bind:value={form.currentBalance} /></label>
-    <label title="A rough baseline for essentials you don't itemize. Itemize rent, groceries, utilities etc. as bills in Outflows for a precise, drill-down figure.">Baseline living (unitemized)<input type="number" min="0" step="1000" bind:value={form.annualExpenses} /></label>
     <label>Withdrawal rate %<input type="number" min="1" max="10" step="0.1" bind:value={form.swrPercent} /></label>
     <label>Assumed real return %<input type="number" min="0" max="15" step="0.1" bind:value={form.realReturnPercent} /></label>
   </fieldset>

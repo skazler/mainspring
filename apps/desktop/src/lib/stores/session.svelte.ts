@@ -1,4 +1,4 @@
-import { buildProfileState } from "$lib/setup-map";
+import { buildProfileState, normalizeSetupForm } from "$lib/setup-map";
 import { loadSetupForm } from "$lib/db";
 import { applySetup } from "./profile.svelte";
 import { markSetupSaved, setupForm } from "./setup-form.svelte";
@@ -41,7 +41,8 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
  */
 export async function initSession(): Promise<void> {
   try {
-    const saved = await withTimeout(loadSetupForm(), 4000);
+    const raw = await withTimeout(loadSetupForm(), 4000);
+    const saved = raw ? normalizeSetupForm(raw) : null;
     if (saved) {
       Object.assign(setupForm, saved);
       markSetupSaved();

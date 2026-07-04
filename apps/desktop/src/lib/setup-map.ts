@@ -39,7 +39,8 @@ export function defaultSetupForm(): SetupForm {
     currentAge: 32,
     targetRetireAge: 60,
     currentBalance: 150000,
-    annualExpenses: 45000,
+    // No unitemized lump — essentials are itemized as bills in Outflows.
+    annualExpenses: 0,
     swrPercent: 4,
     realReturnPercent: 5,
     employerMatchPercent: 0,
@@ -78,5 +79,20 @@ export function buildProfileState(form: SetupForm): ProfileState {
       targetRetireAge: form.targetRetireAge,
     },
     dials,
+  };
+}
+
+const KNOWN_BUCKETS = new Set(BUCKET_OPTIONS.map((o) => o.bucket));
+
+/**
+ * Reconcile a loaded form with the current model: drop dials that no longer
+ * exist (e.g. the retired 401k/emergency defaults) and clear any legacy
+ * unitemized expense lump so essentials come only from itemized bills.
+ */
+export function normalizeSetupForm(form: SetupForm): SetupForm {
+  return {
+    ...form,
+    annualExpenses: 0,
+    contributions: form.contributions.filter((c) => KNOWN_BUCKETS.has(c.bucket)),
   };
 }

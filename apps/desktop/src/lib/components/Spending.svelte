@@ -6,7 +6,6 @@
   import { spending } from "$lib/stores/spending.svelte";
   import { recurring } from "$lib/stores/recurring.svelte";
   import { goals } from "$lib/stores/goals.svelte";
-  import { profile } from "$lib/stores/profile.svelte";
   import { view } from "$lib/stores/derived.svelte";
   import Donut from "./Donut.svelte";
   import Proportions from "./Proportions.svelte";
@@ -75,14 +74,10 @@
         if (auto > 0) items.push({ name: "Auto-invest (recurring)", amount: auto });
         return items.filter((d) => d.amount > 0);
       }
-      case "Essentials": {
-        const items = recurring.bills
+      case "Essentials":
+        return recurring.bills
           .filter((r) => r.active)
           .map((r) => ({ name: r.label, amount: Number(recurring.annual(r).toString()) }));
-        const baseline = Number(profile.annualExpenses.toString());
-        if (baseline > 0) items.unshift({ name: "Baseline (unitemized)", amount: baseline });
-        return items;
-      }
       case "Goals": {
         const active = goals.rows.find((g) => g.id === goals.activeId);
         return active?.monthlyContribution ? [{ name: active.name, amount: Number(active.monthlyContribution) * 12 }] : [];

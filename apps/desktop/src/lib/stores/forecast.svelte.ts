@@ -22,7 +22,8 @@ class ForecastStore {
       const params: SimParams = {
         startBalance: num(profile.plan.currentBalance.toString()),
         annualContribution: num(view.current.totalContributions.toString()),
-        annualExpenses: num(profile.annualExpenses.toString()),
+        // Full itemized expenses (bills + variable), not a lump baseline.
+        annualExpenses: num(view.current.totalExpenses.toString()),
         yearsAccumulation,
         yearsTotal: Math.max(yearsAccumulation + 1, 95 - profile.plan.currentAge),
         // Prefer μ/σ derived from local market history; fall back to the assumption.

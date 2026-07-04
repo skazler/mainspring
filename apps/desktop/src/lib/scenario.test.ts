@@ -5,8 +5,9 @@ import { defaultSetupForm } from "./setup-map";
 describe("scenarioSummary", () => {
   it("summarizes the default plan", () => {
     const s = scenarioSummary(defaultSetupForm());
-    // FI number = annual expenses / swr = 45,000 / 0.04 = 1,125,000
-    expect(s.fiNumber).toBe(1_125_000);
+    // No unitemized baseline in the default form — expenses (and thus the FI
+    // number) come from itemized bills the user adds, so the seed FI is 0.
+    expect(s.fiNumber).toBe(0);
     expect(s.takeHome).toBeGreaterThan(0);
     expect(s.savingsRate).toBeGreaterThan(0);
     expect(s.savingsRate).toBeLessThan(1);
