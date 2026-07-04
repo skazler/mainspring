@@ -15,7 +15,8 @@ export interface SpendingEntry {
  */
 export function annualizeSpending(entries: readonly SpendingEntry[]): Money {
   if (entries.length === 0) return Money.zero();
-  const months = new Set(entries.map((e) => e.spentAt.slice(0, 7)));
+  // String() guards against a non-string date leaking in (e.g. a raw pg Date).
+  const months = new Set(entries.map((e) => String(e.spentAt).slice(0, 7)));
   const total = entries.reduce((sum, e) => sum.add(e.amount), Money.zero());
   return total.multiply(new Decimal(12).div(months.size));
 }

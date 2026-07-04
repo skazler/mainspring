@@ -133,7 +133,7 @@ export async function loadLots(): Promise<LotRow[]> {
   if (!browser) return [];
   const d = await db();
   const res = await d.query<{ id: string; ticker: string; side: "buy" | "sell"; trade_date: string; shares: string; price: string; fee: string }>(
-    "SELECT id, ticker, side, trade_date, shares, price, fee FROM lots ORDER BY trade_date, id;",
+    "SELECT id, ticker, side, trade_date::text AS trade_date, shares, price, fee FROM lots ORDER BY trade_date, id;",
   );
   return res.rows.map((r) => ({
     id: r.id,
@@ -176,8 +176,9 @@ export interface SpendingRow {
 export async function loadSpending(): Promise<SpendingRow[]> {
   if (!browser) return [];
   const d = await db();
+  // date columns come back as JS Date objects unless cast to text.
   const res = await d.query<{ id: string; category: string; label: string | null; amount: string; spent_at: string }>(
-    "SELECT id, category, label, amount, spent_at FROM spending ORDER BY spent_at DESC, id;",
+    "SELECT id, category, label, amount, spent_at::text AS spent_at FROM spending ORDER BY spent_at DESC, id;",
   );
   return res.rows.map((r) => ({ id: r.id, category: r.category, label: r.label, amount: r.amount, spentAt: r.spent_at }));
 }
