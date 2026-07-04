@@ -64,6 +64,29 @@ describe("recompute — income → pre-tax → tax → net → buckets", () => {
     expect(b1.amount.compare(b0.amount)).toBe(-1);
   });
 
+  it("goal contributions claim the savings pool; whereItGoes sums to gross", () => {
+    const base: ProfileState = {
+      incomeSources: [{ grossAmount: Money.of("120000"), frequency: "annual" }],
+      annualExpenses: Money.of("40000"),
+      taxProfile: { filingStatus: "single", state: "TX", taxYear: 2026 },
+      plan: { currentBalance: Money.of("0"), swr: "0.04", realReturn: "0.05", currentAge: 35, targetRetireAge: 65 },
+      dials: [{ bucket: "brokerage", base: "post_tax_savings", pct: "1", priority: 1 }],
+    };
+    const without = recompute(base);
+    const withGoals = recompute({ ...base, annualGoalContributions: Money.of("6000") });
+
+    // goals reduce what the brokerage dial can draw from the pool
+    const b0 = without.buckets.find((b) => b.bucket === "brokerage")!;
+    const b1 = withGoals.buckets.find((b) => b.bucket === "brokerage")!;
+    expect(b1.amount.compare(b0.amount)).toBe(-1);
+    expect(withGoals.goalContributions.toString()).toBe("6000.0000");
+
+    // the breakdown slices sum to gross
+    const sum = withGoals.whereItGoes.reduce((a, s) => a.add(s.amount), Money.zero());
+    expect(sum.toString()).toBe("120000.0000");
+    expect(withGoals.whereItGoes.find((s) => s.label === "Goals")!.amount.toString()).toBe("6000.0000");
+  });
+
   it("handles zero income without dividing by zero", () => {
     const r = recompute({
       incomeSources: [],

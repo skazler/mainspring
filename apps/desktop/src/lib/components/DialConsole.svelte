@@ -11,10 +11,14 @@
   import TakeHomeReadout from "./TakeHomeReadout.svelte";
   import FireSummary from "./FireSummary.svelte";
   import FanChart from "./FanChart.svelte";
+  import NetWorthChart from "./NetWorthChart.svelte";
+  import Proportions from "./Proportions.svelte";
   import ScenarioBar from "./ScenarioBar.svelte";
   import Almanac from "./Almanac.svelte";
 
   const v = $derived(view.current);
+
+  const propSlices = $derived(v.whereItGoes.map((s) => ({ label: s.label, amount: Number(s.amount.toString()) })));
 
   function allocFor(bucket: string, base: string) {
     return v.buckets.find((b) => b.bucket === bucket && b.base === base);
@@ -27,8 +31,24 @@
     <button class="edit" onclick={() => (session.configured = false)}>Edit setup</button>
   </header>
 
-  <Almanac />
-  <ScenarioBar />
+  <div class="dashboard">
+    <div class="panel">
+      <h3>Net worth → coast & FI</h3>
+      <NetWorthChart
+        currentBalance={profile.plan.currentBalance}
+        annualContribution={v.totalContributions}
+        realReturn={profile.plan.realReturn}
+        currentAge={profile.plan.currentAge}
+        targetRetireAge={profile.plan.targetRetireAge}
+        coast={v.fire.coastNumber}
+        fi={v.fire.fiNumber}
+      />
+    </div>
+    <div class="panel">
+      <h3>Where every dollar goes</h3>
+      <Proportions slices={propSlices} total={Number(v.gross.toString())} />
+    </div>
+  </div>
 
   <div class="readouts">
     <TakeHomeReadout net={v.net} gross={v.gross} tax={v.tax.total} />
@@ -85,13 +105,46 @@
       <FanChart forecast={forecast.result} currentAge={profile.plan.currentAge} />
     {/if}
   </div>
+
+  <ScenarioBar />
 </section>
+
+<Almanac />
 
 <style>
   .console {
     max-width: 70rem;
     margin: 0 auto;
     padding: 2rem 1.5rem 4rem;
+  }
+  .dashboard {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 1.25rem;
+    margin-bottom: 2.5rem;
+  }
+  @media (max-width: 720px) {
+    .dashboard {
+      grid-template-columns: 1fr;
+    }
+  }
+  .panel {
+    border: 1px solid var(--color-etch);
+    border-radius: 10px;
+    background: var(--color-panel);
+    box-shadow: var(--bevel);
+    padding: 1rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .panel h3 {
+    font-family: var(--font-display);
+    color: var(--color-gilt);
+    letter-spacing: 0.08em;
+    font-size: 0.9rem;
+    margin: 0 0 0.6rem;
+    text-align: center;
   }
   .title {
     display: flex;

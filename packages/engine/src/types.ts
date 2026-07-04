@@ -46,6 +46,8 @@ export interface ProfileState {
   annualExpenses: Money;
   /** Annualized variable/discretionary spending (from the spending tracker). Default 0. */
   variableAnnualSpending?: Money;
+  /** Annualized savings-goal contributions (from the goals tracker). Default 0. */
+  annualGoalContributions?: Money;
   plan: PlanInput;
 }
 
@@ -71,6 +73,10 @@ export interface RecomputeView {
   leftover: Record<DialBase, Money>;
   /** annualExpenses + variable spending — drives the savings pool and FI number. */
   totalExpenses: Money;
+  /** Annualized savings-goal contributions (claims the pool alongside dials). */
+  goalContributions: Money;
+  /** Where each gross dollar goes; slices sum to gross (for the proportions graph). */
+  whereItGoes: { label: string; amount: Money }[];
   totalContributions: Money;
   /** totalContributions / net. */
   savingsRate: string;

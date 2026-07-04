@@ -72,31 +72,39 @@
 
 <style>
   .collapsed {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 1.5rem;
+    position: fixed;
+    right: 1.25rem;
+    bottom: 1.25rem;
+    z-index: 50;
   }
   .pill {
-    background: transparent;
+    background: var(--color-panel);
     border: 1px solid var(--color-etch);
     border-radius: 999px;
     color: var(--color-soot);
     font-family: var(--font-body);
-    font-size: 0.85rem;
-    padding: 0.4rem 1rem;
+    font-size: 0.8rem;
+    padding: 0.4rem 0.9rem;
     cursor: pointer;
+    box-shadow: var(--bevel);
+    opacity: 0.75;
   }
   .pill:hover {
     color: var(--color-gilt);
     border-color: var(--color-gilt);
+    opacity: 1;
   }
   .almanac {
+    position: fixed;
+    right: 1.25rem;
+    bottom: 1.25rem;
+    z-index: 50;
+    width: min(380px, calc(100vw - 2.5rem));
     border: 1px solid var(--color-etch);
     border-radius: 10px;
     background: var(--color-panel);
     box-shadow: var(--bevel);
     padding: 1rem 1.25rem;
-    margin-bottom: 2rem;
   }
   .bar {
     display: flex;

@@ -1,6 +1,7 @@
 import { goalStatus, type GoalStatus } from "@mainspring/engine";
 import { Money } from "@mainspring/schema";
 import { deleteGoal, loadGoals, saveGoal, type GoalRow } from "$lib/db";
+import { profile } from "./profile.svelte";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -25,23 +26,35 @@ class GoalsStore {
     this.error = `Couldn't reach local storage — changes stay in memory this session. (${e instanceof Error ? e.message : String(e)})`;
   }
 
+  /** Push the total monthly goal contribution (annualized) onto the plan. */
+  private syncPlan(): void {
+    const monthly = this.rows.reduce(
+      (sum, g) => (g.monthlyContribution ? sum.add(Money.of(g.monthlyContribution)) : sum),
+      Money.zero(),
+    );
+    profile.annualGoalContributions = monthly.multiply("12");
+  }
+
   async load(): Promise<void> {
     try {
       this.rows = await loadGoals();
     } catch (e) {
       this.fail(e);
     }
+    this.syncPlan();
   }
 
   save(g: GoalRow): void {
     const i = this.rows.findIndex((r) => r.id === g.id);
     if (i >= 0) this.rows[i] = g;
     else this.rows = [...this.rows, g];
+    this.syncPlan();
     saveGoal(g).catch((e) => this.fail(e));
   }
 
   remove(id: string): void {
     this.rows = this.rows.filter((r) => r.id !== id);
+    this.syncPlan();
     deleteGoal(id).catch((e) => this.fail(e));
   }
 
