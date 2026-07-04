@@ -185,6 +185,22 @@ export const netWorthSnapshots = pgTable("net_worth_snapshots", {
   breakdown: jsonb("breakdown"),
 });
 
+// Savings goals / sinking funds (house down payment, laptop, buffer…).
+// `saved_amount` is an asset (→ net worth); `monthly_contribution` claims part of
+// the savings pool. Progress + ETA are derived by the engine.
+export const goals = pgTable("goals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  profileId: uuid("profile_id")
+    .notNull()
+    .references(() => profiles.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  targetAmount: money("target_amount").notNull(),
+  savedAmount: money("saved_amount").notNull().default(sql`0`),
+  targetDate: date("target_date"),
+  monthlyContribution: money("monthly_contribution"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const schema = {
   profiles,
   incomeSources,
@@ -199,4 +215,5 @@ export const schema = {
   marketBars,
   spending,
   netWorthSnapshots,
+  goals,
 };

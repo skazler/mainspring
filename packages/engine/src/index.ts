@@ -53,5 +53,9 @@ export type { OpenLot, SaleInput, SaleResult, RealizedGains, LedgerLot, TickerPo
 export { annualizeSpending, spendingByCategory } from "./spending/annualize";
 export type { SpendingEntry } from "./spending/annualize";
 
+// savings goals
+export { goalStatus, monthsBetween } from "./goals/goals";
+export type { GoalInput, GoalStatus } from "./goals/goals";
+
 // AI assistant
 export { applyDialAdjustments } from "./copilot";

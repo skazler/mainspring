@@ -5,6 +5,7 @@ import { markSetupSaved, setupForm } from "./setup-form.svelte";
 import { market } from "./market.svelte";
 import { almanac } from "./almanac.svelte";
 import { spending } from "./spending.svelte";
+import { goals } from "./goals.svelte";
 
 /**
  * Session UI state. `configured` gates the setup page vs. the dial console;
@@ -15,7 +16,7 @@ export const session = $state<{
   loaded: boolean;
   /** true once a profile has ever been saved — gates the setup "Back" button. */
   hasProfile: boolean;
-  tab: "plan" | "holdings" | "spending";
+  tab: "plan" | "holdings" | "spending" | "goals";
 }>({
   configured: false,
   loaded: false,
@@ -56,4 +57,5 @@ export async function initSession(): Promise<void> {
   void market.loadCached().catch(() => {});
   void almanac.loadKey().catch(() => {});
   void spending.load().catch(() => {});
+  void goals.load().catch(() => {});
 }
