@@ -6,9 +6,12 @@
   import { recurring } from "$lib/stores/recurring.svelte";
   import { view } from "$lib/stores/derived.svelte";
   import Donut from "./Donut.svelte";
+  import Proportions from "./Proportions.svelte";
   import ConfirmButton from "./ConfirmButton.svelte";
 
   const v = $derived(view.current);
+  let showBreakdown = $state(false);
+  const propSlices = $derived(v.whereItGoes.map((s) => ({ label: s.label, amount: Number(s.amount.toString()) })));
 
   // Cash-flow health, from take-home. Consumption (living + bills + spending) is
   // money that's gone; the rest goes to the future (goals + investing). Spare is
@@ -115,6 +118,29 @@
       <span class="op">=</span>
       <span class="item"><span class="k">Spare</span><span class="mono" class:neg={spareN < 0}>{formatUsd(mo(spare))}/mo</span></span>
     </div>
+
+    <button class="breakdown-toggle" onclick={() => (showBreakdown = !showBreakdown)}>
+      {showBreakdown ? "▾ hide breakdown" : "▸ see where every dollar goes"}
+    </button>
+    {#if showBreakdown}
+      <div class="breakdown">
+        <Proportions slices={propSlices} total={Number(v.gross.toString())} />
+        <table class="lines">
+          <tbody>
+            {#each v.whereItGoes as s (s.label)}
+              {#if Number(s.amount.toString()) > 0}
+                <tr>
+                  <td class="cap">{s.label}</td>
+                  <td class="mono">{formatUsd(mo(s.amount))}/mo</td>
+                  <td class="mono muted">{formatUsd(Number(s.amount.toString()))}/yr</td>
+                  <td class="mono muted">{Math.round((Number(s.amount.toString()) / Number(v.gross.toString())) * 100)}%</td>
+                </tr>
+              {/if}
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    {/if}
   </div>
 
   <div class="block">
@@ -213,7 +239,16 @@
                   {#each m.items as r (r.id)}
                     <tr>
                       <td class="mono date">{String(r.spentAt).slice(5)}</td>
-                      <td class="cap">{r.category}{#if r.label} · <span class="dim">{r.label}</span>{/if}</td>
+                      <td class="catcell">
+                        <input
+                          class="catedit"
+                          list="cats"
+                          value={r.category}
+                          title="Click to re-categorize"
+                          onchange={(e) => spending.update({ ...r, category: e.currentTarget.value.trim().toLowerCase() || r.category })}
+                        />
+                        {#if r.label}<span class="dim"> · {r.label}</span>{/if}
+                      </td>
                       <td class="mono">{formatUsd(Number(r.amount))}</td>
                       <td><ConfirmButton onconfirm={() => spending.remove(r.id)} title="Delete entry" /></td>
                     </tr>
@@ -512,5 +547,62 @@
   .mtotal {
     color: var(--color-copper);
     font-family: var(--font-meter);
+  }
+  .catcell {
+    text-align: left;
+  }
+  .catedit {
+    background: transparent;
+    border: none;
+    border-bottom: 1px dashed transparent;
+    color: var(--color-parchment);
+    font-family: var(--font-body);
+    text-transform: capitalize;
+    padding: 0.1rem 0;
+    width: 8rem;
+    cursor: pointer;
+  }
+  .catedit:hover {
+    border-bottom-color: var(--color-etch);
+  }
+  .catedit:focus {
+    outline: none;
+    border-bottom-color: var(--color-gilt);
+    cursor: text;
+  }
+  .breakdown-toggle {
+    background: transparent;
+    border: none;
+    color: var(--color-soot);
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    padding: 0.6rem 0 0;
+  }
+  .breakdown-toggle:hover {
+    color: var(--color-gilt);
+  }
+  .breakdown {
+    margin-top: 0.8rem;
+  }
+  .lines {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0.9rem;
+    font-family: var(--font-meter);
+  }
+  .lines td {
+    text-align: right;
+    padding: 0.3rem 0.5rem;
+    border-bottom: 1px solid var(--color-etch);
+    color: var(--color-parchment);
+  }
+  .lines td.cap {
+    text-align: left;
+    font-family: var(--font-body);
+  }
+  .lines .muted {
+    color: var(--color-soot);
+    font-size: 0.85rem;
   }
 </style>

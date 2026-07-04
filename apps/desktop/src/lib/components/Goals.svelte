@@ -21,6 +21,7 @@
       savedAmount: String(draft.saved || 0),
       targetDate: draft.date || null,
       monthlyContribution: draft.monthly > 0 ? String(draft.monthly) : null,
+      sortOrder: goals.nextOrder,
     });
     draft = { name: "", target: 0, saved: 0, monthly: 0, date: "" };
   }
@@ -37,7 +38,7 @@
 
 <section class="goals">
   <header class="title">Savings goals</header>
-  <p class="lede">Sinking funds for anything — a house down payment, a trip, a new laptop. Track progress and see when you'll get there.</p>
+  <p class="lede">An ordered checklist of sinking funds. Goals fund <strong>one at a time</strong> — the top unfinished goal is active and claims its monthly amount from your plan; the rest are planned and wait their turn. Reorder with ▲▼.</p>
 
   <form class="add" onsubmit={add}>
     <input class="nm" placeholder="Goal (e.g. house down payment)" bind:value={draft.name} />
@@ -54,13 +55,21 @@
     <p class="empty">No goals yet — add one above.</p>
   {:else}
     <div class="cards">
-      {#each goals.rows as g (g.id)}
+      {#each goals.rows as g, i (g.id)}
         {@const s = goals.status(g)}
+        {@const phase = goals.phase(g)}
         {@const pct = Math.min(100, Math.round(Number(s.progress) * 100))}
-        <div class="card" class:done={s.complete}>
+        <div class="card" class:done={phase === "done"} class:active={phase === "active"} class:planned={phase === "planned"}>
           <div class="head">
-            <span class="name">{g.name}</span>
-            <ConfirmButton onconfirm={() => goals.remove(g.id)} title="Delete goal" />
+            <span class="name">
+              {#if phase === "done"}<span class="badge done">✓</span>{:else if phase === "active"}<span class="badge active">active</span>{:else}<span class="badge planned">planned</span>{/if}
+              {g.name}
+            </span>
+            <span class="controls">
+              <button class="move" title="Move earlier" disabled={i === 0} onclick={() => goals.reorder(g.id, -1)}>▲</button>
+              <button class="move" title="Move later" disabled={i === goals.rows.length - 1} onclick={() => goals.reorder(g.id, 1)}>▼</button>
+              <ConfirmButton onconfirm={() => goals.remove(g.id)} title="Delete goal" />
+            </span>
           </div>
           <div class="bar"><div class="fill" style="width:{pct}%"></div></div>
           <div class="nums">
@@ -108,6 +117,10 @@
     font-family: var(--font-body);
     margin-bottom: 1.4rem;
   }
+  .lede strong {
+    color: var(--color-gilt);
+    font-weight: 400;
+  }
   .add {
     display: flex;
     gap: 0.5rem;
@@ -150,6 +163,58 @@
   }
   .card.done {
     border-color: var(--color-lime-rust);
+  }
+  .card.active {
+    border-color: var(--color-brass);
+    box-shadow: var(--bevel), 0 0 0 1px var(--color-brass);
+  }
+  .card.planned {
+    opacity: 0.62;
+  }
+  .badge {
+    font-family: var(--font-body);
+    font-size: 0.62rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    margin-right: 0.4rem;
+    vertical-align: middle;
+  }
+  .badge.done {
+    background: var(--color-lime-rust);
+    color: var(--color-coal);
+  }
+  .badge.active {
+    background: var(--color-brass);
+    color: var(--color-coal);
+  }
+  .badge.planned {
+    border: 1px solid var(--color-etch);
+    color: var(--color-soot);
+  }
+  .controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  .move {
+    background: transparent;
+    border: 1px solid var(--color-etch);
+    border-radius: 4px;
+    color: var(--color-soot);
+    cursor: pointer;
+    font-size: 0.7rem;
+    line-height: 1;
+    padding: 0.15rem 0.3rem;
+  }
+  .move:hover:not(:disabled) {
+    color: var(--color-gilt);
+    border-color: var(--color-gilt);
+  }
+  .move:disabled {
+    opacity: 0.35;
+    cursor: default;
   }
   .head {
     display: flex;

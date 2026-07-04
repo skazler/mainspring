@@ -71,12 +71,17 @@ export function recompute(state: ProfileState): RecomputeView {
     net: netAlloc.leftover,
     post_tax_savings: savingsAlloc.leftover,
   };
-  const totalContributions = buckets.reduce((sum, b) => sum.add(b.amount), autoInvestments);
+  // Contributions from your own income (dials + auto-invest). Employer match is
+  // free money on top — it grows net worth but isn't part of your paycheck, so
+  // it stays out of the "where every dollar goes" breakdown.
+  const ownContributions = buckets.reduce((sum, b) => sum.add(b.amount), autoInvestments);
+  const employerMatch = state.plan.employerMatchPercent ? gross.multiply(state.plan.employerMatchPercent) : Money.zero();
+  const totalContributions = ownContributions.add(employerMatch);
 
   // Where each gross dollar goes (slices sum to gross; leftover absorbs the rest).
   const whereItGoes: { label: string; amount: Money }[] = [
     { label: "Taxes", amount: tax.total },
-    { label: "Investing", amount: totalContributions },
+    { label: "Investing", amount: ownContributions },
     { label: "Goals", amount: goalContributions },
     { label: "Living", amount: state.annualExpenses },
     { label: "Bills", amount: commitments },
@@ -107,8 +112,10 @@ export function recompute(state: ProfileState): RecomputeView {
     autoInvestments,
     goalContributions,
     whereItGoes,
+    ownContributions,
+    employerMatch,
     totalContributions,
-    savingsRate: net.isZero() ? "0.000000" : totalContributions.ratioTo(net),
+    savingsRate: net.isZero() ? "0.000000" : ownContributions.ratioTo(net),
     overAllocated: grossAlloc.overAllocated || netAlloc.overAllocated || savingsAlloc.overAllocated,
     fire,
   };

@@ -53,6 +53,15 @@ class SpendingStore {
     this.sync();
     deleteSpending(id).catch((e) => this.fail(e));
   }
+
+  /** Edit an existing entry in place (e.g. re-categorize). Persists by id upsert. */
+  update(row: SpendingRow): void {
+    const i = this.rows.findIndex((r) => r.id === row.id);
+    if (i < 0) return;
+    this.rows[i] = row;
+    this.sync();
+    saveSpending(row).catch((e) => this.fail(e));
+  }
 }
 
 export const spending = new SpendingStore();

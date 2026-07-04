@@ -1,12 +1,15 @@
 <script lang="ts">
   import type { FireMetrics } from "@mainspring/engine";
+  import { Money } from "@mainspring/schema";
   import { formatMoney, formatPct } from "$lib/format";
 
   interface Props {
     fire: FireMetrics;
     savingsRate: string;
+    employerMatch?: Money;
   }
-  let { fire, savingsRate }: Props = $props();
+  let { fire, savingsRate, employerMatch }: Props = $props();
+  const matchN = $derived(employerMatch ? Number(employerMatch.toString()) : 0);
 </script>
 
 <div class="readout">
@@ -24,6 +27,9 @@
   </div>
   <div class="row"><span class="k">FI number</span><span class="v">{formatMoney(fire.fiNumber)}</span></div>
   <div class="row"><span class="k">Savings rate</span><span class="v">{formatPct(savingsRate)}</span></div>
+  {#if matchN > 0}
+    <div class="row"><span class="k">+ employer match</span><span class="v match">{formatMoney(employerMatch!)}/yr</span></div>
+  {/if}
   <div class="row"><span class="k">Coast number</span><span class="v">{formatMoney(fire.coastNumber)}</span></div>
 </div>
 
@@ -63,5 +69,8 @@
     font-variant-numeric: tabular-nums;
     color: var(--color-parchment);
     padding: 0.15rem 0;
+  }
+  .v.match {
+    color: var(--color-lime-rust);
   }
 </style>

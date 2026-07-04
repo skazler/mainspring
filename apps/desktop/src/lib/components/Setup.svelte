@@ -113,6 +113,13 @@
         <span class="cap">{c.cap ? `cap ${formatMoney(Money.of(c.cap))}` : ""}</span>
       </div>
     {/each}
+    <div class="contrib match on">
+      <span class="toggle" title="The percent of your salary your employer adds to your 401(k). Free money — it grows your net worth but isn't taken from your paycheck.">Employer 401(k) match</span>
+      <label class="pct">
+        <input type="number" min="0" max="25" step="0.1" bind:value={form.employerMatchPercent} /> %
+      </label>
+      <span class="cap">of gross</span>
+    </div>
   </fieldset>
 
   <button type="submit" disabled={session.hasProfile && !dirty}>

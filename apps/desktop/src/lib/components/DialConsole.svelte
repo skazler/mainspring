@@ -53,7 +53,7 @@
 
   <div class="readouts">
     <TakeHomeReadout net={v.net} gross={v.gross} tax={v.tax.total} />
-    <FireSummary fire={v.fire} savingsRate={v.savingsRate} />
+    <FireSummary fire={v.fire} savingsRate={v.savingsRate} employerMatch={v.employerMatch} />
   </div>
 
   <div class="gauges">

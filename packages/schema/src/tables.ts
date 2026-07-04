@@ -198,6 +198,7 @@ export const goals = pgTable("goals", {
   savedAmount: money("saved_amount").notNull().default(sql`0`),
   targetDate: date("target_date"),
   monthlyContribution: money("monthly_contribution"),
+  sortOrder: integer("sort_order").notNull().default(0), // checklist sequence
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

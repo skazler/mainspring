@@ -5,7 +5,15 @@ import { profile } from "./profile.svelte";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-/** Savings goals / sinking funds. Optimistic writes so it works even if the DB is slow. */
+/** Which stage a goal is at in the checklist. */
+export type GoalPhase = "done" | "active" | "planned";
+
+/**
+ * Savings goals as an ordered checklist. Goals fund one at a time: the first
+ * incomplete goal (by sort order) is "active" and its monthly contribution flows
+ * into the plan; later goals are "planned" (queued, not yet claiming the pool).
+ * Optimistic writes so it works even if the DB is slow.
+ */
 class GoalsStore {
   rows = $state<GoalRow[]>([]);
   error = $state<string | null>(null);
@@ -22,16 +30,28 @@ class GoalsStore {
     );
   }
 
+  private complete(g: GoalRow): boolean {
+    return Money.of(g.savedAmount).compare(Money.of(g.targetAmount)) >= 0;
+  }
+
+  /** The first incomplete goal in order — the one currently being funded. */
+  get activeId(): string | null {
+    return this.rows.find((g) => !this.complete(g))?.id ?? null;
+  }
+
+  phase(g: GoalRow): GoalPhase {
+    if (this.complete(g)) return "done";
+    return g.id === this.activeId ? "active" : "planned";
+  }
+
   private fail(e: unknown): void {
     this.error = `Couldn't reach local storage — changes stay in memory this session. (${e instanceof Error ? e.message : String(e)})`;
   }
 
-  /** Push the total monthly goal contribution (annualized) onto the plan. */
+  /** Only the active goal claims the savings pool; planned goals wait their turn. */
   private syncPlan(): void {
-    const monthly = this.rows.reduce(
-      (sum, g) => (g.monthlyContribution ? sum.add(Money.of(g.monthlyContribution)) : sum),
-      Money.zero(),
-    );
+    const active = this.rows.find((g) => g.id === this.activeId);
+    const monthly = active?.monthlyContribution ? Money.of(active.monthlyContribution) : Money.zero();
     profile.annualGoalContributions = monthly.multiply("12");
   }
 
@@ -48,14 +68,43 @@ class GoalsStore {
     const i = this.rows.findIndex((r) => r.id === g.id);
     if (i >= 0) this.rows[i] = g;
     else this.rows = [...this.rows, g];
+    this.reindex();
     this.syncPlan();
     saveGoal(g).catch((e) => this.fail(e));
   }
 
   remove(id: string): void {
     this.rows = this.rows.filter((r) => r.id !== id);
+    this.reindex();
     this.syncPlan();
     deleteGoal(id).catch((e) => this.fail(e));
+  }
+
+  /** The next sort_order for a new goal (append to the end of the checklist). */
+  get nextOrder(): number {
+    return this.rows.reduce((max, g) => Math.max(max, g.sortOrder), -1) + 1;
+  }
+
+  /** Move a goal up (-1) or down (+1) in the checklist. */
+  reorder(id: string, dir: -1 | 1): void {
+    const i = this.rows.findIndex((r) => r.id === id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= this.rows.length) return;
+    const rows = [...this.rows];
+    [rows[i], rows[j]] = [rows[j], rows[i]];
+    this.rows = rows;
+    this.persistOrder();
+    this.syncPlan();
+  }
+
+  /** Rewrite sortOrder to match array position and persist any that changed. */
+  private reindex(): void {
+    this.rows = this.rows.map((g, idx) => (g.sortOrder === idx ? g : { ...g, sortOrder: idx }));
+  }
+
+  private persistOrder(): void {
+    this.rows = this.rows.map((g, idx) => ({ ...g, sortOrder: idx }));
+    for (const g of this.rows) saveGoal(g).catch((e) => this.fail(e));
   }
 
   /** Add to a goal's saved amount. */
