@@ -23,17 +23,36 @@ export const session = $state<{
   tab: "plan",
 });
 
-/** On startup: restore a saved profile if one exists, else fall through to setup. */
+/** Reject after `ms` so a hung DB never freezes startup. */
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error("db timeout")), ms)),
+  ]);
+}
+
+/**
+ * On startup: restore a saved profile if one exists, else fall through to setup.
+ * The UI must always reach a usable state — a slow/failed local DB can't leave us
+ * stuck on the loading screen, so the only blocking read is time-boxed and the
+ * rest load in the background.
+ */
 export async function initSession(): Promise<void> {
-  const saved = await loadSetupForm();
-  if (saved) {
-    Object.assign(setupForm, saved);
-    applySetup(buildProfileState(saved));
-    session.configured = true;
-    session.hasProfile = true;
+  try {
+    const saved = await withTimeout(loadSetupForm(), 4000);
+    if (saved) {
+      Object.assign(setupForm, saved);
+      applySetup(buildProfileState(saved));
+      session.configured = true;
+      session.hasProfile = true;
+    }
+  } catch {
+    // DB unavailable or slow — fall through to setup; the app still runs in memory.
   }
-  await market.loadCached();
-  await almanac.loadKey();
-  await spending.load();
   session.loaded = true;
+
+  // Non-blocking secondary loads.
+  void market.loadCached().catch(() => {});
+  void almanac.loadKey().catch(() => {});
+  void spending.load().catch(() => {});
 }
