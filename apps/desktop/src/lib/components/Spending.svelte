@@ -2,8 +2,10 @@
   import { onMount } from "svelte";
   import { Money } from "@mainspring/schema";
   import { cadenceAbbrev, formatPct, formatUsd } from "$lib/format";
+  import { bucketLabel } from "$lib/buckets";
   import { spending } from "$lib/stores/spending.svelte";
   import { recurring } from "$lib/stores/recurring.svelte";
+  import { goals } from "$lib/stores/goals.svelte";
   import { view } from "$lib/stores/derived.svelte";
   import Donut from "./Donut.svelte";
   import Proportions from "./Proportions.svelte";
@@ -46,6 +48,53 @@
   const isOpen = (key: string, i: number) => overrides[key] ?? i === 0;
   const toggleMonth = (key: string, i: number) => (overrides[key] = !isOpen(key, i));
 
+  // Expand a spending category to its individual entries.
+  let openCats = $state<Record<string, boolean>>({});
+  const catOpen = (c: string) => openCats[c] ?? false;
+  const toggleCat = (c: string) => (openCats[c] = !catOpen(c));
+  const itemsOf = (c: string) => spending.rows.filter((r) => r.category === c);
+
+  // Expand a budget line to the pieces that make it up.
+  let openLines = $state<Record<string, boolean>>({});
+  const lineOpen = (l: string) => openLines[l] ?? false;
+  const toggleLine = (l: string) => (openLines[l] = !lineOpen(l));
+
+  function detailsFor(label: string): { name: string; amount: number }[] {
+    switch (label) {
+      case "Taxes":
+        return [
+          { name: "Federal", amount: Number(v.tax.federal.toString()) },
+          { name: "FICA (Social Security + Medicare)", amount: Number(v.tax.fica.toString()) },
+          { name: "State", amount: Number(v.tax.state.toString()) },
+          { name: "Capital gains", amount: Number(v.tax.capitalGains.toString()) },
+        ].filter((d) => d.amount > 0);
+      case "Investing": {
+        const items = v.buckets.map((b) => ({ name: bucketLabel(b.bucket), amount: Number(b.amount.toString()) }));
+        const auto = Number(v.autoInvestments.toString());
+        if (auto > 0) items.push({ name: "Auto-invest (recurring)", amount: auto });
+        return items.filter((d) => d.amount > 0);
+      }
+      case "Bills":
+        return recurring.bills
+          .filter((r) => r.active)
+          .map((r) => ({ name: r.label, amount: Number(recurring.annual(r).toString()) }));
+      case "Goals": {
+        const active = goals.rows.find((g) => g.id === goals.activeId);
+        return active?.monthlyContribution ? [{ name: active.name, amount: Number(active.monthlyContribution) * 12 }] : [];
+      }
+      case "Spending": {
+        // Annualize each category proportionally so the parts match the slice total.
+        const raw = spending.byCategory;
+        const rawTotal = raw.reduce((s, c) => s + Number(c.total.toString()), 0);
+        const annual = Number(slice("Spending").toString());
+        if (rawTotal <= 0) return [];
+        return raw.map((c) => ({ name: c.category, amount: (Number(c.total.toString()) / rawTotal) * annual }));
+      }
+      default:
+        return [];
+    }
+  }
+
   const CATEGORIES = ["coffee", "dining", "groceries", "clothes", "entertainment", "transport", "subscriptions", "other"];
   const BILL_CATEGORIES = ["software dev", "insurance", "car", "housing", "utilities", "phone", "api", "subscription", "loan", "other"];
   const CADENCES = ["weekly", "biweekly", "monthly", "quarterly", "annual"] as const;
@@ -65,11 +114,12 @@
 
   async function add(e: Event) {
     e.preventDefault();
-    if (!draft.category.trim() || draft.amount <= 0) return;
+    // A note is required — the category alone doesn't say what a purchase was.
+    if (!draft.category.trim() || draft.amount <= 0 || !draft.label.trim()) return;
     await spending.add({
       id: crypto.randomUUID(),
       category: draft.category.trim().toLowerCase(),
-      label: draft.label.trim() || null,
+      label: draft.label.trim(),
       amount: String(draft.amount),
       spentAt: draft.date,
     });
@@ -129,12 +179,27 @@
           <tbody>
             {#each v.whereItGoes as s (s.label)}
               {#if Number(s.amount.toString()) > 0}
+                {@const dets = detailsFor(s.label)}
                 <tr>
-                  <td class="cap">{s.label}</td>
+                  <td class="cap">
+                    {#if dets.length > 0}
+                      <button class="expand" onclick={() => toggleLine(s.label)}>{lineOpen(s.label) ? "▾" : "▸"} {s.label}</button>
+                    {:else}<span class="noexp">{s.label}</span>{/if}
+                  </td>
                   <td class="mono">{formatUsd(mo(s.amount))}/mo</td>
                   <td class="mono muted">{formatUsd(Number(s.amount.toString()))}/yr</td>
                   <td class="mono muted">{Math.round((Number(s.amount.toString()) / Number(v.gross.toString())) * 100)}%</td>
                 </tr>
+                {#if lineOpen(s.label)}
+                  {#each dets as d (d.name)}
+                    <tr class="detail">
+                      <td class="cap sub">{d.name}</td>
+                      <td class="mono muted">{formatUsd(d.amount / 12)}/mo</td>
+                      <td class="mono muted">{formatUsd(d.amount)}/yr</td>
+                      <td></td>
+                    </tr>
+                  {/each}
+                {/if}
               {/if}
             {/each}
           </tbody>
@@ -197,7 +262,7 @@
   <form class="add" onsubmit={add}>
     <input class="cat" list="cats" placeholder="Category" bind:value={draft.category} />
     <datalist id="cats">{#each CATEGORIES as c (c)}<option value={c}></option>{/each}</datalist>
-    <input class="lbl" placeholder="Note (optional)" bind:value={draft.label} />
+    <input class="lbl" placeholder="What was it? (required)" required bind:value={draft.label} />
     <input type="number" min="0" step="any" placeholder="Amount" bind:value={draft.amount} />
     <input type="date" bind:value={draft.date} />
     <button type="submit">Log</button>
@@ -216,7 +281,18 @@
         <table>
           <tbody>
             {#each spending.byCategory as c (c.category)}
-              <tr><td class="cap">{c.category}</td><td class="mono">{formatUsd(Number(c.total.toString()))}</td></tr>
+              <tr>
+                <td class="cap"><button class="expand" onclick={() => toggleCat(c.category)}>{catOpen(c.category) ? "▾" : "▸"} {c.category}</button></td>
+                <td class="mono">{formatUsd(Number(c.total.toString()))}</td>
+              </tr>
+              {#if catOpen(c.category)}
+                {#each itemsOf(c.category) as r (r.id)}
+                  <tr class="detail">
+                    <td class="sub"><span class="mono date">{String(r.spentAt).slice(5)}</span> <span class="dim">{r.label}</span></td>
+                    <td class="mono muted">{formatUsd(Number(r.amount))}</td>
+                  </tr>
+                {/each}
+              {/if}
             {/each}
           </tbody>
         </table>
@@ -602,6 +678,34 @@
     font-family: var(--font-body);
   }
   .lines .muted {
+    color: var(--color-soot);
+    font-size: 0.85rem;
+  }
+  .expand {
+    background: transparent;
+    border: none;
+    color: var(--color-parchment);
+    cursor: pointer;
+    font: inherit;
+    text-transform: capitalize;
+    padding: 0;
+  }
+  .expand:hover {
+    color: var(--color-gilt);
+  }
+  .noexp {
+    padding-left: 0.9rem;
+  }
+  .detail td {
+    color: var(--color-soot);
+    font-size: 0.85rem;
+    border-bottom: 1px solid var(--color-etch);
+  }
+  .detail .sub {
+    padding-left: 1.2rem;
+    text-transform: capitalize;
+  }
+  .detail .muted {
     color: var(--color-soot);
     font-size: 0.85rem;
   }
