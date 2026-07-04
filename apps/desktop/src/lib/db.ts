@@ -50,6 +50,24 @@ async function open() {
       total numeric(18, 4) NOT NULL,
       breakdown jsonb
     );
+    CREATE TABLE IF NOT EXISTS goals (
+      id text PRIMARY KEY,
+      name text NOT NULL,
+      target_amount numeric(18, 4) NOT NULL,
+      saved_amount numeric(18, 4) NOT NULL DEFAULT 0,
+      target_date date,
+      monthly_contribution numeric(18, 4),
+      created_at timestamptz NOT NULL DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS recurring (
+      id text PRIMARY KEY,
+      label text NOT NULL,
+      category text NOT NULL,
+      amount numeric(18, 4) NOT NULL,
+      cadence text NOT NULL DEFAULT 'monthly',
+      active boolean NOT NULL DEFAULT true,
+      created_at timestamptz NOT NULL DEFAULT now()
+    );
   `);
   return db;
 }
@@ -198,6 +216,94 @@ export async function deleteSpending(id: string): Promise<void> {
   if (!browser) return;
   const d = await db();
   await d.query("DELETE FROM spending WHERE id = $1;", [id]);
+}
+
+/** A savings goal (money as exact strings). */
+export interface GoalRow {
+  id: string;
+  name: string;
+  targetAmount: string;
+  savedAmount: string;
+  targetDate: string | null;
+  monthlyContribution: string | null;
+}
+
+export async function loadGoals(): Promise<GoalRow[]> {
+  if (!browser) return [];
+  const d = await db();
+  const res = await d.query<{
+    id: string;
+    name: string;
+    target_amount: string;
+    saved_amount: string;
+    target_date: string | null;
+    monthly_contribution: string | null;
+  }>(
+    "SELECT id, name, target_amount, saved_amount, target_date::text AS target_date, monthly_contribution, created_at FROM goals ORDER BY created_at;",
+  );
+  return res.rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    targetAmount: r.target_amount,
+    savedAmount: r.saved_amount,
+    targetDate: r.target_date,
+    monthlyContribution: r.monthly_contribution,
+  }));
+}
+
+export async function saveGoal(g: GoalRow): Promise<void> {
+  if (!browser) return;
+  const d = await db();
+  await d.query(
+    `INSERT INTO goals (id, name, target_amount, saved_amount, target_date, monthly_contribution)
+     VALUES ($1, $2, $3::numeric, $4::numeric, $5, $6)
+     ON CONFLICT (id) DO UPDATE SET
+       name = $2, target_amount = $3::numeric, saved_amount = $4::numeric, target_date = $5, monthly_contribution = $6;`,
+    [g.id, g.name, g.targetAmount, g.savedAmount, g.targetDate, g.monthlyContribution],
+  );
+}
+
+export async function deleteGoal(id: string): Promise<void> {
+  if (!browser) return;
+  const d = await db();
+  await d.query("DELETE FROM goals WHERE id = $1;", [id]);
+}
+
+/** A recurring commitment — insurance, car payment, subscription, API cost. */
+export interface RecurringRow {
+  id: string;
+  label: string;
+  category: string;
+  amount: string;
+  cadence: "monthly" | "quarterly" | "annual";
+  active: boolean;
+}
+
+export async function loadRecurring(): Promise<RecurringRow[]> {
+  if (!browser) return [];
+  const d = await db();
+  const res = await d.query<{ id: string; label: string; category: string; amount: string; cadence: RecurringRow["cadence"]; active: boolean }>(
+    "SELECT id, label, category, amount, cadence, active FROM recurring ORDER BY created_at;",
+  );
+  return res.rows.map((r) => ({ id: r.id, label: r.label, category: r.category, amount: r.amount, cadence: r.cadence, active: r.active }));
+}
+
+export async function saveRecurring(row: RecurringRow): Promise<void> {
+  if (!browser) return;
+  const d = await db();
+  await d.query(
+    `INSERT INTO recurring (id, label, category, amount, cadence, active)
+     VALUES ($1, $2, $3, $4::numeric, $5, $6)
+     ON CONFLICT (id) DO UPDATE SET
+       label = $2, category = $3, amount = $4::numeric, cadence = $5, active = $6;`,
+    [row.id, row.label, row.category, row.amount, row.cadence, row.active],
+  );
+}
+
+export async function deleteRecurring(id: string): Promise<void> {
+  if (!browser) return;
+  const d = await db();
+  await d.query("DELETE FROM recurring WHERE id = $1;", [id]);
 }
 
 /** Append a net-worth snapshot (history for the dashboard's net-worth line). */

@@ -6,6 +6,7 @@
   import { setupForm } from "$lib/stores/setup-form.svelte";
 
   let name = $state("");
+  let open = $state(false);
 
   onMount(() => {
     void scenarios.load();
@@ -25,6 +26,13 @@
   ]);
 </script>
 
+<div class="toggle-row">
+  <button class="toggle" onclick={() => (open = !open)}>
+    {open ? "▾" : "▸"} Scenarios{#if scenarios.items.length > 0}<span class="count"> · {scenarios.items.length}</span>{/if}
+  </button>
+</div>
+
+{#if open}
 <section class="bar">
   <div class="save">
     <input placeholder="Name this plan…" bind:value={name} />
@@ -60,14 +68,36 @@
     </table>
   {/if}
 </section>
+{/if}
 
 <style>
+  .toggle-row {
+    display: flex;
+    justify-content: center;
+    margin: 2rem 0 0;
+  }
+  .toggle {
+    background: transparent;
+    border: none;
+    color: var(--color-dim);
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    padding: 0.3rem 0.6rem;
+  }
+  .toggle:hover {
+    color: var(--color-gilt);
+  }
+  .count {
+    color: var(--color-soot);
+  }
   .bar {
     border: 1px solid var(--color-etch);
     border-radius: 10px;
     background: var(--color-panel);
     padding: 1rem 1.25rem;
-    margin-bottom: 2rem;
+    margin: 0.75rem 0 2rem;
   }
   .save {
     display: flex;

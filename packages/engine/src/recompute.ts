@@ -43,10 +43,15 @@ export function recompute(state: ProfileState): RecomputeView {
   });
   const net = tax.net;
 
-  // 4. Net- and post-tax-savings-base dials. Total expenses = fixed + variable
-  //    spending; the savings pool is take-home after all living expenses.
-  const totalExpenses = state.annualExpenses.add(state.variableAnnualSpending ?? Money.zero());
-  const postTaxSavings = maxMoney(net.subtract(totalExpenses), Money.zero());
+  // 4. Net- and post-tax-savings-base dials. Total expenses = fixed + recurring
+  //    commitments + variable spending; goal contributions also claim the pool
+  //    before retirement dials.
+  const commitments = state.annualCommitments ?? Money.zero();
+  const totalExpenses = state.annualExpenses
+    .add(commitments)
+    .add(state.variableAnnualSpending ?? Money.zero());
+  const goalContributions = state.annualGoalContributions ?? Money.zero();
+  const postTaxSavings = maxMoney(net.subtract(totalExpenses).subtract(goalContributions), Money.zero());
   const netAlloc = allocateBase(net, "net", state.dials.filter((d) => d.base === "net"));
   const savingsAlloc = allocateBase(
     postTaxSavings,
@@ -61,6 +66,18 @@ export function recompute(state: ProfileState): RecomputeView {
     post_tax_savings: savingsAlloc.leftover,
   };
   const totalContributions = buckets.reduce((sum, b) => sum.add(b.amount), Money.zero());
+
+  // Where each gross dollar goes (slices sum to gross; leftover absorbs the rest).
+  const whereItGoes: { label: string; amount: Money }[] = [
+    { label: "Taxes", amount: tax.total },
+    { label: "Investing", amount: totalContributions },
+    { label: "Goals", amount: goalContributions },
+    { label: "Living", amount: state.annualExpenses },
+    { label: "Bills", amount: commitments },
+    { label: "Spending", amount: state.variableAnnualSpending ?? Money.zero() },
+  ];
+  const accounted = whereItGoes.reduce((sum, s) => sum.add(s.amount), Money.zero());
+  whereItGoes.push({ label: "Leftover", amount: maxMoney(gross.subtract(accounted), Money.zero()) });
 
   const fire = fireMetrics({
     currentBalance: state.plan.currentBalance,
@@ -80,6 +97,9 @@ export function recompute(state: ProfileState): RecomputeView {
     buckets,
     leftover,
     totalExpenses,
+    commitments,
+    goalContributions,
+    whereItGoes,
     totalContributions,
     savingsRate: net.isZero() ? "0.000000" : totalContributions.ratioTo(net),
     overAllocated: grossAlloc.overAllocated || netAlloc.overAllocated || savingsAlloc.overAllocated,

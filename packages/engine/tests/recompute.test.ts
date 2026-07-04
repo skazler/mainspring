@@ -64,6 +64,54 @@ describe("recompute — income → pre-tax → tax → net → buckets", () => {
     expect(b1.amount.compare(b0.amount)).toBe(-1);
   });
 
+  it("recurring commitments raise total expenses and appear as a Bills slice", () => {
+    const base: ProfileState = {
+      incomeSources: [{ grossAmount: Money.of("120000"), frequency: "annual" }],
+      annualExpenses: Money.of("40000"),
+      taxProfile: { filingStatus: "single", state: "TX", taxYear: 2026 },
+      plan: { currentBalance: Money.of("0"), swr: "0.04", realReturn: "0.05", currentAge: 35, targetRetireAge: 65 },
+      dials: [{ bucket: "brokerage", base: "post_tax_savings", pct: "1", priority: 1 }],
+    };
+    const without = recompute(base);
+    const withBills = recompute({ ...base, annualCommitments: Money.of("9000") });
+
+    expect(withBills.commitments.toString()).toBe("9000.0000");
+    expect(withBills.totalExpenses.toString()).toBe("49000.0000");
+    // FI number climbs: 40k/.04=1,000,000 vs 49k/.04=1,225,000
+    expect(withBills.fire.fiNumber.toString()).toBe("1225000.0000");
+    // bills claim the savings pool, so the brokerage dial contributes less
+    const b0 = without.buckets.find((b) => b.bucket === "brokerage")!;
+    const b1 = withBills.buckets.find((b) => b.bucket === "brokerage")!;
+    expect(b1.amount.compare(b0.amount)).toBe(-1);
+    // Bills shows up in the breakdown and the slices still sum to gross
+    expect(withBills.whereItGoes.find((s) => s.label === "Bills")!.amount.toString()).toBe("9000.0000");
+    const sum = withBills.whereItGoes.reduce((a, s) => a.add(s.amount), Money.zero());
+    expect(sum.toString()).toBe("120000.0000");
+  });
+
+  it("goal contributions claim the savings pool; whereItGoes sums to gross", () => {
+    const base: ProfileState = {
+      incomeSources: [{ grossAmount: Money.of("120000"), frequency: "annual" }],
+      annualExpenses: Money.of("40000"),
+      taxProfile: { filingStatus: "single", state: "TX", taxYear: 2026 },
+      plan: { currentBalance: Money.of("0"), swr: "0.04", realReturn: "0.05", currentAge: 35, targetRetireAge: 65 },
+      dials: [{ bucket: "brokerage", base: "post_tax_savings", pct: "1", priority: 1 }],
+    };
+    const without = recompute(base);
+    const withGoals = recompute({ ...base, annualGoalContributions: Money.of("6000") });
+
+    // goals reduce what the brokerage dial can draw from the pool
+    const b0 = without.buckets.find((b) => b.bucket === "brokerage")!;
+    const b1 = withGoals.buckets.find((b) => b.bucket === "brokerage")!;
+    expect(b1.amount.compare(b0.amount)).toBe(-1);
+    expect(withGoals.goalContributions.toString()).toBe("6000.0000");
+
+    // the breakdown slices sum to gross
+    const sum = withGoals.whereItGoes.reduce((a, s) => a.add(s.amount), Money.zero());
+    expect(sum.toString()).toBe("120000.0000");
+    expect(withGoals.whereItGoes.find((s) => s.label === "Goals")!.amount.toString()).toBe("6000.0000");
+  });
+
   it("handles zero income without dividing by zero", () => {
     const r = recompute({
       incomeSources: [],
