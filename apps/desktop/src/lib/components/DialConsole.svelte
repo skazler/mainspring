@@ -20,6 +20,21 @@
 
   const propSlices = $derived(v.whereItGoes.map((s) => ({ label: s.label, amount: Number(s.amount.toString()) })));
 
+  // Every dollar of income as a read-only dial — taxes, essentials (bills),
+  // spending, investing, goals, leftover. Consuming slices read as outflow (red).
+  const CONSUMING = new Set(["Taxes", "Essentials", "Spending"]);
+  const grossN = $derived(Number(v.gross.toString()));
+  const flowDials = $derived(
+    v.whereItGoes
+      .filter((s) => Number(s.amount.toString()) > 0)
+      .map((s) => ({
+        label: s.label,
+        pct: grossN > 0 ? Number(s.amount.toString()) / grossN : 0,
+        amount: formatMoney(s.amount),
+        outflow: CONSUMING.has(s.label),
+      })),
+  );
+
   function allocFor(bucket: string, base: string) {
     return v.buckets.find((b) => b.bucket === bucket && b.base === base);
   }
@@ -42,7 +57,7 @@
         targetRetireAge={profile.plan.targetRetireAge}
         coast={v.fire.coastNumber}
         fi={v.fire.fiNumber}
-        commitments={v.commitments}
+        discretionary={v.commitments.add(profile.variableAnnualSpending ?? Money.zero())}
       />
     </div>
     <div class="panel">
@@ -53,7 +68,7 @@
 
   <div class="readouts">
     <TakeHomeReadout net={v.net} gross={v.gross} tax={v.tax.total} />
-    <FireSummary fire={v.fire} savingsRate={v.savingsRate} />
+    <FireSummary fire={v.fire} savingsRate={v.savingsRate} employerMatch={v.employerMatch} />
   </div>
 
   <div class="gauges">
@@ -72,6 +87,14 @@
   {#if v.overAllocated}
     <p class="warn">Allocations exceed a base — trim a dial.</p>
   {/if}
+
+  <h3 class="flow-title">Where your income goes</h3>
+  <p class="flow-sub">Every dollar of gross income as a dial — from taxes to subscriptions. Read-only; adjust the levers above or in Outflows.</p>
+  <div class="gauges flow-gauges">
+    {#each flowDials as f (f.label)}
+      <Gauge label={f.label} pct={f.pct} amount={f.amount} outflow={f.outflow} />
+    {/each}
+  </div>
 
   <div class="forecast">
     <div class="market">
@@ -187,6 +210,25 @@
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 1.5rem 1rem;
     justify-items: center;
+  }
+  .flow-title {
+    text-align: center;
+    font-family: var(--font-display);
+    color: var(--color-gilt);
+    letter-spacing: 0.1em;
+    font-size: 0.95rem;
+    margin: 3rem 0 0.2rem;
+  }
+  .flow-sub {
+    text-align: center;
+    color: var(--color-dim);
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    margin: 0 0 1.5rem;
+  }
+  .flow-gauges {
+    border-top: 1px solid var(--color-etch);
+    padding-top: 1.8rem;
   }
   .warn {
     margin-top: 1.5rem;

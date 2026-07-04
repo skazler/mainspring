@@ -51,7 +51,13 @@ export function recompute(state: ProfileState): RecomputeView {
     .add(commitments)
     .add(state.variableAnnualSpending ?? Money.zero());
   const goalContributions = state.annualGoalContributions ?? Money.zero();
-  const postTaxSavings = maxMoney(net.subtract(totalExpenses).subtract(goalContributions), Money.zero());
+  // Recurring auto-invest (e.g. Acorns) is a contribution: it claims the pool
+  // before dials, then folds back into total contributions below.
+  const autoInvestments = state.annualInvestments ?? Money.zero();
+  const postTaxSavings = maxMoney(
+    net.subtract(totalExpenses).subtract(goalContributions).subtract(autoInvestments),
+    Money.zero(),
+  );
   const netAlloc = allocateBase(net, "net", state.dials.filter((d) => d.base === "net"));
   const savingsAlloc = allocateBase(
     postTaxSavings,
@@ -65,15 +71,20 @@ export function recompute(state: ProfileState): RecomputeView {
     net: netAlloc.leftover,
     post_tax_savings: savingsAlloc.leftover,
   };
-  const totalContributions = buckets.reduce((sum, b) => sum.add(b.amount), Money.zero());
+  // Contributions from your own income (dials + auto-invest). Employer match is
+  // free money on top — it grows net worth but isn't part of your paycheck, so
+  // it stays out of the "where every dollar goes" breakdown.
+  const ownContributions = buckets.reduce((sum, b) => sum.add(b.amount), autoInvestments);
+  const employerMatch = state.plan.employerMatchPercent ? gross.multiply(state.plan.employerMatchPercent) : Money.zero();
+  const totalContributions = ownContributions.add(employerMatch);
 
   // Where each gross dollar goes (slices sum to gross; leftover absorbs the rest).
   const whereItGoes: { label: string; amount: Money }[] = [
     { label: "Taxes", amount: tax.total },
-    { label: "Investing", amount: totalContributions },
+    { label: "Investing", amount: ownContributions },
     { label: "Goals", amount: goalContributions },
-    { label: "Living", amount: state.annualExpenses },
-    { label: "Bills", amount: commitments },
+    // Essentials = the baseline living lump + itemized recurring bills.
+    { label: "Essentials", amount: state.annualExpenses.add(commitments) },
     { label: "Spending", amount: state.variableAnnualSpending ?? Money.zero() },
   ];
   const accounted = whereItGoes.reduce((sum, s) => sum.add(s.amount), Money.zero());
@@ -98,10 +109,13 @@ export function recompute(state: ProfileState): RecomputeView {
     leftover,
     totalExpenses,
     commitments,
+    autoInvestments,
     goalContributions,
     whereItGoes,
+    ownContributions,
+    employerMatch,
     totalContributions,
-    savingsRate: net.isZero() ? "0.000000" : totalContributions.ratioTo(net),
+    savingsRate: net.isZero() ? "0.000000" : ownContributions.ratioTo(net),
     overAllocated: grossAlloc.overAllocated || netAlloc.overAllocated || savingsAlloc.overAllocated,
     fire,
   };

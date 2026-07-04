@@ -36,6 +36,8 @@ export interface PlanInput {
   realReturn: string;
   currentAge: number;
   targetRetireAge: number;
+  /** Employer 401(k) match as a fraction of gross, e.g. "0.04" for 4%. Default 0. */
+  employerMatchPercent?: string;
 }
 
 export interface ProfileState {
@@ -48,6 +50,8 @@ export interface ProfileState {
   variableAnnualSpending?: Money;
   /** Annualized recurring commitments — insurance, car, subscriptions, API costs. Default 0. */
   annualCommitments?: Money;
+  /** Annualized recurring auto-invest contributions (e.g. $50/wk into Acorns). Default 0. */
+  annualInvestments?: Money;
   /** Annualized savings-goal contributions (from the goals tracker). Default 0. */
   annualGoalContributions?: Money;
   plan: PlanInput;
@@ -77,10 +81,17 @@ export interface RecomputeView {
   totalExpenses: Money;
   /** Annualized recurring commitments (bills). */
   commitments: Money;
+  /** Annualized recurring auto-invest contributions (folded into totalContributions). */
+  autoInvestments: Money;
   /** Annualized savings-goal contributions (claims the pool alongside dials). */
   goalContributions: Money;
   /** Where each gross dollar goes; slices sum to gross (for the proportions graph). */
   whereItGoes: { label: string; amount: Money }[];
+  /** Contributions from your own income (dials + auto-invest), excluding match. */
+  ownContributions: Money;
+  /** Employer 401(k) match — free money on top of your own contributions. */
+  employerMatch: Money;
+  /** ownContributions + employerMatch — drives net worth and the FI projection. */
   totalContributions: Money;
   /** totalContributions / net. */
   savingsRate: string;

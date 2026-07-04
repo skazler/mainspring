@@ -4,6 +4,7 @@
   import { scenarioSummary } from "$lib/scenario";
   import { scenarios } from "$lib/stores/scenarios.svelte";
   import { setupForm } from "$lib/stores/setup-form.svelte";
+  import ConfirmButton from "./ConfirmButton.svelte";
 
   let name = $state("");
   let open = $state(false);
@@ -48,7 +49,7 @@
             {s.name}
           </label>
           <button class="link" onclick={() => scenarios.apply(s)}>Load</button>
-          <button class="link del" onclick={() => scenarios.remove(s.id)}>✕</button>
+          <ConfirmButton onconfirm={() => scenarios.remove(s.id)} title="Delete scenario" />
         </li>
       {/each}
     </ul>
@@ -154,9 +155,6 @@
   }
   .link:hover {
     color: var(--color-gilt);
-  }
-  .del {
-    color: var(--color-oxblood);
   }
   .compare {
     width: 100%;

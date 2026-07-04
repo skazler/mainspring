@@ -1,12 +1,108 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { formatUsd } from "$lib/format";
+  import { Money } from "@mainspring/schema";
+  import { cadenceAbbrev, formatPct, formatUsd } from "$lib/format";
+  import { bucketLabel } from "$lib/buckets";
   import { spending } from "$lib/stores/spending.svelte";
   import { recurring } from "$lib/stores/recurring.svelte";
+  import { goals } from "$lib/stores/goals.svelte";
+  import { profile } from "$lib/stores/profile.svelte";
+  import { view } from "$lib/stores/derived.svelte";
+  import Donut from "./Donut.svelte";
+  import Proportions from "./Proportions.svelte";
+  import ConfirmButton from "./ConfirmButton.svelte";
+
+  const v = $derived(view.current);
+  let showBreakdown = $state(false);
+  const propSlices = $derived(v.whereItGoes.map((s) => ({ label: s.label, amount: Number(s.amount.toString()) })));
+
+  // Cash-flow health, from take-home. Consumption (living + bills + spending) is
+  // money that's gone; the rest goes to the future (goals + investing). Spare is
+  // whatever income is left after everything — negative means over budget.
+  const slice = (label: string) => v.whereItGoes.find((s) => s.label === label)?.amount ?? Money.zero();
+  const consumption = $derived(slice("Essentials").add(slice("Spending")));
+  const toFuture = $derived(slice("Goals").add(slice("Investing")));
+  const spare = $derived(v.gross.subtract(slice("Taxes")).subtract(consumption).subtract(toFuture));
+  const spareN = $derived(Number(spare.toString()));
+  const mo = (m: Money) => Number(m.toString()) / 12;
+
+  // Group logged spending by month (rows already arrive newest-first).
+  const months = $derived(
+    (() => {
+      const map = new Map<string, { key: string; label: string; total: number; items: typeof spending.rows }>();
+      for (const r of spending.rows) {
+        const key = String(r.spentAt).slice(0, 7);
+        let g = map.get(key);
+        if (!g) {
+          const label = new Date(key + "-01T00:00:00").toLocaleDateString("en-US", { month: "long", year: "numeric" });
+          g = { key, label, total: 0, items: [] };
+          map.set(key, g);
+        }
+        g.total += Number(r.amount);
+        g.items.push(r);
+      }
+      return [...map.values()];
+    })(),
+  );
+  // A month is open by default only if it's the newest; overrides track user toggles.
+  let overrides = $state<Record<string, boolean>>({});
+  const isOpen = (key: string, i: number) => overrides[key] ?? i === 0;
+  const toggleMonth = (key: string, i: number) => (overrides[key] = !isOpen(key, i));
+
+  // Expand a spending category to its individual entries.
+  let openCats = $state<Record<string, boolean>>({});
+  const catOpen = (c: string) => openCats[c] ?? false;
+  const toggleCat = (c: string) => (openCats[c] = !catOpen(c));
+  const itemsOf = (c: string) => spending.rows.filter((r) => r.category === c);
+
+  // Expand a budget line to the pieces that make it up.
+  let openLines = $state<Record<string, boolean>>({});
+  const lineOpen = (l: string) => openLines[l] ?? false;
+  const toggleLine = (l: string) => (openLines[l] = !lineOpen(l));
+
+  function detailsFor(label: string): { name: string; amount: number }[] {
+    switch (label) {
+      case "Taxes":
+        return [
+          { name: "Federal", amount: Number(v.tax.federal.toString()) },
+          { name: "FICA (Social Security + Medicare)", amount: Number(v.tax.fica.toString()) },
+          { name: "State", amount: Number(v.tax.state.toString()) },
+          { name: "Capital gains", amount: Number(v.tax.capitalGains.toString()) },
+        ].filter((d) => d.amount > 0);
+      case "Investing": {
+        const items = v.buckets.map((b) => ({ name: bucketLabel(b.bucket), amount: Number(b.amount.toString()) }));
+        const auto = Number(v.autoInvestments.toString());
+        if (auto > 0) items.push({ name: "Auto-invest (recurring)", amount: auto });
+        return items.filter((d) => d.amount > 0);
+      }
+      case "Essentials": {
+        const items = recurring.bills
+          .filter((r) => r.active)
+          .map((r) => ({ name: r.label, amount: Number(recurring.annual(r).toString()) }));
+        const baseline = Number(profile.annualExpenses.toString());
+        if (baseline > 0) items.unshift({ name: "Baseline (unitemized)", amount: baseline });
+        return items;
+      }
+      case "Goals": {
+        const active = goals.rows.find((g) => g.id === goals.activeId);
+        return active?.monthlyContribution ? [{ name: active.name, amount: Number(active.monthlyContribution) * 12 }] : [];
+      }
+      case "Spending": {
+        // Annualize each category proportionally so the parts match the slice total.
+        const raw = spending.byCategory;
+        const rawTotal = raw.reduce((s, c) => s + Number(c.total.toString()), 0);
+        const annual = Number(slice("Spending").toString());
+        if (rawTotal <= 0) return [];
+        return raw.map((c) => ({ name: c.category, amount: (Number(c.total.toString()) / rawTotal) * annual }));
+      }
+      default:
+        return [];
+    }
+  }
 
   const CATEGORIES = ["coffee", "dining", "groceries", "clothes", "entertainment", "transport", "subscriptions", "other"];
-  const BILL_CATEGORIES = ["insurance", "car", "housing", "utilities", "phone", "software", "api", "subscription", "loan", "other"];
-  const CADENCES = ["monthly", "quarterly", "annual"] as const;
+  const BILL_CATEGORIES = ["rent", "mortgage", "groceries", "utilities", "insurance", "car", "phone", "software dev", "api", "subscription", "loan", "other"];
+  const CADENCES = ["weekly", "biweekly", "monthly", "quarterly", "annual"] as const;
   const today = () => new Date().toISOString().slice(0, 10);
   let draft = $state({ category: "coffee", label: "", amount: 0, date: today() });
   let bill = $state<{ label: string; category: string; amount: number; cadence: (typeof CADENCES)[number] }>({
@@ -23,11 +119,12 @@
 
   async function add(e: Event) {
     e.preventDefault();
-    if (!draft.category.trim() || draft.amount <= 0) return;
+    // A note is required — the category alone doesn't say what a purchase was.
+    if (!draft.category.trim() || draft.amount <= 0 || !draft.label.trim()) return;
     await spending.add({
       id: crypto.randomUUID(),
       category: draft.category.trim().toLowerCase(),
-      label: draft.label.trim() || null,
+      label: draft.label.trim(),
       amount: String(draft.amount),
       spentAt: draft.date,
     });
@@ -43,6 +140,7 @@
       category: bill.category.trim().toLowerCase(),
       amount: String(bill.amount),
       cadence: bill.cadence,
+      kind: "bill",
       active: true,
     });
     bill = { label: "", category: bill.category, amount: 0, cadence: bill.cadence };
@@ -53,12 +151,74 @@
   <header class="title">Outflows</header>
   <p class="lede">Everything leaving your account — fixed commitments and day-to-day spending. Both feed your total expenses, so your savings pool and freedom date move with them.</p>
 
+  <div class="cashflow" class:over={spareN < 0}>
+    <div class="verdict">
+      {#if spareN < 0}
+        <span class="tag red">Over budget</span>
+        <span class="msg">You're spending <strong>{formatUsd(-mo(spare))}/mo</strong> more than you take home. Trim spending, bills, or contributions.</span>
+      {:else if mo(spare) < mo(v.net) * 0.03}
+        <span class="tag amber">Fully allocated</span>
+        <span class="msg">Every dollar is spoken for — about <strong>{formatUsd(mo(spare))}/mo</strong> spare. No cushion for surprises.</span>
+      {:else}
+        <span class="tag green">In the black</span>
+        <span class="msg">You live within your means and invest <strong>{formatPct(v.savingsRate)}</strong> of take-home, with <strong>{formatUsd(mo(spare))}/mo</strong> to spare.</span>
+      {/if}
+    </div>
+    <div class="flow">
+      <span class="item"><span class="k">Take-home</span><span class="mono">{formatUsd(mo(v.net))}/mo</span></span>
+      <span class="op">−</span>
+      <span class="item"><span class="k">Essentials + spending</span><span class="mono">{formatUsd(mo(consumption))}/mo</span></span>
+      <span class="op">−</span>
+      <span class="item"><span class="k">Goals + investing</span><span class="mono">{formatUsd(mo(toFuture))}/mo</span></span>
+      <span class="op">=</span>
+      <span class="item"><span class="k">Spare</span><span class="mono" class:neg={spareN < 0}>{formatUsd(mo(spare))}/mo</span></span>
+    </div>
+
+    <button class="breakdown-toggle" onclick={() => (showBreakdown = !showBreakdown)}>
+      {showBreakdown ? "▾ hide breakdown" : "▸ see where every dollar goes"}
+    </button>
+    {#if showBreakdown}
+      <div class="breakdown">
+        <Proportions slices={propSlices} total={Number(v.gross.toString())} />
+        <table class="lines">
+          <tbody>
+            {#each v.whereItGoes as s (s.label)}
+              {#if Number(s.amount.toString()) > 0}
+                {@const dets = detailsFor(s.label)}
+                <tr>
+                  <td class="cap">
+                    {#if dets.length > 0}
+                      <button class="expand" onclick={() => toggleLine(s.label)}>{lineOpen(s.label) ? "▾" : "▸"} {s.label}</button>
+                    {:else}<span class="noexp">{s.label}</span>{/if}
+                  </td>
+                  <td class="mono">{formatUsd(mo(s.amount))}/mo</td>
+                  <td class="mono muted">{formatUsd(Number(s.amount.toString()))}/yr</td>
+                  <td class="mono muted">{Math.round((Number(s.amount.toString()) / Number(v.gross.toString())) * 100)}%</td>
+                </tr>
+                {#if lineOpen(s.label)}
+                  {#each dets as d (d.name)}
+                    <tr class="detail">
+                      <td class="cap sub">{d.name}</td>
+                      <td class="mono muted">{formatUsd(d.amount / 12)}/mo</td>
+                      <td class="mono muted">{formatUsd(d.amount)}/yr</td>
+                      <td></td>
+                    </tr>
+                  {/each}
+                {/if}
+              {/if}
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    {/if}
+  </div>
+
   <div class="block">
-    <h2 class="section">Recurring commitments</h2>
-    <p class="hint">Insurance, car payment, subscriptions, API costs — anything charged on a schedule.</p>
+    <h2 class="section">Bills &amp; essentials</h2>
+    <p class="hint">Everything fixed and recurring — rent/mortgage, groceries, utilities, insurance, car, subscriptions, API costs. Itemize them here and they drill down under "Essentials" in your budget.</p>
 
     <form class="add" onsubmit={addBill}>
-      <input class="lbl" placeholder="What is it? (e.g. Car insurance)" bind:value={bill.label} />
+      <input class="lbl" placeholder="What is it? (e.g. Rent, Car insurance)" bind:value={bill.label} />
       <input class="cat" list="bills" placeholder="Category" bind:value={bill.category} />
       <datalist id="bills">{#each BILL_CATEGORIES as c (c)}<option value={c}></option>{/each}</datalist>
       <input type="number" min="0" step="any" placeholder="Amount" bind:value={bill.amount} />
@@ -69,44 +229,52 @@
     </form>
 
     <div class="summary">
-      <span>Committed: <strong>{formatUsd(Number(recurring.annualized.toString()))}</strong>/yr</span>
+      <span>Bills &amp; essentials: <strong>{formatUsd(Number(recurring.billsAnnual.toString()))}</strong>/yr</span>
     </div>
 
     {#if recurring.error}<p class="warn">{recurring.error}</p>{/if}
 
-    {#if recurring.rows.length > 0}
+    {#if recurring.bills.length > 0}
       <table class="bills">
         <tbody>
-          {#each recurring.rows as r (r.id)}
+          {#each recurring.bills as r (r.id)}
             <tr class:paused={!r.active}>
               <td class="cap">{r.label}<span class="dim"> · {r.category}</span></td>
-              <td class="mono">{formatUsd(Number(r.amount))}<span class="dim">/{r.cadence === "annual" ? "yr" : r.cadence === "quarterly" ? "qtr" : "mo"}</span></td>
+              <td class="mono">{formatUsd(Number(r.amount))}<span class="dim">/{cadenceAbbrev(r.cadence)}</span></td>
               <td class="mono">{formatUsd(Number(recurring.annual(r).toString()))}<span class="dim">/yr</span></td>
               <td><button class="link" onclick={() => recurring.toggle(r.id)}>{r.active ? "pause" : "resume"}</button></td>
-              <td><button class="del" onclick={() => recurring.remove(r.id)}>✕</button></td>
+              <td><ConfirmButton onconfirm={() => recurring.remove(r.id)} title="Delete bill" /></td>
             </tr>
           {/each}
         </tbody>
       </table>
+
+      {#if recurring.billsByCategory.length > 1}
+        <h3 class="compare-title">By category</h3>
+        <Donut
+          slices={recurring.billsByCategory.map((c) => ({ label: c.category, amount: Number(c.annual.toString()) }))}
+          unit="per year"
+        />
+      {/if}
     {:else}
       <p class="empty">No commitments yet — add a bill above.</p>
     {/if}
   </div>
 
   <h2 class="section">Variable spending</h2>
-  <p class="hint">Discretionary purchases — logged and annualized from the months they span.</p>
+  <p class="hint">Discretionary purchases. The plan uses <strong>this month's</strong> spending projected out, and resets at the start of each month — so one heavy month doesn't haunt your budget forever.</p>
 
   <form class="add" onsubmit={add}>
     <input class="cat" list="cats" placeholder="Category" bind:value={draft.category} />
     <datalist id="cats">{#each CATEGORIES as c (c)}<option value={c}></option>{/each}</datalist>
-    <input class="lbl" placeholder="Note (optional)" bind:value={draft.label} />
+    <input class="lbl" placeholder="What was it? (required)" required bind:value={draft.label} />
     <input type="number" min="0" step="any" placeholder="Amount" bind:value={draft.amount} />
     <input type="date" bind:value={draft.date} />
     <button type="submit">Log</button>
   </form>
 
   <div class="summary">
-    <span>Annualized: <strong>{formatUsd(Number(spending.annualized.toString()))}</strong>/yr</span>
+    <span>This month: <strong>{formatUsd(Number(spending.thisMonthTotal.toString()))}</strong> · ~{formatUsd(Number(spending.annualized.toString()))}/yr projected</span>
   </div>
 
   {#if spending.error}<p class="warn">{spending.error}</p>{/if}
@@ -118,25 +286,59 @@
         <table>
           <tbody>
             {#each spending.byCategory as c (c.category)}
-              <tr><td class="cap">{c.category}</td><td class="mono">{formatUsd(Number(c.total.toString()))}</td></tr>
+              <tr>
+                <td class="cap"><button class="expand" onclick={() => toggleCat(c.category)}>{catOpen(c.category) ? "▾" : "▸"} {c.category}</button></td>
+                <td class="mono">{formatUsd(Number(c.total.toString()))}</td>
+              </tr>
+              {#if catOpen(c.category)}
+                {#each itemsOf(c.category) as r (r.id)}
+                  <tr class="detail">
+                    <td class="sub"><span class="mono date">{String(r.spentAt).slice(5)}</span> <span class="dim">{r.label}</span></td>
+                    <td class="mono muted">{formatUsd(Number(r.amount))}</td>
+                  </tr>
+                {/each}
+              {/if}
             {/each}
           </tbody>
         </table>
       </div>
       <div class="col">
-        <h3>Recent</h3>
-        <table>
-          <tbody>
-            {#each spending.rows.slice(0, 20) as r (r.id)}
-              <tr>
-                <td class="mono date">{r.spentAt}</td>
-                <td class="cap">{r.category}{#if r.label} · <span class="dim">{r.label}</span>{/if}</td>
-                <td class="mono">{formatUsd(Number(r.amount))}</td>
-                <td><button class="del" onclick={() => spending.remove(r.id)}>✕</button></td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
+        <h3>History</h3>
+        <!-- Grouped by month, newest open. Collapsed months keep the list short no
+             matter how many entries pile up over the years. -->
+        {#each months as m, i (m.key)}
+          <div class="month">
+            <button class="month-head" onclick={() => toggleMonth(m.key, i)}>
+              <span class="caret">{isOpen(m.key, i) ? "▾" : "▸"}</span>
+              <span class="mlabel">{m.label}</span>
+              <span class="count">{m.items.length}</span>
+              <span class="mono mtotal">{formatUsd(m.total)}</span>
+            </button>
+            {#if isOpen(m.key, i)}
+              <table>
+                <tbody>
+                  {#each m.items as r (r.id)}
+                    <tr>
+                      <td class="mono date">{String(r.spentAt).slice(5)}</td>
+                      <td class="catcell">
+                        <input
+                          class="catedit"
+                          list="cats"
+                          value={r.category}
+                          title="Click to re-categorize"
+                          onchange={(e) => spending.update({ ...r, category: e.currentTarget.value.trim().toLowerCase() || r.category })}
+                        />
+                        {#if r.label}<span class="dim"> · {r.label}</span>{/if}
+                      </td>
+                      <td class="mono">{formatUsd(Number(r.amount))}</td>
+                      <td><ConfirmButton onconfirm={() => spending.remove(r.id)} title="Delete entry" /></td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            {/if}
+          </div>
+        {/each}
       </div>
     </div>
   {:else}
@@ -244,12 +446,6 @@
     color: var(--color-dim);
     text-transform: none;
   }
-  .del {
-    background: transparent;
-    border: none;
-    color: var(--color-oxblood);
-    cursor: pointer;
-  }
   .empty {
     text-align: center;
     color: var(--color-dim);
@@ -317,5 +513,205 @@
   }
   .link:hover {
     color: var(--color-gilt);
+  }
+  .compare-title {
+    text-align: center;
+    margin: 1.6rem 0 1rem;
+  }
+  .cashflow {
+    border: 1px solid var(--color-etch);
+    border-left: 3px solid var(--color-lime-rust);
+    border-radius: 10px;
+    background: var(--color-panel);
+    box-shadow: var(--bevel);
+    padding: 1rem 1.25rem;
+    margin-bottom: 2.5rem;
+  }
+  .cashflow.over {
+    border-left-color: var(--color-oxblood);
+  }
+  .verdict {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.9rem;
+  }
+  .tag {
+    font-family: var(--font-display);
+    letter-spacing: 0.08em;
+    font-size: 0.8rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 5px;
+    white-space: nowrap;
+  }
+  .tag.green {
+    color: var(--color-coal);
+    background: var(--color-lime-rust);
+  }
+  .tag.amber {
+    color: var(--color-coal);
+    background: var(--color-gilt);
+  }
+  .tag.red {
+    color: var(--color-parchment);
+    background: var(--color-oxblood);
+  }
+  .msg {
+    color: var(--color-soot);
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+  }
+  .msg strong {
+    color: var(--color-parchment);
+    font-family: var(--font-meter);
+  }
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    font-family: var(--font-body);
+  }
+  .flow .item {
+    display: flex;
+    flex-direction: column;
+  }
+  .flow .k {
+    color: var(--color-dim);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .flow .mono {
+    font-family: var(--font-meter);
+    color: var(--color-parchment);
+  }
+  .flow .op {
+    color: var(--color-soot);
+    font-family: var(--font-meter);
+  }
+  .flow .neg {
+    color: var(--color-oxblood);
+  }
+  .month {
+    border-bottom: 1px solid var(--color-etch);
+  }
+  .month-head {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem 0.2rem;
+    color: var(--color-parchment);
+    font-family: var(--font-body);
+  }
+  .month-head:hover {
+    color: var(--color-gilt);
+  }
+  .caret {
+    color: var(--color-soot);
+    width: 1rem;
+  }
+  .mlabel {
+    flex: 1;
+    text-align: left;
+  }
+  .count {
+    color: var(--color-dim);
+    font-family: var(--font-meter);
+    font-size: 0.78rem;
+  }
+  .mtotal {
+    color: var(--color-copper);
+    font-family: var(--font-meter);
+  }
+  .catcell {
+    text-align: left;
+  }
+  .catedit {
+    background: transparent;
+    border: none;
+    border-bottom: 1px dashed transparent;
+    color: var(--color-parchment);
+    font-family: var(--font-body);
+    text-transform: capitalize;
+    padding: 0.1rem 0;
+    width: 8rem;
+    cursor: pointer;
+  }
+  .catedit:hover {
+    border-bottom-color: var(--color-etch);
+  }
+  .catedit:focus {
+    outline: none;
+    border-bottom-color: var(--color-gilt);
+    cursor: text;
+  }
+  .breakdown-toggle {
+    background: transparent;
+    border: none;
+    color: var(--color-soot);
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    padding: 0.6rem 0 0;
+  }
+  .breakdown-toggle:hover {
+    color: var(--color-gilt);
+  }
+  .breakdown {
+    margin-top: 0.8rem;
+  }
+  .lines {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0.9rem;
+    font-family: var(--font-meter);
+  }
+  .lines td {
+    text-align: right;
+    padding: 0.3rem 0.5rem;
+    border-bottom: 1px solid var(--color-etch);
+    color: var(--color-parchment);
+  }
+  .lines td.cap {
+    text-align: left;
+    font-family: var(--font-body);
+  }
+  .lines .muted {
+    color: var(--color-soot);
+    font-size: 0.85rem;
+  }
+  .expand {
+    background: transparent;
+    border: none;
+    color: var(--color-parchment);
+    cursor: pointer;
+    font: inherit;
+    text-transform: capitalize;
+    padding: 0;
+  }
+  .expand:hover {
+    color: var(--color-gilt);
+  }
+  .noexp {
+    padding-left: 0.9rem;
+  }
+  .detail td {
+    color: var(--color-soot);
+    font-size: 0.85rem;
+    border-bottom: 1px solid var(--color-etch);
+  }
+  .detail .sub {
+    padding-left: 1.2rem;
+    text-transform: capitalize;
+  }
+  .detail .muted {
+    color: var(--color-soot);
+    font-size: 0.85rem;
   }
 </style>

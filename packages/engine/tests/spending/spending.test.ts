@@ -1,6 +1,6 @@
 import { Money } from "@mainspring/schema";
 import { describe, expect, it } from "vitest";
-import { annualizeSpending, spendingByCategory, type SpendingEntry } from "../../src/index";
+import { annualizeSpending, annualizeMonth, monthTotal, spendingByCategory, type SpendingEntry } from "../../src/index";
 
 const e = (category: string, amount: string, spentAt: string): SpendingEntry => ({
   category,
@@ -19,6 +19,23 @@ describe("annualizeSpending", () => {
 
   it("is zero for no entries", () => {
     expect(annualizeSpending([]).toString()).toBe("0.0000");
+  });
+});
+
+describe("annualizeMonth / monthTotal (monthly reset)", () => {
+  const rows = [
+    e("coffee", "50", "2026-06-20"), // previous month — ignored
+    e("dining", "100", "2026-07-05"),
+    e("coffee", "20", "2026-07-18"),
+  ];
+  it("counts only the given month, projected ×12", () => {
+    expect(monthTotal(rows, "2026-07").toString()).toBe("120.0000");
+    expect(annualizeMonth(rows, "2026-07").toString()).toBe("1440.0000");
+    // last month resets away from this month's figure
+    expect(annualizeMonth(rows, "2026-06").toString()).toBe("600.0000");
+  });
+  it("is zero for a month with no entries", () => {
+    expect(annualizeMonth(rows, "2026-08").toString()).toBe("0.0000");
   });
 });
 

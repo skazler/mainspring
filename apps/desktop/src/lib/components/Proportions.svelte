@@ -11,6 +11,7 @@
     Taxes: "var(--color-oxblood)",
     Investing: "var(--color-brass)",
     Goals: "var(--color-patina)",
+    Essentials: "var(--color-copper)",
     Living: "var(--color-copper)",
     Bills: "var(--color-lime-rust)",
     Spending: "var(--color-soot)",

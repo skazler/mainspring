@@ -25,6 +25,8 @@ export interface SetupForm {
   /** Whole-number percents. */
   swrPercent: number;
   realReturnPercent: number;
+  /** Employer 401(k) match as a whole-number percent of gross, e.g. 4. */
+  employerMatchPercent: number;
   contributions: ContributionForm[];
 }
 
@@ -40,6 +42,7 @@ export function defaultSetupForm(): SetupForm {
     annualExpenses: 45000,
     swrPercent: 4,
     realReturnPercent: 5,
+    employerMatchPercent: 0,
     contributions: BUCKET_OPTIONS.map((o) => ({
       bucket: o.bucket,
       base: o.base,
@@ -70,6 +73,7 @@ export function buildProfileState(form: SetupForm): ProfileState {
       currentBalance: Money.of(String(form.currentBalance || 0)),
       swr: frac(form.swrPercent),
       realReturn: frac(form.realReturnPercent),
+      employerMatchPercent: frac(form.employerMatchPercent || 0),
       currentAge: form.currentAge,
       targetRetireAge: form.targetRetireAge,
     },

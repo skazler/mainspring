@@ -64,7 +64,7 @@ describe("recompute — income → pre-tax → tax → net → buckets", () => {
     expect(b1.amount.compare(b0.amount)).toBe(-1);
   });
 
-  it("recurring commitments raise total expenses and appear as a Bills slice", () => {
+  it("recurring commitments raise total expenses and merge into the Essentials slice", () => {
     const base: ProfileState = {
       incomeSources: [{ grossAmount: Money.of("120000"), frequency: "annual" }],
       annualExpenses: Money.of("40000"),
@@ -83,10 +83,60 @@ describe("recompute — income → pre-tax → tax → net → buckets", () => {
     const b0 = without.buckets.find((b) => b.bucket === "brokerage")!;
     const b1 = withBills.buckets.find((b) => b.bucket === "brokerage")!;
     expect(b1.amount.compare(b0.amount)).toBe(-1);
-    // Bills shows up in the breakdown and the slices still sum to gross
-    expect(withBills.whereItGoes.find((s) => s.label === "Bills")!.amount.toString()).toBe("9000.0000");
+    // Essentials = baseline living (40k) + bills (9k); slices still sum to gross
+    expect(withBills.whereItGoes.find((s) => s.label === "Essentials")!.amount.toString()).toBe("49000.0000");
+    expect(withBills.whereItGoes.find((s) => s.label === "Bills")).toBeUndefined();
     const sum = withBills.whereItGoes.reduce((a, s) => a.add(s.amount), Money.zero());
     expect(sum.toString()).toBe("120000.0000");
+  });
+
+  it("recurring auto-invest claims the pool but counts as a contribution", () => {
+    const base: ProfileState = {
+      incomeSources: [{ grossAmount: Money.of("120000"), frequency: "annual" }],
+      annualExpenses: Money.of("40000"),
+      taxProfile: { filingStatus: "single", state: "TX", taxYear: 2026 },
+      plan: { currentBalance: Money.of("0"), swr: "0.04", realReturn: "0.05", currentAge: 35, targetRetireAge: 65 },
+      // no dials: isolate the flat auto-invest so it's the only contribution
+      dials: [],
+    };
+    const without = recompute(base);
+    const withAuto = recompute({ ...base, annualInvestments: Money.of("2600") });
+
+    expect(without.totalContributions.toString()).toBe("0.0000");
+    // $50/wk ≈ $2,600/yr flows straight into contributions
+    expect(withAuto.autoInvestments.toString()).toBe("2600.0000");
+    expect(withAuto.totalContributions.toString()).toBe("2600.0000");
+    // it's investing, not an expense — total expenses and the FI number are unchanged
+    expect(withAuto.totalExpenses.toString()).toBe(without.totalExpenses.toString());
+    expect(withAuto.fire.fiNumber.toString()).toBe(without.fire.fiNumber.toString());
+    // savings rate rises; the Investing slice reflects the auto-invest
+    expect(Number(withAuto.savingsRate)).toBeGreaterThan(Number(without.savingsRate));
+    expect(withAuto.whereItGoes.find((s) => s.label === "Investing")!.amount.toString()).toBe("2600.0000");
+    const sum = withAuto.whereItGoes.reduce((a, s) => a.add(s.amount), Money.zero());
+    expect(sum.toString()).toBe("120000.0000");
+  });
+
+  it("employer match adds to contributions and net worth but not to the gross breakdown", () => {
+    const base: ProfileState = {
+      incomeSources: [{ grossAmount: Money.of("100000"), frequency: "annual" }],
+      annualExpenses: Money.of("40000"),
+      taxProfile: { filingStatus: "single", state: "TX", taxYear: 2026 },
+      plan: { currentBalance: Money.of("0"), swr: "0.04", realReturn: "0.05", currentAge: 35, targetRetireAge: 65 },
+      dials: [{ bucket: "brokerage", base: "post_tax_savings", pct: "0.5", priority: 1 }],
+    };
+    const without = recompute(base);
+    const withMatch = recompute({ ...base, plan: { ...base.plan, employerMatchPercent: "0.04" } });
+
+    // 4% of $100k = $4,000 free money on top of your own contributions
+    expect(withMatch.employerMatch.toString()).toBe("4000.0000");
+    expect(withMatch.ownContributions.toString()).toBe(without.ownContributions.toString());
+    expect(withMatch.totalContributions.toString()).toBe(without.ownContributions.add(Money.of("4000")).toString());
+    // savings rate is your own rate — unchanged by the match
+    expect(withMatch.savingsRate).toBe(without.savingsRate);
+    // match is not part of your paycheck, so the breakdown still sums to gross
+    const sum = withMatch.whereItGoes.reduce((a, s) => a.add(s.amount), Money.zero());
+    expect(sum.toString()).toBe("100000.0000");
+    expect(withMatch.whereItGoes.find((s) => s.label === "Investing")!.amount.toString()).toBe(without.ownContributions.toString());
   });
 
   it("goal contributions claim the savings pool; whereItGoes sums to gross", () => {
