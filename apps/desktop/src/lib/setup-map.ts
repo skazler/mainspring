@@ -82,17 +82,27 @@ export function buildProfileState(form: SetupForm): ProfileState {
   };
 }
 
-const KNOWN_BUCKETS = new Set(BUCKET_OPTIONS.map((o) => o.bucket));
+function defaultContribution(o: (typeof BUCKET_OPTIONS)[number]): ContributionForm {
+  return {
+    bucket: o.bucket,
+    base: o.base,
+    enabled: o.defaultEnabled ?? false,
+    percent: o.defaultPercent ?? 0,
+    ...(o.cap ? { cap: o.cap } : {}),
+  };
+}
 
 /**
- * Reconcile a loaded form with the current model: drop dials that no longer
- * exist (e.g. the retired 401k/emergency defaults) and clear any legacy
- * unitemized expense lump so essentials come only from itemized bills.
+ * Reconcile a loaded form with the current bucket catalog: keep the user's
+ * values for buckets that still exist, add any newly-introduced ones with their
+ * defaults, and drop retired ones. Also clears any legacy unitemized expense
+ * lump so essentials come only from itemized bills.
  */
 export function normalizeSetupForm(form: SetupForm): SetupForm {
+  const byBucket = new Map(form.contributions.map((c) => [c.bucket, c]));
   return {
     ...form,
     annualExpenses: 0,
-    contributions: form.contributions.filter((c) => KNOWN_BUCKETS.has(c.bucket)),
+    contributions: BUCKET_OPTIONS.map((o) => byBucket.get(o.bucket) ?? defaultContribution(o)),
   };
 }

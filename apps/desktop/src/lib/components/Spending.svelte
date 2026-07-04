@@ -19,7 +19,7 @@
   // money that's gone; the rest goes to the future (goals + investing). Spare is
   // whatever income is left after everything — negative means over budget.
   const slice = (label: string) => v.whereItGoes.find((s) => s.label === label)?.amount ?? Money.zero();
-  const consumption = $derived(slice("Essentials").add(slice("Spending")));
+  const consumption = $derived(slice("Bills & essentials").add(slice("Spending")));
   const toFuture = $derived(slice("Goals").add(slice("Investing")));
   const spare = $derived(v.gross.subtract(slice("Taxes")).subtract(consumption).subtract(toFuture));
   const spareN = $derived(Number(spare.toString()));
@@ -74,13 +74,13 @@
         if (auto > 0) items.push({ name: "Auto-invest (recurring)", amount: auto });
         return items.filter((d) => d.amount > 0);
       }
-      case "Essentials":
+      case "Bills & essentials":
         return recurring.bills
           .filter((r) => r.active)
           .map((r) => ({ name: r.label, amount: Number(recurring.annual(r).toString()) }));
       case "Goals": {
         const active = goals.rows.find((g) => g.id === goals.activeId);
-        return active?.monthlyContribution ? [{ name: active.name, amount: Number(active.monthlyContribution) * 12 }] : [];
+        return active?.contribution ? [{ name: active.name, amount: Number(goals.annual(active).toString()) }] : [];
       }
       case "Spending": {
         // Annualize each category proportionally so the parts match the slice total.
@@ -210,7 +210,7 @@
 
   <div class="block">
     <h2 class="section">Bills &amp; essentials</h2>
-    <p class="hint">Everything fixed and recurring — rent/mortgage, groceries, utilities, insurance, car, subscriptions, API costs. Itemize them here and they drill down under "Essentials" in your budget.</p>
+    <p class="hint">Everything fixed and recurring — rent/mortgage, groceries, utilities, insurance, car, subscriptions, API costs. Itemize them here and they drill down under "Bills &amp; essentials" in your budget.</p>
 
     <form class="add" onsubmit={addBill}>
       <input class="lbl" placeholder="What is it? (e.g. Rent, Car insurance)" bind:value={bill.label} />

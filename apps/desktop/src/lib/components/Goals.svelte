@@ -2,9 +2,18 @@
   import { onMount } from "svelte";
   import { formatUsd } from "$lib/format";
   import { goals } from "$lib/stores/goals.svelte";
+  import type { GoalRow } from "$lib/db";
   import ConfirmButton from "./ConfirmButton.svelte";
 
-  let draft = $state({ name: "", target: 0, saved: 0, monthly: 0, date: "" });
+  const CADENCES = ["weekly", "biweekly", "monthly", "quarterly", "annual"] as const;
+  let draft = $state<{ name: string; target: number; saved: number; amount: number; cadence: (typeof CADENCES)[number]; date: string }>({
+    name: "",
+    target: 0,
+    saved: 0,
+    amount: 0,
+    cadence: "monthly",
+    date: "",
+  });
   let contribInput = $state<Record<string, number>>({});
 
   onMount(() => {
@@ -20,14 +29,22 @@
       targetAmount: String(draft.target),
       savedAmount: String(draft.saved || 0),
       targetDate: draft.date || null,
-      monthlyContribution: draft.monthly > 0 ? String(draft.monthly) : null,
+      contribution: draft.amount > 0 ? String(draft.amount) : null,
+      cadence: draft.cadence,
       sortOrder: goals.nextOrder,
     });
-    draft = { name: "", target: 0, saved: 0, monthly: 0, date: "" };
+    draft = { name: "", target: 0, saved: 0, amount: 0, cadence: draft.cadence, date: "" };
+  }
+
+  function setAmount(g: GoalRow, value: string): void {
+    goals.save({ ...g, contribution: value && Number(value) > 0 ? String(value) : null });
+  }
+  function setCadence(g: GoalRow, cadence: string): void {
+    goals.save({ ...g, cadence: cadence as GoalRow["cadence"] });
   }
 
   function etaLabel(months: number | null): string {
-    if (months === null) return "set a monthly amount for an ETA";
+    if (months === null) return "set a contribution for an ETA";
     if (months === 0) return "reached 🎉";
     if (months < 12) return `~${months} mo`;
     const y = Math.floor(months / 12);
@@ -38,13 +55,16 @@
 
 <section class="goals">
   <header class="title">Savings goals</header>
-  <p class="lede">An ordered checklist of sinking funds. Goals fund <strong>one at a time</strong> — the top unfinished goal is active and claims its monthly amount from your plan; the rest are planned and wait their turn. Reorder with ▲▼.</p>
+  <p class="lede">An ordered checklist of sinking funds. Goals fund <strong>one at a time</strong> — the top unfinished goal is active and claims its contribution from your plan; the rest are planned and wait their turn. Reorder with ▲▼.</p>
 
   <form class="add" onsubmit={add}>
     <input class="nm" placeholder="Goal (e.g. house down payment)" bind:value={draft.name} />
     <input type="number" min="0" step="any" placeholder="Target $" bind:value={draft.target} />
     <input type="number" min="0" step="any" placeholder="Saved so far $" bind:value={draft.saved} />
-    <input type="number" min="0" step="any" placeholder="Per month $" bind:value={draft.monthly} />
+    <input type="number" min="0" step="any" placeholder="Contribute $" bind:value={draft.amount} />
+    <select bind:value={draft.cadence} title="How often you contribute">
+      {#each CADENCES as c (c)}<option value={c}>{c}</option>{/each}
+    </select>
     <input type="date" bind:value={draft.date} title="Optional deadline" />
     <button type="submit">Add goal</button>
   </form>
@@ -81,14 +101,23 @@
             {#if s.requiredMonthly}<span class="req">need {formatUsd(Number(s.requiredMonthly.toString()))}/mo{#if g.targetDate} by {g.targetDate}{/if}</span>{/if}
           </div>
           {#if !s.complete}
+            <div class="plan-row" title="How much you set aside for this goal, and how often">
+              <span class="plan-lbl">Contribute</span>
+              <input class="amt" type="number" min="0" step="any" placeholder="0" value={g.contribution ?? ""} onchange={(e) => setAmount(g, e.currentTarget.value)} />
+              <select onchange={(e) => setCadence(g, e.currentTarget.value)}>
+                {#each CADENCES as c (c)}<option value={c} selected={c === g.cadence}>{c}</option>{/each}
+              </select>
+            </div>
+          {/if}
+          {#if !s.complete}
             <div class="contrib">
-              <input type="number" min="0" step="any" placeholder="Add $" bind:value={contribInput[g.id]} />
+              <input type="number" min="0" step="any" placeholder="Deposit $" bind:value={contribInput[g.id]} />
               <button
                 onclick={() => {
                   goals.contribute(g.id, contribInput[g.id] ?? 0);
                   contribInput[g.id] = 0;
                 }}
-              >Contribute</button>
+              >Log deposit</button>
             </div>
           {/if}
         </div>
@@ -138,6 +167,33 @@
   }
   .nm {
     width: 14rem;
+  }
+  select {
+    background: var(--color-coal);
+    border: 1px solid var(--color-etch);
+    border-radius: 6px;
+    color: var(--color-parchment);
+    font-family: var(--font-body);
+    padding: 0.45rem 0.6rem;
+    text-transform: capitalize;
+  }
+  .plan-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.6rem;
+  }
+  .plan-lbl {
+    font-family: var(--font-body);
+    color: var(--color-soot);
+    font-size: 0.82rem;
+  }
+  .plan-row .amt {
+    width: 5.5rem;
+  }
+  .plan-row select {
+    padding: 0.35rem 0.5rem;
+    font-size: 0.85rem;
   }
   .add button,
   .contrib button {

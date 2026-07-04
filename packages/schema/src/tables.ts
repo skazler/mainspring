@@ -186,8 +186,8 @@ export const netWorthSnapshots = pgTable("net_worth_snapshots", {
 });
 
 // Savings goals / sinking funds (house down payment, laptop, buffer…).
-// `saved_amount` is an asset (→ net worth); `monthly_contribution` claims part of
-// the savings pool. Progress + ETA are derived by the engine.
+// `saved_amount` is an asset (→ net worth); `contribution` (per `cadence`) claims
+// part of the savings pool. Progress + ETA are derived by the engine.
 export const goals = pgTable("goals", {
   id: uuid("id").primaryKey().defaultRandom(),
   profileId: uuid("profile_id")
@@ -197,7 +197,8 @@ export const goals = pgTable("goals", {
   targetAmount: money("target_amount").notNull(),
   savedAmount: money("saved_amount").notNull().default(sql`0`),
   targetDate: date("target_date"),
-  monthlyContribution: money("monthly_contribution"),
+  contribution: money("monthly_contribution"), // amount set aside per `cadence`
+  contributionCadence: text("contribution_cadence").notNull().default("monthly"),
   sortOrder: integer("sort_order").notNull().default(0), // checklist sequence
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

@@ -50,6 +50,13 @@
       "when": 1783203560787,
       "tag": "0006_flaky_hardball",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1783206291780,
+      "tag": "0007_jittery_mole_man",
+      "breakpoints": true
     }
   ]
 }
