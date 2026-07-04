@@ -24,3 +24,8 @@ export function formatUsd(n: number, opts?: { cents?: boolean }): string {
     maximumFractionDigits: opts?.cents ? 2 : 0,
   }).format(n);
 }
+
+/** Short suffix for a recurring cadence, e.g. "wk", "mo", "yr". */
+export function cadenceAbbrev(cadence: string): string {
+  return { weekly: "wk", biweekly: "2wk", monthly: "mo", quarterly: "qtr", annual: "yr" }[cadence] ?? cadence;
+}

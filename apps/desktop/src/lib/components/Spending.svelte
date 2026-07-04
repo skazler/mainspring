@@ -1,12 +1,13 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { formatUsd } from "$lib/format";
+  import { cadenceAbbrev, formatUsd } from "$lib/format";
   import { spending } from "$lib/stores/spending.svelte";
   import { recurring } from "$lib/stores/recurring.svelte";
+  import Donut from "./Donut.svelte";
 
   const CATEGORIES = ["coffee", "dining", "groceries", "clothes", "entertainment", "transport", "subscriptions", "other"];
-  const BILL_CATEGORIES = ["insurance", "car", "housing", "utilities", "phone", "software", "api", "subscription", "loan", "other"];
-  const CADENCES = ["monthly", "quarterly", "annual"] as const;
+  const BILL_CATEGORIES = ["software dev", "insurance", "car", "housing", "utilities", "phone", "api", "subscription", "loan", "other"];
+  const CADENCES = ["weekly", "biweekly", "monthly", "quarterly", "annual"] as const;
   const today = () => new Date().toISOString().slice(0, 10);
   let draft = $state({ category: "coffee", label: "", amount: 0, date: today() });
   let bill = $state<{ label: string; category: string; amount: number; cadence: (typeof CADENCES)[number] }>({
@@ -43,6 +44,7 @@
       category: bill.category.trim().toLowerCase(),
       amount: String(bill.amount),
       cadence: bill.cadence,
+      kind: "bill",
       active: true,
     });
     bill = { label: "", category: bill.category, amount: 0, cadence: bill.cadence };
@@ -69,18 +71,18 @@
     </form>
 
     <div class="summary">
-      <span>Committed: <strong>{formatUsd(Number(recurring.annualized.toString()))}</strong>/yr</span>
+      <span>Committed: <strong>{formatUsd(Number(recurring.billsAnnual.toString()))}</strong>/yr</span>
     </div>
 
     {#if recurring.error}<p class="warn">{recurring.error}</p>{/if}
 
-    {#if recurring.rows.length > 0}
+    {#if recurring.bills.length > 0}
       <table class="bills">
         <tbody>
-          {#each recurring.rows as r (r.id)}
+          {#each recurring.bills as r (r.id)}
             <tr class:paused={!r.active}>
               <td class="cap">{r.label}<span class="dim"> · {r.category}</span></td>
-              <td class="mono">{formatUsd(Number(r.amount))}<span class="dim">/{r.cadence === "annual" ? "yr" : r.cadence === "quarterly" ? "qtr" : "mo"}</span></td>
+              <td class="mono">{formatUsd(Number(r.amount))}<span class="dim">/{cadenceAbbrev(r.cadence)}</span></td>
               <td class="mono">{formatUsd(Number(recurring.annual(r).toString()))}<span class="dim">/yr</span></td>
               <td><button class="link" onclick={() => recurring.toggle(r.id)}>{r.active ? "pause" : "resume"}</button></td>
               <td><button class="del" onclick={() => recurring.remove(r.id)}>✕</button></td>
@@ -88,6 +90,14 @@
           {/each}
         </tbody>
       </table>
+
+      {#if recurring.billsByCategory.length > 1}
+        <h3 class="compare-title">By category</h3>
+        <Donut
+          slices={recurring.billsByCategory.map((c) => ({ label: c.category, amount: Number(c.annual.toString()) }))}
+          unit="per year"
+        />
+      {/if}
     {:else}
       <p class="empty">No commitments yet — add a bill above.</p>
     {/if}
@@ -317,5 +327,9 @@
   }
   .link:hover {
     color: var(--color-gilt);
+  }
+  .compare-title {
+    text-align: center;
+    margin: 1.6rem 0 1rem;
   }
 </style>

@@ -1,32 +1,50 @@
-import { annualizeItem, annualizeRecurring, type RecurringItem } from "@mainspring/engine";
+import { annualizeItem, annualizeRecurring, recurringByCategory, type RecurringItem } from "@mainspring/engine";
 import { Money } from "@mainspring/schema";
 import { deleteRecurring, loadRecurring, saveRecurring, type RecurringRow } from "$lib/db";
 import { profile } from "./profile.svelte";
 
 function toItem(r: RecurringRow): RecurringItem {
-  return { amount: Money.of(r.amount), cadence: r.cadence, active: r.active };
+  return { amount: Money.of(r.amount), cadence: r.cadence, category: r.category, kind: r.kind, active: r.active };
 }
 
 /**
- * Recurring commitments — insurance, car payment, subscriptions, API costs.
- * Annualized and pushed onto the profile so they flow through recompute: raising
- * total expenses (and the FI number) and claiming the savings pool.
+ * Recurring items on a cadence, split by kind:
+ *  - "bill" (insurance, car, API costs) → total expenses (annualCommitments)
+ *  - "investment" (e.g. $50/wk into Acorns) → total contributions (annualInvestments)
+ * Both are pushed onto the profile so they flow through recompute.
  */
 class RecurringStore {
   rows = $state<RecurringRow[]>([]);
   error = $state<string | null>(null);
 
-  /** Annual cost of all active commitments. */
-  get annualized(): Money {
-    return annualizeRecurring(this.rows.map(toItem));
+  get bills(): RecurringRow[] {
+    return this.rows.filter((r) => r.kind === "bill");
   }
+  get investments(): RecurringRow[] {
+    return this.rows.filter((r) => r.kind === "investment");
+  }
+
+  /** Annual cost of active bills. */
+  get billsAnnual(): Money {
+    return annualizeRecurring(this.bills.map(toItem));
+  }
+  /** Annual amount of active auto-invest contributions. */
+  get investmentsAnnual(): Money {
+    return annualizeRecurring(this.investments.map(toItem));
+  }
+  /** Active bills grouped by category (annualized), largest first. */
+  get billsByCategory(): { category: string; annual: Money }[] {
+    return recurringByCategory(this.bills.map(toItem));
+  }
+
   /** Annualized cost of a single row (for the per-row "…/yr" readout). */
   annual(r: RecurringRow): Money {
-    return annualizeItem(toItem({ ...r, active: true }));
+    return annualizeItem({ amount: Money.of(r.amount), cadence: r.cadence });
   }
 
   private sync(): void {
-    profile.annualCommitments = this.annualized;
+    profile.annualCommitments = this.billsAnnual;
+    profile.annualInvestments = this.investmentsAnnual;
   }
 
   private fail(e: unknown): void {

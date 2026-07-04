@@ -51,7 +51,13 @@ export function recompute(state: ProfileState): RecomputeView {
     .add(commitments)
     .add(state.variableAnnualSpending ?? Money.zero());
   const goalContributions = state.annualGoalContributions ?? Money.zero();
-  const postTaxSavings = maxMoney(net.subtract(totalExpenses).subtract(goalContributions), Money.zero());
+  // Recurring auto-invest (e.g. Acorns) is a contribution: it claims the pool
+  // before dials, then folds back into total contributions below.
+  const autoInvestments = state.annualInvestments ?? Money.zero();
+  const postTaxSavings = maxMoney(
+    net.subtract(totalExpenses).subtract(goalContributions).subtract(autoInvestments),
+    Money.zero(),
+  );
   const netAlloc = allocateBase(net, "net", state.dials.filter((d) => d.base === "net"));
   const savingsAlloc = allocateBase(
     postTaxSavings,
@@ -65,7 +71,7 @@ export function recompute(state: ProfileState): RecomputeView {
     net: netAlloc.leftover,
     post_tax_savings: savingsAlloc.leftover,
   };
-  const totalContributions = buckets.reduce((sum, b) => sum.add(b.amount), Money.zero());
+  const totalContributions = buckets.reduce((sum, b) => sum.add(b.amount), autoInvestments);
 
   // Where each gross dollar goes (slices sum to gross; leftover absorbs the rest).
   const whereItGoes: { label: string; amount: Money }[] = [
@@ -98,6 +104,7 @@ export function recompute(state: ProfileState): RecomputeView {
     leftover,
     totalExpenses,
     commitments,
+    autoInvestments,
     goalContributions,
     whereItGoes,
     totalContributions,

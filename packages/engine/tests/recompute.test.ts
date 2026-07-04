@@ -89,6 +89,32 @@ describe("recompute — income → pre-tax → tax → net → buckets", () => {
     expect(sum.toString()).toBe("120000.0000");
   });
 
+  it("recurring auto-invest claims the pool but counts as a contribution", () => {
+    const base: ProfileState = {
+      incomeSources: [{ grossAmount: Money.of("120000"), frequency: "annual" }],
+      annualExpenses: Money.of("40000"),
+      taxProfile: { filingStatus: "single", state: "TX", taxYear: 2026 },
+      plan: { currentBalance: Money.of("0"), swr: "0.04", realReturn: "0.05", currentAge: 35, targetRetireAge: 65 },
+      // no dials: isolate the flat auto-invest so it's the only contribution
+      dials: [],
+    };
+    const without = recompute(base);
+    const withAuto = recompute({ ...base, annualInvestments: Money.of("2600") });
+
+    expect(without.totalContributions.toString()).toBe("0.0000");
+    // $50/wk ≈ $2,600/yr flows straight into contributions
+    expect(withAuto.autoInvestments.toString()).toBe("2600.0000");
+    expect(withAuto.totalContributions.toString()).toBe("2600.0000");
+    // it's investing, not an expense — total expenses and the FI number are unchanged
+    expect(withAuto.totalExpenses.toString()).toBe(without.totalExpenses.toString());
+    expect(withAuto.fire.fiNumber.toString()).toBe(without.fire.fiNumber.toString());
+    // savings rate rises; the Investing slice reflects the auto-invest
+    expect(Number(withAuto.savingsRate)).toBeGreaterThan(Number(without.savingsRate));
+    expect(withAuto.whereItGoes.find((s) => s.label === "Investing")!.amount.toString()).toBe("2600.0000");
+    const sum = withAuto.whereItGoes.reduce((a, s) => a.add(s.amount), Money.zero());
+    expect(sum.toString()).toBe("120000.0000");
+  });
+
   it("goal contributions claim the savings pool; whereItGoes sums to gross", () => {
     const base: ProfileState = {
       incomeSources: [{ grossAmount: Money.of("120000"), frequency: "annual" }],

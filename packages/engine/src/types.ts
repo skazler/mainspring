@@ -48,6 +48,8 @@ export interface ProfileState {
   variableAnnualSpending?: Money;
   /** Annualized recurring commitments — insurance, car, subscriptions, API costs. Default 0. */
   annualCommitments?: Money;
+  /** Annualized recurring auto-invest contributions (e.g. $50/wk into Acorns). Default 0. */
+  annualInvestments?: Money;
   /** Annualized savings-goal contributions (from the goals tracker). Default 0. */
   annualGoalContributions?: Money;
   plan: PlanInput;
@@ -77,6 +79,8 @@ export interface RecomputeView {
   totalExpenses: Money;
   /** Annualized recurring commitments (bills). */
   commitments: Money;
+  /** Annualized recurring auto-invest contributions (folded into totalContributions). */
+  autoInvestments: Money;
   /** Annualized savings-goal contributions (claims the pool alongside dials). */
   goalContributions: Money;
   /** Where each gross dollar goes; slices sum to gross (for the proportions graph). */

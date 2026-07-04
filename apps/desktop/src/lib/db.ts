@@ -65,9 +65,11 @@ async function open() {
       category text NOT NULL,
       amount numeric(18, 4) NOT NULL,
       cadence text NOT NULL DEFAULT 'monthly',
+      kind text NOT NULL DEFAULT 'bill',
       active boolean NOT NULL DEFAULT true,
       created_at timestamptz NOT NULL DEFAULT now()
     );
+    ALTER TABLE recurring ADD COLUMN IF NOT EXISTS kind text NOT NULL DEFAULT 'bill';
   `);
   return db;
 }
@@ -269,34 +271,35 @@ export async function deleteGoal(id: string): Promise<void> {
   await d.query("DELETE FROM goals WHERE id = $1;", [id]);
 }
 
-/** A recurring commitment — insurance, car payment, subscription, API cost. */
+/** A recurring item — a bill (insurance, car, API cost) or an auto-invest (Acorns). */
 export interface RecurringRow {
   id: string;
   label: string;
   category: string;
   amount: string;
-  cadence: "monthly" | "quarterly" | "annual";
+  cadence: "weekly" | "biweekly" | "monthly" | "quarterly" | "annual";
+  kind: "bill" | "investment";
   active: boolean;
 }
 
 export async function loadRecurring(): Promise<RecurringRow[]> {
   if (!browser) return [];
   const d = await db();
-  const res = await d.query<{ id: string; label: string; category: string; amount: string; cadence: RecurringRow["cadence"]; active: boolean }>(
-    "SELECT id, label, category, amount, cadence, active FROM recurring ORDER BY created_at;",
+  const res = await d.query<{ id: string; label: string; category: string; amount: string; cadence: RecurringRow["cadence"]; kind: RecurringRow["kind"]; active: boolean }>(
+    "SELECT id, label, category, amount, cadence, kind, active FROM recurring ORDER BY created_at;",
   );
-  return res.rows.map((r) => ({ id: r.id, label: r.label, category: r.category, amount: r.amount, cadence: r.cadence, active: r.active }));
+  return res.rows.map((r) => ({ id: r.id, label: r.label, category: r.category, amount: r.amount, cadence: r.cadence, kind: r.kind, active: r.active }));
 }
 
 export async function saveRecurring(row: RecurringRow): Promise<void> {
   if (!browser) return;
   const d = await db();
   await d.query(
-    `INSERT INTO recurring (id, label, category, amount, cadence, active)
-     VALUES ($1, $2, $3, $4::numeric, $5, $6)
+    `INSERT INTO recurring (id, label, category, amount, cadence, kind, active)
+     VALUES ($1, $2, $3, $4::numeric, $5, $6, $7)
      ON CONFLICT (id) DO UPDATE SET
-       label = $2, category = $3, amount = $4::numeric, cadence = $5, active = $6;`,
-    [row.id, row.label, row.category, row.amount, row.cadence, row.active],
+       label = $2, category = $3, amount = $4::numeric, cadence = $5, kind = $6, active = $7;`,
+    [row.id, row.label, row.category, row.amount, row.cadence, row.kind, row.active],
   );
 }
 
