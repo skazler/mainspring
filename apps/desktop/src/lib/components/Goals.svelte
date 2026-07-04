@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { formatUsd } from "$lib/format";
   import { goals } from "$lib/stores/goals.svelte";
+  import ConfirmButton from "./ConfirmButton.svelte";
 
   let draft = $state({ name: "", target: 0, saved: 0, monthly: 0, date: "" });
   let contribInput = $state<Record<string, number>>({});
@@ -59,7 +60,7 @@
         <div class="card" class:done={s.complete}>
           <div class="head">
             <span class="name">{g.name}</span>
-            <button class="del" onclick={() => goals.remove(g.id)}>✕</button>
+            <ConfirmButton onconfirm={() => goals.remove(g.id)} title="Delete goal" />
           </div>
           <div class="bar"><div class="fill" style="width:{pct}%"></div></div>
           <div class="nums">
@@ -160,12 +161,6 @@
     font-family: var(--font-display);
     color: var(--color-gilt);
     letter-spacing: 0.04em;
-  }
-  .del {
-    background: transparent;
-    border: none;
-    color: var(--color-oxblood);
-    cursor: pointer;
   }
   .bar {
     height: 8px;

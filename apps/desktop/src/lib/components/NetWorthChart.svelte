@@ -13,10 +13,10 @@
     targetRetireAge: number;
     coast: Money;
     fi: Money;
-    /** Annualized recurring commitments — drawn as the "if invested instead" ghost line. */
-    commitments?: Money;
+    /** Annualized bills + variable spending — drawn as the "if invested instead" ghost line. */
+    discretionary?: Money;
   }
-  let { currentBalance, annualContribution, realReturn, currentAge, targetRetireAge, coast, fi, commitments }: Props = $props();
+  let { currentBalance, annualContribution, realReturn, currentAge, targetRetireAge, coast, fi, discretionary }: Props = $props();
 
   let host: HTMLDivElement;
   let width = $state(640);
@@ -24,9 +24,9 @@
 
   const coastN = $derived(Number(coast.toString()));
   const fiN = $derived(Number(fi.toString()));
-  const commitN = $derived(commitments ? Number(commitments.toString()) : 0);
-  // Lifetime drag: the gap between the "bills invested instead" path and the real
-  // path at the target retirement age — i.e. what your commitments cost you.
+  const discN = $derived(discretionary ? Number(discretionary.toString()) : 0);
+  // Lifetime drag: the gap between the "bills + spending invested instead" path and
+  // the real path at the target retirement age — what your outflows cost you.
   let drag = $state(0);
   let dragAge = $state(0);
 
@@ -41,17 +41,17 @@
     const coastLine = ys.map(() => coastN);
     const fiLine = ys.map(() => fiN);
 
-    // Counterfactual path: the same plan with recurring commitments invested
-    // instead of spent. The gap is the lifetime cost of your bills.
-    const hasBills = commitN > 0;
-    const ghost = hasBills
+    // Counterfactual path: the same plan with bills + variable spending invested
+    // instead of spent. The gap is the lifetime cost of those outflows.
+    const hasDrag = discN > 0;
+    const ghost = hasDrag
       ? [
           Number(currentBalance.toString()),
-          ...projectBalances({ currentBalance, annualContribution: annualContribution.add(commitments!), realReturn, years }).map((m) => Number(m.toString())),
+          ...projectBalances({ currentBalance, annualContribution: annualContribution.add(discretionary!), realReturn, years }).map((m) => Number(m.toString())),
         ]
       : ys.map(() => null);
     const at = Math.min(Math.max(targetRetireAge - currentAge, 0), ys.length - 1);
-    drag = hasBills ? (ghost[at] as number) - ys[at] : 0;
+    drag = hasDrag ? (ghost[at] as number) - ys[at] : 0;
     dragAge = currentAge + at;
 
     const data = [ages, ys, ghost, coastLine, fiLine] as uPlot.AlignedData;
@@ -73,7 +73,7 @@
       series: [
         { label: "Age" },
         { label: "Net worth", stroke: "#c9a24b", width: 2, fill: "rgba(201,162,75,0.10)" },
-        { label: "Bills invested", stroke: "#9aa356", width: 1, dash: [3, 3] },
+        { label: "Bills + spending invested", stroke: "#9aa356", width: 1, dash: [3, 3] },
         { label: "Coast", stroke: "#4a9e8f", width: 1, dash: [6, 4] },
         { label: "FI", stroke: "#e8c874", width: 1, dash: [6, 4] },
       ],
@@ -87,7 +87,7 @@
     void realReturn;
     void coastN;
     void fiN;
-    void commitN;
+    void discN;
     void width;
     if (host) void build();
     return () => {
@@ -105,10 +105,10 @@
   <span class="co">▨ coast · {formatUsd(coastN)}</span>
   <span class="fi">▨ FI · {formatUsd(fiN)}</span>
 </div>
-{#if commitN > 0 && drag > 0}
+{#if discN > 0 && drag > 0}
   <p class="drag">
-    <span class="bi">▨ bills invested instead</span> — your recurring commitments cost you
-    <strong>{formatUsd(drag)}</strong> of net worth by {dragAge}.
+    <span class="bi">▨ bills + spending invested instead</span> — your recurring bills and variable
+    spending cost you <strong>{formatUsd(drag)}</strong> of net worth by {dragAge}.
   </p>
 {/if}
 

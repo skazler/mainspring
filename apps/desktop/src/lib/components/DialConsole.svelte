@@ -42,7 +42,7 @@
         targetRetireAge={profile.plan.targetRetireAge}
         coast={v.fire.coastNumber}
         fi={v.fire.fiNumber}
-        commitments={v.commitments}
+        discretionary={v.commitments.add(profile.variableAnnualSpending ?? Money.zero())}
       />
     </div>
     <div class="panel">

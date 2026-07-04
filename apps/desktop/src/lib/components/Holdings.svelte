@@ -4,6 +4,7 @@
   import { lots } from "$lib/stores/lots.svelte";
   import { recurring } from "$lib/stores/recurring.svelte";
   import FanChart from "./FanChart.svelte";
+  import ConfirmButton from "./ConfirmButton.svelte";
 
   const CADENCES = ["weekly", "biweekly", "monthly", "quarterly", "annual"] as const;
   const INVEST_CATEGORIES = ["acorns", "robo-advisor", "brokerage", "401k", "ira", "crypto", "other"];
@@ -91,7 +92,7 @@
               <td class="mono">{formatUsd(Number(r.amount))}<span class="small">/{cadenceAbbrev(r.cadence)}</span></td>
               <td class="mono">{formatUsd(Number(recurring.annual(r).toString()))}<span class="small">/yr</span></td>
               <td><button class="link" onclick={() => recurring.toggle(r.id)}>{r.active ? "pause" : "resume"}</button></td>
-              <td><button class="link del" onclick={() => recurring.remove(r.id)}>✕</button></td>
+              <td><ConfirmButton onconfirm={() => recurring.remove(r.id)} title="Delete contribution" /></td>
             </tr>
           {/each}
         </tbody>
@@ -160,7 +161,7 @@
             <td class="mono">{l.shares}</td>
             <td class="mono">{formatUsd(Number(l.price))}</td>
             <td class="mono">{formatUsd(Number(l.fee))}</td>
-            <td><button class="link del" onclick={() => lots.remove(l.id)}>✕</button></td>
+            <td><ConfirmButton onconfirm={() => lots.remove(l.id)} title="Delete lot" /></td>
           </tr>
         {/each}
       </tbody>
@@ -289,9 +290,6 @@
   .link:hover {
     color: var(--color-gilt);
     border-color: var(--color-gilt);
-  }
-  .del {
-    color: var(--color-oxblood);
   }
   .empty {
     text-align: center;
