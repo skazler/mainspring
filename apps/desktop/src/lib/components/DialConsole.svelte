@@ -42,6 +42,7 @@
         targetRetireAge={profile.plan.targetRetireAge}
         coast={v.fire.coastNumber}
         fi={v.fire.fiNumber}
+        commitments={v.commitments}
       />
     </div>
     <div class="panel">

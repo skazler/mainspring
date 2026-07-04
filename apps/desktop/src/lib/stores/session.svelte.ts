@@ -6,6 +6,7 @@ import { market } from "./market.svelte";
 import { almanac } from "./almanac.svelte";
 import { spending } from "./spending.svelte";
 import { goals } from "./goals.svelte";
+import { recurring } from "./recurring.svelte";
 
 /**
  * Session UI state. `configured` gates the setup page vs. the dial console;
@@ -58,4 +59,5 @@ export async function initSession(): Promise<void> {
   void almanac.loadKey().catch(() => {});
   void spending.load().catch(() => {});
   void goals.load().catch(() => {});
+  void recurring.load().catch(() => {});
 }

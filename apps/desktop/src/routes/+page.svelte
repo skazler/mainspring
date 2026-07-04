@@ -18,7 +18,7 @@
   <nav class="tabs">
     <button class:active={session.tab === "plan"} onclick={() => (session.tab = "plan")}>Plan</button>
     <button class:active={session.tab === "holdings"} onclick={() => (session.tab = "holdings")}>Holdings</button>
-    <button class:active={session.tab === "spending"} onclick={() => (session.tab = "spending")}>Spending</button>
+    <button class:active={session.tab === "spending"} onclick={() => (session.tab = "spending")}>Outflows</button>
     <button class:active={session.tab === "goals"} onclick={() => (session.tab = "goals")}>Goals</button>
   </nav>
   {#if session.tab === "plan"}

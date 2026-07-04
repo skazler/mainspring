@@ -201,6 +201,22 @@ export const goals = pgTable("goals", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Recurring commitments (insurance, car payment, subscriptions, API costs…).
+// Fixed outflows charged on a cadence; annualized by the engine into total
+// expenses alongside variable spending.
+export const recurring = pgTable("recurring", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  profileId: uuid("profile_id")
+    .notNull()
+    .references(() => profiles.id, { onDelete: "cascade" }),
+  label: text("label").notNull(),
+  category: text("category").notNull(),
+  amount: money("amount").notNull(), // per-occurrence, not annualized
+  cadence: text("cadence").notNull().default("monthly"), // monthly | quarterly | annual
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const schema = {
   profiles,
   incomeSources,
@@ -216,4 +232,5 @@ export const schema = {
   spending,
   netWorthSnapshots,
   goals,
+  recurring,
 };

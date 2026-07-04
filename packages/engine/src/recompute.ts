@@ -43,9 +43,13 @@ export function recompute(state: ProfileState): RecomputeView {
   });
   const net = tax.net;
 
-  // 4. Net- and post-tax-savings-base dials. Total expenses = fixed + variable
-  //    spending; goal contributions also claim the pool before retirement dials.
-  const totalExpenses = state.annualExpenses.add(state.variableAnnualSpending ?? Money.zero());
+  // 4. Net- and post-tax-savings-base dials. Total expenses = fixed + recurring
+  //    commitments + variable spending; goal contributions also claim the pool
+  //    before retirement dials.
+  const commitments = state.annualCommitments ?? Money.zero();
+  const totalExpenses = state.annualExpenses
+    .add(commitments)
+    .add(state.variableAnnualSpending ?? Money.zero());
   const goalContributions = state.annualGoalContributions ?? Money.zero();
   const postTaxSavings = maxMoney(net.subtract(totalExpenses).subtract(goalContributions), Money.zero());
   const netAlloc = allocateBase(net, "net", state.dials.filter((d) => d.base === "net"));
@@ -69,6 +73,7 @@ export function recompute(state: ProfileState): RecomputeView {
     { label: "Investing", amount: totalContributions },
     { label: "Goals", amount: goalContributions },
     { label: "Living", amount: state.annualExpenses },
+    { label: "Bills", amount: commitments },
     { label: "Spending", amount: state.variableAnnualSpending ?? Money.zero() },
   ];
   const accounted = whereItGoes.reduce((sum, s) => sum.add(s.amount), Money.zero());
@@ -92,6 +97,7 @@ export function recompute(state: ProfileState): RecomputeView {
     buckets,
     leftover,
     totalExpenses,
+    commitments,
     goalContributions,
     whereItGoes,
     totalContributions,

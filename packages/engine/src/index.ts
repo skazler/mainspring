@@ -57,5 +57,9 @@ export type { SpendingEntry } from "./spending/annualize";
 export { goalStatus, monthsBetween } from "./goals/goals";
 export type { GoalInput, GoalStatus } from "./goals/goals";
 
+// recurring commitments (bills)
+export { annualizeRecurring, annualizeItem } from "./recurring/recurring";
+export type { RecurringItem, Cadence } from "./recurring/recurring";
+
 // AI assistant
 export { applyDialAdjustments } from "./copilot";

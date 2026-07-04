@@ -12,6 +12,7 @@
     Investing: "var(--color-brass)",
     Goals: "var(--color-patina)",
     Living: "var(--color-copper)",
+    Bills: "var(--color-lime-rust)",
     Spending: "var(--color-soot)",
     Leftover: "var(--color-dim)",
   };
