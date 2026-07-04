@@ -10,9 +10,16 @@ import { spending } from "./spending.svelte";
  * Session UI state. `configured` gates the setup page vs. the dial console;
  * `loaded` is false until we've checked PGlite for a saved profile.
  */
-export const session = $state<{ configured: boolean; loaded: boolean; tab: "plan" | "holdings" | "spending" }>({
+export const session = $state<{
+  configured: boolean;
+  loaded: boolean;
+  /** true once a profile has ever been saved — gates the setup "Back" button. */
+  hasProfile: boolean;
+  tab: "plan" | "holdings" | "spending";
+}>({
   configured: false,
   loaded: false,
+  hasProfile: false,
   tab: "plan",
 });
 
@@ -23,6 +30,7 @@ export async function initSession(): Promise<void> {
     Object.assign(setupForm, saved);
     applySetup(buildProfileState(saved));
     session.configured = true;
+    session.hasProfile = true;
   }
   await market.loadCached();
   await almanac.loadKey();
