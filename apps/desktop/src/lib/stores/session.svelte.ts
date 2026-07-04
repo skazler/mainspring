@@ -1,7 +1,7 @@
 import { buildProfileState } from "$lib/setup-map";
 import { loadSetupForm } from "$lib/db";
 import { applySetup } from "./profile.svelte";
-import { setupForm } from "./setup-form.svelte";
+import { markSetupSaved, setupForm } from "./setup-form.svelte";
 import { market } from "./market.svelte";
 import { almanac } from "./almanac.svelte";
 import { spending } from "./spending.svelte";
@@ -42,6 +42,7 @@ export async function initSession(): Promise<void> {
     const saved = await withTimeout(loadSetupForm(), 4000);
     if (saved) {
       Object.assign(setupForm, saved);
+      markSetupSaved();
       applySetup(buildProfileState(saved));
       session.configured = true;
       session.hasProfile = true;

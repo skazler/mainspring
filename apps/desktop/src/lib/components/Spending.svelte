@@ -42,6 +42,8 @@
     <span>Annualized: <strong>{formatUsd(Number(spending.annualized.toString()))}</strong>/yr</span>
   </div>
 
+  {#if spending.error}<p class="warn">{spending.error}</p>{/if}
+
   {#if spending.byCategory.length > 0}
     <div class="grid">
       <div class="col">
@@ -185,5 +187,11 @@
     text-align: center;
     color: var(--color-dim);
     font-family: var(--font-body);
+  }
+  .warn {
+    text-align: center;
+    color: var(--color-oxblood);
+    font-family: var(--font-body);
+    font-size: 0.85rem;
   }
 </style>

@@ -5,11 +5,14 @@
   import { buildProfileState } from "$lib/setup-map";
   import { applySetup } from "$lib/stores/profile.svelte";
   import { session } from "$lib/stores/session.svelte";
-  import { setupForm } from "$lib/stores/setup-form.svelte";
+  import { markSetupSaved, setupBaseline, setupForm } from "$lib/stores/setup-form.svelte";
   import { Money } from "@mainspring/schema";
 
   const form = setupForm;
   let error = $state<string | null>(null);
+
+  // Changed from the last saved state? Drives the disabled/confirm behavior.
+  const dirty = $derived(JSON.stringify(form) !== setupBaseline.json);
 
   const FREQUENCIES = [
     { v: "annual", l: "Annual" },
@@ -39,14 +42,18 @@
     // in a packaged build). Save in the background and surface any error.
     session.configured = true;
     session.hasProfile = true;
+    markSetupSaved();
     saveSetupForm(form).catch((err) => {
       error = `Saved in memory, but couldn't persist: ${err instanceof Error ? err.message : String(err)}`;
     });
   }
 
   function back() {
+    if (dirty && !confirm("Return without saving your changes?")) return;
+    // discard unsaved edits by reverting to the saved baseline
+    Object.assign(form, JSON.parse(setupBaseline.json));
     error = null;
-    session.configured = true; // return to the dashboard without applying edits
+    session.configured = true;
   }
 </script>
 
@@ -108,7 +115,9 @@
     {/each}
   </fieldset>
 
-  <button type="submit">Wind it up →</button>
+  <button type="submit" disabled={session.hasProfile && !dirty}>
+    {session.hasProfile ? "Save changes →" : "Wind it up →"}
+  </button>
 </form>
 
 <style>
@@ -246,7 +255,11 @@
     padding: 0.7rem 2rem;
     cursor: pointer;
   }
-  button[type="submit"]:hover {
+  button[type="submit"]:hover:not(:disabled) {
     background: var(--color-gilt);
+  }
+  button[type="submit"]:disabled {
+    opacity: 0.45;
+    cursor: default;
   }
 </style>

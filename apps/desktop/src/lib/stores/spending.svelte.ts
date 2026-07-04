@@ -14,6 +14,7 @@ function toEntry(r: SpendingRow): SpendingEntry {
  */
 class SpendingStore {
   rows = $state<SpendingRow[]>([]);
+  error = $state<string | null>(null);
 
   get annualized(): Money {
     return annualizeSpending(this.rows.map(toEntry));
@@ -26,21 +27,31 @@ class SpendingStore {
     profile.variableAnnualSpending = this.annualized;
   }
 
+  private fail(e: unknown): void {
+    this.error = `Couldn't reach local storage — changes stay in memory this session. (${e instanceof Error ? e.message : String(e)})`;
+  }
+
   async load(): Promise<void> {
-    this.rows = await loadSpending();
+    try {
+      this.rows = await loadSpending();
+    } catch (e) {
+      this.fail(e);
+    }
     this.sync();
   }
 
+  // Update the UI immediately, then persist in the background — so logging works
+  // even if the local DB is slow/unavailable (the error surfaces, nothing hangs).
   async add(row: SpendingRow): Promise<void> {
-    await saveSpending(row);
-    this.rows = await loadSpending();
+    this.rows = [row, ...this.rows];
     this.sync();
+    saveSpending(row).catch((e) => this.fail(e));
   }
 
   async remove(id: string): Promise<void> {
-    await deleteSpending(id);
-    this.rows = await loadSpending();
+    this.rows = this.rows.filter((r) => r.id !== id);
     this.sync();
+    deleteSpending(id).catch((e) => this.fail(e));
   }
 }
 
