@@ -3,6 +3,7 @@
   import { cadenceAbbrev, formatUsd } from "$lib/format";
   import { lots } from "$lib/stores/lots.svelte";
   import { recurring } from "$lib/stores/recurring.svelte";
+  import { hints } from "$lib/stores/hints.svelte";
   import FanChart from "./FanChart.svelte";
   import ConfirmButton from "./ConfirmButton.svelte";
 
@@ -60,11 +61,15 @@
 
 <section class="holdings">
   <header class="title">Investments</header>
-  <p class="lede">Two ways to track what you invest: <strong>automatic contributions</strong> (recurring transfers like Acorns — they feed your net-worth projection) and <strong>tracked positions</strong> (individual buys/sells of a ticker, so you can project that holding's trend).</p>
+  {#if hints.show}
+    <p class="lede">Two ways to track what you invest: <strong>automatic contributions</strong> (recurring transfers like Acorns — they feed your net-worth projection) and <strong>tracked positions</strong> (individual buys/sells of a ticker, so you can project that holding's trend).</p>
+  {/if}
 
   <div class="block">
     <h2 class="section">Recurring contributions</h2>
-    <p class="hint">Auto-invest transfers — e.g. $50/week into Acorns. Counted as savings, so they lift your total contributions and freedom date.</p>
+    {#if hints.show}
+      <p class="hint">Auto-invest transfers — e.g. $50/week into Acorns. Counted as savings, so they lift your total contributions and freedom date.</p>
+    {/if}
 
     <form class="add" onsubmit={addAuto}>
       <input class="lbl" placeholder="What is it? (e.g. Acorns)" bind:value={auto.label} />
@@ -103,7 +108,9 @@
   </div>
 
   <h2 class="section">Tracked positions &amp; lots</h2>
-  <p class="hint">Record individual buys and sells of a ticker to see cost basis, gains, and a trend projection. Skip this if you don't track holdings share-by-share.</p>
+  {#if hints.show}
+    <p class="hint">Record individual buys and sells of a ticker to see cost basis, gains, and a trend projection. Skip this if you don't track holdings share-by-share.</p>
+  {/if}
 
   <form class="add" onsubmit={add}>
     <input class="t" placeholder="Ticker" bind:value={draft.ticker} />
