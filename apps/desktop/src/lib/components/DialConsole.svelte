@@ -22,9 +22,12 @@
   const propSlices = $derived(v.whereItGoes.map((s) => ({ label: s.label, amount: Number(s.amount.toString()) })));
 
   // Editable contribution dials, split by tax treatment.
-  const dialIdx = $derived(profile.dials.map((d, i) => ({ d, i })));
-  const preTaxDials = $derived(dialIdx.filter((x) => isPreTax(x.d.bucket)));
-  const postTaxDialsEditable = $derived(dialIdx.filter((x) => !isPreTax(x.d.bucket)));
+  // All contribution dials, pre-tax first, each tagged with its tax treatment.
+  const dialIdx = $derived(
+    profile.dials
+      .map((d, i) => ({ d, i, preTax: isPreTax(d.bucket) }))
+      .sort((a, b) => Number(b.preTax) - Number(a.preTax)),
+  );
 
   // Read-only "post-tax distribution": where take-home (net) actually goes.
   const sliceOf = (label: string) => v.whereItGoes.find((s) => s.label === label)?.amount ?? Money.zero();
@@ -87,29 +90,14 @@
     <FireSummary fire={v.fire} savingsRate={v.savingsRate} employerMatch={v.employerMatch} />
   </div>
 
-  {#if preTaxDials.length > 0}
-    <h3 class="group-title">Pre-tax contributions</h3>
+  {#if dialIdx.length > 0}
+    <h3 class="group-title">Contributions</h3>
     <div class="gauges">
-      {#each preTaxDials as { d, i } (d.bucket + "/" + d.base)}
+      {#each dialIdx as { d, i, preTax } (d.bucket + "/" + d.base)}
         {@const a = allocFor(d.bucket, d.base)}
         <Gauge
           label={bucketLabel(d.bucket)}
-          pct={Number(d.pct)}
-          amount={formatMoney(a ? a.amount : Money.zero())}
-          clamped={a?.clampedByCap ?? false}
-          onChange={(p) => setDialPct(i, p)}
-        />
-      {/each}
-    </div>
-  {/if}
-
-  {#if postTaxDialsEditable.length > 0}
-    <h3 class="group-title">Post-tax contributions</h3>
-    <div class="gauges">
-      {#each postTaxDialsEditable as { d, i } (d.bucket + "/" + d.base)}
-        {@const a = allocFor(d.bucket, d.base)}
-        <Gauge
-          label={bucketLabel(d.bucket)}
+          tag={preTax ? "pre-tax" : "post-tax"}
           pct={Number(d.pct)}
           amount={formatMoney(a ? a.amount : Money.zero())}
           clamped={a?.clampedByCap ?? false}
