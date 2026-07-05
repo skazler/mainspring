@@ -17,6 +17,11 @@ Single-user. Local-first. Privacy-critical — this holds your real money, so by
 </p>
 
 <p align="center">
+  <img src="assets/dashboard2_redacted.png" alt="The Plan — contribution gauges and post-tax distribution dials" width="820"><br>
+  <sub><b>The Plan, lower half.</b> The brass contribution dials (tagged pre-tax / post-tax) and post-tax distribution, above the Monte-Carlo forecast. · <i>Figures redacted / AI-generated.</i></sub>
+</p>
+
+<p align="center">
   <img src="assets/outflows1_redacted.png" alt="Outflows — cash-flow verdict and budget breakdown" width="820"><br>
   <sub><b>Outflows.</b> A cash-flow verdict — in the black or over budget — over the full where-it-goes breakdown, drillable line by line. · <i>Figures redacted / AI-generated.</i></sub>
 </p>
