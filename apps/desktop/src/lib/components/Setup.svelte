@@ -170,9 +170,9 @@
           {/if}
           <label class="pct">
             {#if c.mode === "amount"}
-              <input type="number" min="0" step="500" bind:value={c.amount} disabled={!c.enabled} /> $/yr
+              <input type="number" min="0" step="any" bind:value={c.amount} disabled={!c.enabled} /> $/yr
             {:else}
-              <input type="number" min="0" max="100" step="1" bind:value={c.percent} disabled={!c.enabled} /> %
+              <input type="number" min="0" max="100" step="any" bind:value={c.percent} disabled={!c.enabled} /> %
             {/if}
           </label>
         </div>
