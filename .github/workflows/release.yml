@@ -71,6 +71,25 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # ── Code signing (optional) ─────────────────────────────────────────
+          # Add these as repository secrets (Settings → Secrets and variables →
+          # Actions) to ship installers that open without a security warning.
+          # Until then builds are UNSIGNED (macOS: right-click → Open; Windows:
+          # SmartScreen "More info → Run anyway").
+          #
+          # macOS — needs an Apple Developer account (~$99/yr):
+          #   APPLE_CERTIFICATE:          ${{ secrets.APPLE_CERTIFICATE }}          # base64 of your Developer ID .p12
+          #   APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          #   APPLE_SIGNING_IDENTITY:     ${{ secrets.APPLE_SIGNING_IDENTITY }}     # "Developer ID Application: Name (TEAMID)"
+          #   APPLE_ID:                   ${{ secrets.APPLE_ID }}                   # for notarization
+          #   APPLE_PASSWORD:             ${{ secrets.APPLE_PASSWORD }}             # app-specific password
+          #   APPLE_TEAM_ID:              ${{ secrets.APPLE_TEAM_ID }}
+          #
+          # Windows — needs a code-signing cert from a CA (or Azure Trusted Signing).
+          #   Configure it in apps/desktop/src-tauri/tauri.conf.json under
+          #   bundle.windows.certificateThumbprint (+ optional signCommand);
+          #   see https://tauri.app/distribute/sign/windows/
+          # ────────────────────────────────────────────────────────────────────
         with:
           projectPath: apps/desktop
           args: ${{ matrix.args }}
