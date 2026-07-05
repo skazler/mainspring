@@ -7,6 +7,12 @@
 >
 > **MAINSPRING** — the coiled spring at the heart of a mechanical watch: wound once, it releases its energy steadily to drive every hand on the face.
 
+<p align="center">
+  <a href="https://github.com/skazler/mainspring/releases/latest"><img src="https://img.shields.io/badge/Download-MAINSPRING-c9a24b?style=for-the-badge&labelColor=1f1a15" alt="Download MAINSPRING"></a>
+  <br>
+  <sub>macOS · unsigned build — on first launch, right-click the app → <b>Open</b>.</sub>
+</p>
+
 Single-user. Local-first. Privacy-critical — this holds your real money, so by default nothing leaves a machine you control. The instrument is built around **dials**: turn a percentage and watch your take-home, every allocation barrel, and your projected **freedom date** move on the same tick.
 
 ## The face

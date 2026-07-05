@@ -55,6 +55,6 @@ jobs:
           projectPath: apps/desktop
           tagName: ${{ github.ref_name }}
           releaseName: "MAINSPRING ${{ github.ref_name }}"
-          releaseBody: "Local-first FIRE planner. Download the installer below. macOS builds are unsigned — first launch: right-click → Open."
+          releaseBody: "Local-first planner for financial independence. Download the installer below. macOS builds are unsigned — first launch: right-click → Open."
           releaseDraft: true
           prerelease: false
