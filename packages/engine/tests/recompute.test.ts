@@ -1,4 +1,5 @@
 import { Money } from "@mainspring/schema";
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { recompute, type ProfileState } from "../src/index";
 
@@ -27,18 +28,20 @@ describe("recompute — income → pre-tax → tax → net → buckets", () => {
     expect(r.tax.total.toString()).toBe("15430.0000");
     expect(r.net.toString()).toBe("84570.0000");
 
-    // savings pool = net − expenses = 44,570; brokerage = 20% = 8,914
+    // savings pool = net − 401k already committed − expenses = 84,570 − 24,500 −
+    // 40,000 = 20,070; brokerage = 20% = 4,014 (F1: pool no longer double-counts
+    // the pre-tax dollars, which `net` still contains).
     const k401 = r.buckets.find((b) => b.bucket === "401k_pretax")!;
     const brok = r.buckets.find((b) => b.bucket === "brokerage")!;
     expect(k401.amount.toString()).toBe("24500.0000");
     expect(k401.clampedByCap).toBe(true);
-    expect(brok.amount.toString()).toBe("8914.0000");
+    expect(brok.amount.toString()).toBe("4014.0000");
 
     expect(r.leftover.gross.toString()).toBe("75500.0000");
-    expect(r.leftover.post_tax_savings.toString()).toBe("35656.0000");
+    expect(r.leftover.post_tax_savings.toString()).toBe("16056.0000");
 
-    expect(r.totalContributions.toString()).toBe("33414.0000");
-    expect(r.savingsRate).toBe(Money.of("33414").ratioTo(Money.of("84570")));
+    expect(r.totalContributions.toString()).toBe("28514.0000");
+    expect(r.savingsRate).toBe(Money.of("28514").ratioTo(Money.of("84570")));
     expect(r.overAllocated).toBe(false);
   });
 
@@ -174,5 +177,59 @@ describe("recompute — income → pre-tax → tax → net → buckets", () => {
     expect(r.net.isZero()).toBe(true);
     expect(r.totalContributions.isZero()).toBe(true);
     expect(r.savingsRate).toBe("0.000000");
+  });
+
+  it("F1: after-tax Roth on gross shrinks the pool so nothing over-commits", () => {
+    const r = recompute({
+      incomeSources: [{ grossAmount: Money.of("100000"), frequency: "annual" }],
+      annualExpenses: Money.of("30000"),
+      taxProfile: { filingStatus: "single", state: "TX", taxYear: 2026 },
+      plan: { currentBalance: Money.of("0"), swr: "0.04", realReturn: "0.05", currentAge: 35, targetRetireAge: 65 },
+      dials: [
+        { bucket: "roth_ira", base: "gross", pct: "0.1", priority: 1 }, // $10k of after-tax money
+        { bucket: "brokerage", base: "post_tax_savings", pct: "1", priority: 2 }, // drains the pool
+      ],
+    });
+    // Every dollar that leaves gross sums to exactly gross — the 100% brokerage
+    // dial fully drains a pool that already excludes the $10k Roth claim.
+    const lhs = r.tax.total.add(r.ownContributions).add(r.goalContributions).add(r.totalExpenses);
+    expect(lhs.toString()).toBe(r.gross.toString());
+  });
+
+  it("F1 property: taxes + own contributions + expenses ≤ gross for feasible dial sets", () => {
+    const mk = (gross: Money, k: number, roth: number, brok: number, expenses: Money): ProfileState => ({
+      incomeSources: [{ grossAmount: gross, frequency: "annual" }],
+      annualExpenses: expenses,
+      taxProfile: { filingStatus: "single", state: "TX", taxYear: 2026 },
+      plan: { currentBalance: Money.zero(), swr: "0.04", realReturn: "0.05", currentAge: 35, targetRetireAge: 65 },
+      dials: [
+        { bucket: "401k_pretax", base: "gross", pct: String(k / 10000), priority: 1 },
+        { bucket: "roth_ira", base: "gross", pct: String(roth / 10000), priority: 2 },
+        { bucket: "brokerage", base: "post_tax_savings", pct: String(brok / 10000), priority: 3 },
+      ],
+    });
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 20_000, max: 2_000_000 }),
+        fc.integer({ min: 0, max: 6_000 }),
+        fc.integer({ min: 0, max: 6_000 }),
+        fc.integer({ min: 0, max: 10_000 }),
+        fc.integer({ min: 0, max: 6_000 }),
+        (g, k, roth, brok, ef) => {
+          const gross = Money.of(String(g));
+          const net = recompute(mk(gross, k, roth, brok, Money.zero())).net;
+          const expenses = net.multiply(String(ef / 10000));
+          const v = recompute(mk(gross, k, roth, brok, expenses));
+          // Only assert feasible plans: gross/net claims + expenses fit take-home.
+          const priorClaims = v.buckets
+            .filter((x) => x.base !== "post_tax_savings")
+            .reduce((s, x) => s.add(x.amount), Money.zero());
+          fc.pre(net.subtract(priorClaims).subtract(expenses).compare(Money.zero()) >= 0);
+          const lhs = v.tax.total.add(v.ownContributions).add(v.goalContributions).add(v.totalExpenses);
+          expect(lhs.compare(gross) <= 0).toBe(true);
+        },
+      ),
+      { numRuns: 200 },
+    );
   });
 });

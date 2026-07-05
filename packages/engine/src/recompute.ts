@@ -43,9 +43,11 @@ export function recompute(state: ProfileState): RecomputeView {
   });
   const net = tax.net;
 
-  // 4. Net- and post-tax-savings-base dials. Total expenses = fixed + recurring
-  //    commitments + variable spending; goal contributions also claim the pool
-  //    before retirement dials.
+  // 4. Net-base dials draw straight from take-home.
+  const netAlloc = allocateBase(net, "net", state.dials.filter((d) => d.base === "net"));
+
+  // 5. Post-tax savings pool. Total expenses = fixed + recurring commitments +
+  //    variable spending; goal contributions and auto-invest also claim the pool.
   const commitments = state.annualCommitments ?? Money.zero();
   const totalExpenses = state.annualExpenses
     .add(commitments)
@@ -54,11 +56,21 @@ export function recompute(state: ProfileState): RecomputeView {
   // Recurring auto-invest (e.g. Acorns) is a contribution: it claims the pool
   // before dials, then folds back into total contributions below.
   const autoInvestments = state.annualInvestments ?? Money.zero();
-  const postTaxSavings = maxMoney(
-    net.subtract(totalExpenses).subtract(goalContributions).subtract(autoInvestments),
+  // F1: the pool is the real headroom left after everything already committed on
+  // the gross and net bases. `net` (= gross − tax) still *contains* those dollars
+  // — after-tax Roth AND pre-tax 401k/hsa/ira (the tax step lowers tax, not net) —
+  // so leaving any of them in double-counts money that's already spent. Subtract
+  // every prior claim. (D1 excludes pre-tax on the premise that `net` already
+  // removed it; this engine's `net` does not, so they are subtracted here too —
+  // otherwise the very double-count F1 targets reappears for 401k dials.)
+  const priorClaims = [...grossAlloc.allocations, ...netAlloc.allocations].reduce(
+    (sum, a) => sum.add(a.amount),
     Money.zero(),
   );
-  const netAlloc = allocateBase(net, "net", state.dials.filter((d) => d.base === "net"));
+  const postTaxSavings = maxMoney(
+    net.subtract(priorClaims).subtract(totalExpenses).subtract(goalContributions).subtract(autoInvestments),
+    Money.zero(),
+  );
   const savingsAlloc = allocateBase(
     postTaxSavings,
     "post_tax_savings",
