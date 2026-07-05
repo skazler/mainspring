@@ -100,10 +100,10 @@
   const BILL_CATEGORIES = ["rent", "mortgage", "groceries", "utilities", "insurance", "car", "phone", "software dev", "api", "subscription", "loan", "other"];
   const CADENCES = ["weekly", "biweekly", "monthly", "quarterly", "annual"] as const;
   const today = () => new Date().toISOString().slice(0, 10);
-  let draft = $state({ category: "coffee", label: "", amount: 0, date: today() });
+  let draft = $state({ category: "", label: "", amount: 0, date: today() });
   let bill = $state<{ label: string; category: string; amount: number; cadence: (typeof CADENCES)[number] }>({
     label: "",
-    category: "insurance",
+    category: "",
     amount: 0,
     cadence: "monthly",
   });
@@ -124,7 +124,7 @@
       amount: String(draft.amount),
       spentAt: draft.date,
     });
-    draft = { category: draft.category, label: "", amount: 0, date: today() };
+    draft = { category: "", label: "", amount: 0, date: today() };
   }
 
   function addBill(e: Event) {
@@ -139,7 +139,7 @@
       kind: "bill",
       active: true,
     });
-    bill = { label: "", category: bill.category, amount: 0, cadence: bill.cadence };
+    bill = { label: "", category: "", amount: 0, cadence: bill.cadence };
   }
 </script>
 

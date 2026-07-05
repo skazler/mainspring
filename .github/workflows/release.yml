@@ -1,16 +1,15 @@
 name: Release
 
-# Push a version tag to build the desktop app and publish a GitHub Release
-# with the installers attached (they appear under the repo's "Releases", which
-# is where app binaries live — GitHub "Packages" is for npm/Docker/etc.):
+# Push a version tag to build the desktop app for macOS, Windows, and Linux and
+# publish a single GitHub Release with every installer attached (Releases is
+# where app binaries live — GitHub "Packages" is for npm/Docker/etc.):
 #
-#   pnpm version 0.1.0 --no-git-tag-version   # optional: bump versions first
-#   git tag v0.1.0 && git push origin v0.1.0
+#   git tag v1.0.1 && git push origin v1.0.1
 #
 # The release is created as a DRAFT — review it, then publish to make the
-# downloads public. Builds are UNSIGNED (no Apple Developer cert wired in);
-# first launch on macOS: right-click → Open. Add signing secrets later via
-# tauri-action's env (APPLE_CERTIFICATE, etc.).
+# downloads public. Builds are UNSIGNED (no Apple/Windows cert wired in); on
+# macOS, first launch: right-click → Open. Add signing secrets later via
+# tauri-action's env (APPLE_CERTIFICATE, WINDOWS_CERTIFICATE, etc.).
 
 on:
   push:
@@ -18,11 +17,20 @@ on:
 
 jobs:
   release:
-    # macOS only for now (the primary target). Add windows-latest / ubuntu-latest
-    # to this matrix to ship those installers too (ubuntu needs the Tauri apt deps).
     strategy:
+      fail-fast: false
       matrix:
-        os: [macos-latest]
+        include:
+          # Universal macOS binary — runs on both Apple Silicon and Intel.
+          - os: macos-latest
+            args: "--target universal-apple-darwin"
+            rust-targets: "aarch64-apple-darwin,x86_64-apple-darwin"
+          - os: windows-latest
+            args: ""
+            rust-targets: ""
+          - os: ubuntu-latest
+            args: ""
+            rust-targets: ""
     runs-on: ${{ matrix.os }}
     permissions:
       contents: write
@@ -38,23 +46,60 @@ jobs:
           node-version: 24
           cache: pnpm
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-targets }}
 
       - name: Cache Rust build
         uses: Swatinem/rust-cache@v2
+
+      # Tauri v2 Linux prerequisites (webkit2gtk 4.1, appindicator, AppImage).
+      - name: Linux build prerequisites
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev \
+            libayatana-appindicator3-dev libxdo-dev libssl-dev \
+            patchelf build-essential curl wget file
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Build + publish release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # ── Code signing (optional) ─────────────────────────────────────────
+          # Add these as repository secrets (Settings → Secrets and variables →
+          # Actions) to ship installers that open without a security warning.
+          # Until then builds are UNSIGNED (macOS: right-click → Open; Windows:
+          # SmartScreen "More info → Run anyway").
+          #
+          # macOS — needs an Apple Developer account (~$99/yr):
+          #   APPLE_CERTIFICATE:          ${{ secrets.APPLE_CERTIFICATE }}          # base64 of your Developer ID .p12
+          #   APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          #   APPLE_SIGNING_IDENTITY:     ${{ secrets.APPLE_SIGNING_IDENTITY }}     # "Developer ID Application: Name (TEAMID)"
+          #   APPLE_ID:                   ${{ secrets.APPLE_ID }}                   # for notarization
+          #   APPLE_PASSWORD:             ${{ secrets.APPLE_PASSWORD }}             # app-specific password
+          #   APPLE_TEAM_ID:              ${{ secrets.APPLE_TEAM_ID }}
+          #
+          # Windows — needs a code-signing cert from a CA (or Azure Trusted Signing).
+          #   Configure it in apps/desktop/src-tauri/tauri.conf.json under
+          #   bundle.windows.certificateThumbprint (+ optional signCommand);
+          #   see https://tauri.app/distribute/sign/windows/
+          # ────────────────────────────────────────────────────────────────────
         with:
           projectPath: apps/desktop
+          args: ${{ matrix.args }}
           tagName: ${{ github.ref_name }}
           releaseName: "MAINSPRING ${{ github.ref_name }}"
-          releaseBody: "Local-first FIRE planner. Download the installer below. macOS builds are unsigned — first launch: right-click → Open."
+          releaseBody: |
+            Local-first planner for financial independence — your data stays on your machine. Download the installer for your OS below.
+
+            **Builds are unsigned.**
+            - **macOS:** it may say *"MAINSPRING is damaged and can't be opened"* — it isn't. Move it to `/Applications`, then run once: `xattr -cr /Applications/MAINSPRING.app` and open it normally.
+            - **Windows:** SmartScreen → **More info → Run anyway**.
           releaseDraft: true
           prerelease: false
