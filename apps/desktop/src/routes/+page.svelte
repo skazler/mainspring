@@ -5,8 +5,11 @@
   import Spending from "$lib/components/Spending.svelte";
   import Goals from "$lib/components/Goals.svelte";
   import Setup from "$lib/components/Setup.svelte";
+  import BackupControls from "$lib/components/BackupControls.svelte";
   import { initSession, session } from "$lib/stores/session.svelte";
   import { hints } from "$lib/stores/hints.svelte";
+
+  let showData = $state(false);
 
   onMount(() => {
     void initSession();
@@ -22,7 +25,11 @@
     <button class:active={session.tab === "spending"} onclick={() => (session.tab = "spending")}>Outflows</button>
     <button class:active={session.tab === "goals"} onclick={() => (session.tab = "goals")}>Goals</button>
     <button class="tips" class:on={hints.show} title="Show or hide explanatory tips" onclick={() => hints.toggle()}>ⓘ</button>
+    <button class="tips" class:on={showData} title="Back up or restore your data" onclick={() => (showData = !showData)}>⤓</button>
   </nav>
+  {#if showData}
+    <div class="data-panel"><BackupControls /></div>
+  {/if}
   {#if session.tab === "plan"}
     <DialConsole />
   {:else if session.tab === "holdings"}
@@ -72,5 +79,14 @@
   .tabs button.tips.on {
     color: var(--color-gilt);
     border-color: var(--color-gilt);
+  }
+  .data-panel {
+    max-width: 42rem;
+    margin: 1.25rem auto 0;
+    padding: 1.1rem 1.3rem;
+    border: 1px solid var(--color-etch);
+    border-radius: 10px;
+    background: var(--color-panel);
+    box-shadow: var(--bevel);
   }
 </style>

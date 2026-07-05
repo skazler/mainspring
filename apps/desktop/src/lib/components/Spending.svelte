@@ -14,6 +14,7 @@
 
   const v = $derived(view.current);
   let showBreakdown = $state(false);
+  let showBills = $state(false);
   const propSlices = $derived(v.whereItGoes.map((s) => ({ label: s.label, amount: Number(s.amount.toString()) })));
 
   // Cash-flow health, from take-home. Consumption (essentials + spending) is money
@@ -221,7 +222,11 @@
   </div>
 
   <div class="block">
-    <h2 class="section">Bills &amp; essentials</h2>
+    <button class="block-head" onclick={() => (showBills = !showBills)}>
+      <span class="block-title">{showBills ? "▾" : "▸"} Bills &amp; essentials</span>
+      <span class="block-total">{formatUsd(Number(recurring.billsAnnual.toString()))}/yr<span class="dim"> · {recurring.bills.length}</span></span>
+    </button>
+    {#if showBills}
     {#if hints.show}
       <p class="hint">Everything fixed and recurring — rent/mortgage, groceries, utilities, insurance, car, subscriptions, API costs. Itemize them here and they drill down under "Bills &amp; essentials" in your budget.</p>
     {/if}
@@ -236,10 +241,6 @@
       </select>
       <button type="submit">Add</button>
     </form>
-
-    <div class="summary">
-      <span>Bills &amp; essentials: <strong>{formatUsd(Number(recurring.billsAnnual.toString()))}</strong>/yr</span>
-    </div>
 
     {#if recurring.error}<p class="warn">{recurring.error}</p>{/if}
 
@@ -267,6 +268,7 @@
       {/if}
     {:else}
       <p class="empty">No commitments yet — add a bill above.</p>
+    {/if}
     {/if}
   </div>
 
@@ -483,6 +485,30 @@
     font-size: 1rem;
     text-align: center;
     margin: 0 0 0.2rem;
+  }
+  .block-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+  }
+  .block-title {
+    font-family: var(--font-display);
+    color: var(--color-gilt);
+    letter-spacing: 0.1em;
+    font-size: 1rem;
+  }
+  .block-head:hover .block-title {
+    color: var(--color-parchment);
+  }
+  .block-total {
+    font-family: var(--font-meter);
+    color: var(--color-copper);
+    font-size: 0.95rem;
   }
   .hint {
     text-align: center;
