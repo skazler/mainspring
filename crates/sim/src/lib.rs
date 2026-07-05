@@ -105,8 +105,16 @@ pub fn simulate(p: &SimParams) -> Forecast {
     // Sanitize: mu is an *arithmetic* annual return, so mu <= -1 would make the
     // GBM log-drift undefined; non-finite mu/sigma would poison the percentile
     // sort with NaN. Clamp both to a safe finite range.
-    let mu = if p.mu.is_finite() { p.mu.max(-0.999) } else { 0.0 };
-    let sigma = if p.sigma.is_finite() { p.sigma.max(0.0) } else { 0.0 };
+    let mu = if p.mu.is_finite() {
+        p.mu.max(-0.999)
+    } else {
+        0.0
+    };
+    let sigma = if p.sigma.is_finite() {
+        p.sigma.max(0.0)
+    } else {
+        0.0
+    };
     // GBM log-drift m so that E[growth] = 1 + mu and sigma = 0 reduces *exactly*
     // to (1 + mu) compounding — matching projectBalances (D3). mu arrives as an
     // arithmetic annual return (annualizedStats), never as a log-drift.

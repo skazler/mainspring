@@ -28,7 +28,10 @@ pub fn set_anthropic_key(key: String) -> Result<(), String> {
 /// Whether a key is set — the only key-related fact the webview learns.
 #[tauri::command]
 pub fn has_anthropic_key() -> bool {
-    matches!(entry().and_then(|e| e.get_password().map_err(|e| e.to_string())), Ok(_))
+    matches!(
+        entry().and_then(|e| e.get_password().map_err(|e| e.to_string())),
+        Ok(_)
+    )
 }
 
 /// Forget the stored key.
