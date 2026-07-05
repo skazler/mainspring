@@ -84,6 +84,11 @@ export class Money {
     if (weights.length === 0) {
       throw new RangeError("allocate requires at least one weight");
     }
+    // F23: floor-based remainder distribution misbehaves for a negative total
+    // (floor pushes shares the wrong way). No caller allocates negative money.
+    if (this.d.isNegative()) {
+      throw new RangeError("allocate requires a non-negative total");
+    }
     const w = weights.map((x) => new MoneyDecimal(x));
     if (w.some((x) => x.isNegative())) {
       throw new RangeError("allocate weights must be non-negative");

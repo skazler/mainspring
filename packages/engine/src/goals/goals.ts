@@ -44,7 +44,13 @@ export function goalStatus(goal: GoalInput, asOf: string): GoalStatus {
   return { progress, remaining, complete, monthsToGoal, requiredMonthly };
 }
 
-/** Whole months from `from` to `to` (ISO dates); negative if `to` is in the past. */
+/**
+ * Whole months from `from` to `to` (ISO dates); negative if `to` is in the past.
+ * F23 caveat: this counts calendar-month boundaries and ignores the day of month
+ * — `2026-01-31 → 2026-03-01` returns 2, not "just over one month". So a
+ * `requiredMonthly` near a deadline can read a month optimistic. Acceptable for a
+ * planning estimate; documented so it's a known behavior, not a surprise.
+ */
 export function monthsBetween(from: string, to: string): number {
   const [fy, fm] = from.split("-").map(Number);
   const [ty, tm] = to.split("-").map(Number);

@@ -141,6 +141,10 @@ describe("Money value object", () => {
     expect(parts.map((p) => p.toString()).sort()).toEqual(["33.3333", "33.3333", "33.3334"]);
   });
 
+  it("F23: allocate refuses a negative total", () => {
+    expect(() => Money.zero().subtract(Money.of("10")).allocate(["1", "1"])).toThrow(RangeError);
+  });
+
   it("keeps full precision mid-calc, rounds HALF_UP only at the boundary", () => {
     const taxed = Money.of("100000").multiply("0.123456"); // 12345.6
     expect(taxed.toString()).toBe("12345.6000");

@@ -35,6 +35,12 @@ describe("holding period (long-term = held a year and a day)", () => {
     expect(isLongTerm("2024-01-15", "2025-01-15")).toBe(false); // exactly one year
     expect(isLongTerm("2025-12-01", "2026-03-01")).toBe(false);
   });
+  it("F23: a Feb-29 acquisition rolls to Mar-2 (documented, intended behavior)", () => {
+    // Date.UTC(2025, 1, 30) has no Feb 30 → normalizes to Mar 2, 2025, so the
+    // long-term threshold for a leap-day buy lands two days after the anniversary.
+    expect(isLongTerm("2024-02-29", "2025-03-01")).toBe(false); // Mar 1 < threshold
+    expect(isLongTerm("2024-02-29", "2025-03-02")).toBe(true); // Mar 2 = threshold
+  });
 });
 
 describe("realizeSale", () => {
