@@ -5,7 +5,7 @@ The engine is pure, so most of the value comes from cheap, fast, deterministic t
 ---
 
 ## Tax — golden tests
-`packages/engine/tests/tax/golden/`. Hand-computed scenarios (single TX W2 at several incomes, with/without pre-tax contributions) pinned to the cent for federal/FICA/net. **Any constant change requires a deliberate golden update.** This is the firewall against silently wrong take-home math. Run in CI on every change.
+`packages/engine/tests/tax/golden.test.ts`. Hand-computed scenarios (single TX W2 at several incomes, with/without pre-tax contributions) pinned to the cent for federal/FICA/net. **Any constant change requires a deliberate golden update.** This is the firewall against silently wrong take-home math. Run in CI on every change.
 
 ## Allocation — example + property
 - Example tests for caps, priority, and clamp routing.
@@ -21,8 +21,8 @@ Unit tests on the Rust sim: distribution sampling, contribution/withdrawal foldi
 ## Persistence — round-trip
 PGlite migrations apply cleanly; entities round-trip with exact decimals; old scenario JSONB blobs upgrade on read.
 
-## UI — E2E (Playwright)
-The dial loop: drag a gauge → assert take-home and FI date update in the same interaction; assert an over-cap drag is prevented and shows the clamp state.
+## UI — E2E (Playwright) — *planned*
+Not present yet. The intended coverage: the dial loop — drag a gauge → assert take-home and FI date update in the same interaction; assert an over-cap drag is prevented and shows the clamp state.
 
 ## Determinism everywhere
 No `Date.now()` or RNG inside pure math — clock and seed are injected. This keeps tests stable, runs reproducible, and forecast caching valid.

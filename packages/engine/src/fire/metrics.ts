@@ -1,5 +1,4 @@
-import Decimal from "decimal.js";
-import { Money } from "@mainspring/schema";
+import { Money, MoneyDecimal } from "@mainspring/schema";
 import { projectBalances } from "./project";
 
 export interface FireInput {
@@ -32,7 +31,7 @@ export interface FireMetrics {
 
 /** FI number = annualExpenses / swr. */
 export function fiNumberFor(annualExpenses: Money, swr: string): Money {
-  return annualExpenses.multiply(new Decimal(1).div(new Decimal(swr)));
+  return annualExpenses.multiply(new MoneyDecimal(1).div(new MoneyDecimal(swr)));
 }
 
 /** Coast FIRE number = fiNumber / (1 + rReal)^(yearsToTargetRetire). */
@@ -43,8 +42,8 @@ export function coastNumberFor(
   targetRetireAge: number,
 ): Money {
   const years = Math.max(0, targetRetireAge - currentAge);
-  const growth = new Decimal(1).plus(new Decimal(realReturn)).pow(years);
-  return fiNumber.multiply(new Decimal(1).div(growth));
+  const growth = new MoneyDecimal(1).plus(new MoneyDecimal(realReturn)).pow(years);
+  return fiNumber.multiply(new MoneyDecimal(1).div(growth));
 }
 
 /** Deterministic FIRE metrics derived from the projection. Pure, no clock. */

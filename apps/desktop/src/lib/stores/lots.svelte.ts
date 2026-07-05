@@ -2,7 +2,9 @@ import { rollUpLots, type LedgerLot, type TickerPosition } from "@mainspring/eng
 import { Money } from "@mainspring/schema";
 import { fetchMarket, runForecast, type Forecast } from "$lib/bridge/invoke";
 import { deleteLot, loadCloses, loadLots, saveBars, saveLot, type LotRow } from "$lib/db";
-import { annualizedStats } from "@mainspring/engine";
+import { annualizedStats, toRealReturn } from "@mainspring/engine";
+import { profile } from "./profile.svelte";
+import { FORECAST_SEED } from "$lib/forecast-seed";
 
 function toLedger(row: LotRow): LedgerLot {
   return {
@@ -83,6 +85,8 @@ class LotsStore {
         return;
       }
       const s = annualizedStats(closes, 252);
+      // Historical μ is nominal; deflate to real to match the kernel's basis (F4).
+      const inflation = Number(profile.plan.inflation ?? "0.025");
       const pos = this.positions.find((p) => p.ticker === ticker);
       const shares = pos ? Number(pos.openShares.toString()) : 0;
       const value = shares * (this.prices[ticker] ?? closes[closes.length - 1]!);
@@ -92,10 +96,10 @@ class LotsStore {
         annualExpenses: 0,
         yearsAccumulation: years,
         yearsTotal: years,
-        mu: s.mu,
+        mu: toRealReturn(s.mu, inflation),
         sigma: s.sigma || 0.15,
         nPaths: 10_000,
-        seed: 42,
+        seed: FORECAST_SEED,
         model: "gbm",
       });
       this.estimate = { ticker, forecast, years };

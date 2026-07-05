@@ -12,11 +12,13 @@ describe("buildProfileState", () => {
     // no unitemized baseline — essentials come from itemized bills
     expect(p.annualExpenses.toString()).toBe("0.0000");
 
-    // only the enabled buckets become dials: 401k, ira, brokerage
-    expect(p.dials.map((d) => d.bucket)).toEqual(["401k_pretax", "ira", "brokerage"]);
+    // only the enabled buckets become dials: 401k, Roth IRA, brokerage (F20)
+    expect(p.dials.map((d) => d.bucket)).toEqual(["401k_pretax", "roth_ira", "brokerage"]);
     const k401 = p.dials.find((d) => d.bucket === "401k_pretax")!;
     expect(k401.pct).toBe("0.15");
     expect(k401.annualCap?.toString()).toBe("24500.0000");
+    const roth = p.dials.find((d) => d.bucket === "roth_ira")!;
+    expect(roth.pct).toBe("0.05");
     const brokerage = p.dials.find((d) => d.bucket === "brokerage")!;
     expect(brokerage.pct).toBe("0.3");
     expect(brokerage.annualCap).toBeUndefined(); // uncapped bucket
@@ -30,7 +32,7 @@ describe("buildProfileState", () => {
     );
     const p = buildProfileState(form);
     expect(p.taxProfile.state).toBe("TX");
-    expect(p.dials.map((d) => d.bucket)).toEqual(["401k_pretax", "ira"]);
+    expect(p.dials.map((d) => d.bucket)).toEqual(["401k_pretax", "roth_ira"]);
   });
 
   it("converts a fixed dollar (amount-mode) gross contribution to a % of gross", () => {

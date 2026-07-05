@@ -35,6 +35,12 @@ describe("holding period (long-term = held a year and a day)", () => {
     expect(isLongTerm("2024-01-15", "2025-01-15")).toBe(false); // exactly one year
     expect(isLongTerm("2025-12-01", "2026-03-01")).toBe(false);
   });
+  it("F23: a Feb-29 acquisition rolls to Mar-2 (documented, intended behavior)", () => {
+    // Date.UTC(2025, 1, 30) has no Feb 30 → normalizes to Mar 2, 2025, so the
+    // long-term threshold for a leap-day buy lands two days after the anniversary.
+    expect(isLongTerm("2024-02-29", "2025-03-01")).toBe(false); // Mar 1 < threshold
+    expect(isLongTerm("2024-02-29", "2025-03-02")).toBe(true); // Mar 2 = threshold
+  });
 });
 
 describe("realizeSale", () => {
@@ -57,6 +63,15 @@ describe("realizeSale", () => {
     );
     expect(r.realized.longTerm.toString()).toBe("500.0000"); // 3000 − 2500
     expect(r.remainingLots.map((l) => l.id)).toEqual(["A"]);
+  });
+
+  it("F2: an oversized specific-ID sale throws instead of spilling into other lots", () => {
+    expect(() =>
+      realizeSale(
+        { shares: new Decimal("15"), pricePerShare: Money.of("300"), soldOn: "2026-03-01", method: "specific-id", specificLotId: "B" },
+        [lotA(), lotB()],
+      ),
+    ).toThrow(/specific lot B/);
   });
 
   it("partial sale allocates basis and fee pro-rata", () => {

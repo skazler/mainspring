@@ -1,5 +1,4 @@
-import Decimal from "decimal.js";
-import { Money } from "@mainspring/schema";
+import { Money, MoneyDecimal } from "@mainspring/schema";
 import { maxMoney } from "../money-util";
 
 export interface GoalInput {
@@ -33,19 +32,25 @@ export function goalStatus(goal: GoalInput, asOf: string): GoalStatus {
   let monthsToGoal: number | null = complete ? 0 : null;
   const monthly = goal.monthlyContribution;
   if (!complete && monthly && !monthly.isZero() && !monthly.isNegative()) {
-    monthsToGoal = new Decimal(remaining.toString()).div(new Decimal(monthly.toString())).ceil().toNumber();
+    monthsToGoal = new MoneyDecimal(remaining.toString()).div(new MoneyDecimal(monthly.toString())).ceil().toNumber();
   }
 
   let requiredMonthly: Money | null = null;
   if (goal.targetDate && !complete) {
     const months = monthsBetween(asOf, goal.targetDate);
-    if (months > 0) requiredMonthly = remaining.multiply(new Decimal(1).div(months));
+    if (months > 0) requiredMonthly = remaining.multiply(new MoneyDecimal(1).div(months));
   }
 
   return { progress, remaining, complete, monthsToGoal, requiredMonthly };
 }
 
-/** Whole months from `from` to `to` (ISO dates); negative if `to` is in the past. */
+/**
+ * Whole months from `from` to `to` (ISO dates); negative if `to` is in the past.
+ * F23 caveat: this counts calendar-month boundaries and ignores the day of month
+ * — `2026-01-31 → 2026-03-01` returns 2, not "just over one month". So a
+ * `requiredMonthly` near a deadline can read a month optimistic. Acceptable for a
+ * planning estimate; documented so it's a known behavior, not a surprise.
+ */
 export function monthsBetween(from: string, to: string): number {
   const [fy, fm] = from.split("-").map(Number);
   const [ty, tm] = to.split("-").map(Number);

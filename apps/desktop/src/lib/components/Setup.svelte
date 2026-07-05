@@ -151,6 +151,7 @@
     <label>Invested assets today<input type="number" min="0" step="1000" bind:value={form.currentBalance} /></label>
     <label>Withdrawal rate %<input type="number" min="1" max="10" step="0.1" bind:value={form.swrPercent} /></label>
     <label>Assumed real return %<input type="number" min="0" max="15" step="0.1" bind:value={form.realReturnPercent} /></label>
+    <label title="Deflates nominal market returns into real ones for the forecast.">Assumed inflation %<input type="number" min="0" max="15" step="0.1" bind:value={form.inflationPct} /></label>
   </fieldset>
 
   <fieldset class="contributions">
@@ -197,7 +198,7 @@
       <input bind:this={fileInput} type="file" accept="application/json,.json" onchange={onImportFile} hidden />
     </div>
     {#if backupMsg}<p class="backup-msg">{backupMsg}</p>{/if}
-    <p class="note dim">Restore merges records by id; your API key isn't included (re-enter it after restoring).</p>
+    <p class="note dim">⚠ The backup file is your full financial ledger, <strong>unencrypted</strong> — store it somewhere you'd keep a bank statement. Restore merges records by id; your API key isn't included (re-enter it after restoring).</p>
   </fieldset>
 
   <button type="submit" disabled={session.hasProfile && !dirty}>

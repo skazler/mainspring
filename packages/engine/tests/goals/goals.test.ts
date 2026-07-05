@@ -42,4 +42,10 @@ describe("monthsBetween", () => {
     expect(monthsBetween("2026-07-01", "2026-10-01")).toBe(3);
     expect(monthsBetween("2026-07-01", "2026-04-01")).toBe(-3);
   });
+  it("F23: ignores day-of-month (calendar-boundary count) — pinned behavior", () => {
+    // 31 Jan → 1 Mar is "just over a month" but crosses two month boundaries → 2.
+    expect(monthsBetween("2026-01-31", "2026-03-01")).toBe(2);
+    // same calendar month, any days → 0.
+    expect(monthsBetween("2026-07-01", "2026-07-28")).toBe(0);
+  });
 });

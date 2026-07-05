@@ -1,8 +1,8 @@
 import { applyDialAdjustments } from "@mainspring/engine";
 import { assistantResponse } from "@mainspring/schema";
 import { BUCKET_OPTIONS } from "$lib/buckets";
-import { anthropicMessage } from "$lib/bridge/invoke";
-import { loadApiKey, saveApiKey } from "$lib/db";
+import { anthropicMessage, hasAnthropicKey, setAnthropicKey } from "$lib/bridge/invoke";
+import { deleteLegacyApiKey, loadLegacyApiKey } from "$lib/db";
 import { profile } from "./profile.svelte";
 import { view } from "./derived.svelte";
 
@@ -72,18 +72,47 @@ Current plan context (ratios/ages only): ${JSON.stringify(context)}`;
 
 /** A collapsible planning-assistant chat: answers questions, may apply validated dial changes. */
 class AlmanacStore {
+  /** Transient input buffer only — never persisted in the webview (F7). */
   apiKey = $state("");
+  /** Whether a key is stored in the OS keychain — the only key fact the webview keeps. */
+  hasKey = $state(false);
   request = $state("");
   running = $state(false);
   error = $state<string | null>(null);
   messages = $state<ChatMessage[]>([]);
 
   async loadKey(): Promise<void> {
-    this.apiKey = await loadApiKey();
+    this.hasKey = await hasAnthropicKey();
+    // One-time migration: a legacy plaintext key in PGlite → the OS keychain.
+    if (!this.hasKey) {
+      const legacy = await loadLegacyApiKey();
+      if (legacy.trim()) {
+        await setAnthropicKey(legacy.trim());
+        await deleteLegacyApiKey();
+        this.hasKey = true;
+      }
+    } else {
+      // Keychain already holds it; drop any stale plaintext row.
+      await deleteLegacyApiKey();
+    }
+  }
+
+  /** Move the buffered key into the OS keychain and forget it here. */
+  async saveKey(): Promise<void> {
+    const k = this.apiKey.trim();
+    if (!k) return;
+    try {
+      await setAnthropicKey(k);
+      this.hasKey = true;
+      this.apiKey = "";
+      this.error = null;
+    } catch (e) {
+      this.error = e instanceof Error ? e.message : String(e);
+    }
   }
 
   async ask(): Promise<void> {
-    if (!this.apiKey.trim()) {
+    if (!this.hasKey) {
       this.error = "Set your Anthropic API key first.";
       return;
     }
@@ -94,8 +123,7 @@ class AlmanacStore {
     this.messages = [...this.messages, { role: "user", text: q }];
     this.running = true;
     try {
-      await saveApiKey(this.apiKey);
-      const raw = await anthropicMessage(this.apiKey, buildBody(this.messages));
+      const raw = await anthropicMessage(buildBody(this.messages));
       const resp = JSON.parse(raw) as {
         type?: string;
         error?: { message?: string };

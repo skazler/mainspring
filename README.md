@@ -103,19 +103,30 @@ sequenceDiagram
 
 ## The parts list
 
+**Fitted** — every row is a real dependency or in-repo code:
+
 | Component | Made of |
 |---|---|
 | Case & crown | Tauri 2 (Rust) — native, tiny, private |
 | Face & dials | Svelte 5 (runes) + TypeScript + Vite |
 | The Mainspring | **isomorphic TypeScript engine** — one source of truth for tax, allocation, projection |
-| The Escapement | Rust → native (desktop) / WASM (web) |
-| The Vault | PGlite (Postgres in-process) + DuckDB (analytics) |
+| The Escapement | Rust Monte-Carlo kernel (`crates/sim`) → native (desktop) |
+| The Vault | PGlite (Postgres in-process) — local, on disk |
 | Engraving & fitting | Drizzle (migrations) · Zod (validation) |
-| Registers & charts | uPlot + Observable Plot |
-| Finish | Tailwind v4 + a steampunk token layer |
-| Market data | yfinance + Finnhub (both free, opt-in) |
-| Multi-device (optional) | ElectricSQL → self-hosted Postgres |
+| Registers & charts | uPlot |
+| Finish | a hand-rolled steampunk token layer (`tokens.css`) — no CSS framework |
+| Market data | the Yahoo Finance v8 chart endpoint (free, opt-in; not the `yfinance` Python lib) |
+| Key custody | the OS keychain (macOS Keychain / Windows Credential Manager / Linux secret-service) |
 | The Almanac (optional) | planning assistant — Q&A + plain-English → validated dial changes, via your own Anthropic key |
+
+**On the bench** — designed for, not yet fitted:
+
+| Component | Status |
+|---|---|
+| DuckDB (analytics) | not a dependency yet |
+| Finnhub live quotes | aspiration (needs a key) |
+| ElectricSQL sync → self-hosted Postgres | scaffold only (`infra/sync`) |
+| Observable Plot | not used — charts are uPlot only |
 
 ## Maker's notes (for the agents who build it)
 

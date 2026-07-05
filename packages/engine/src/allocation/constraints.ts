@@ -1,4 +1,4 @@
-import Decimal from "decimal.js";
+import { MoneyDecimal } from "@mainspring/schema";
 import type { DialBase } from "@mainspring/schema";
 import type { DialInput } from "../types";
 
@@ -13,13 +13,13 @@ export function remainingPct(
   excludeIndex: number,
 ): string {
   const used = dials.reduce(
-    (sum, d, i) => (i === excludeIndex || d.base !== base ? sum : sum.plus(new Decimal(d.pct))),
-    new Decimal(0),
+    (sum, d, i) => (i === excludeIndex || d.base !== base ? sum : sum.plus(new MoneyDecimal(d.pct))),
+    new MoneyDecimal(0),
   );
-  return Decimal.max(new Decimal(0), new Decimal(1).minus(used)).toString();
+  return MoneyDecimal.max(new MoneyDecimal(0), new MoneyDecimal(1).minus(used)).toString();
 }
 
 /** Clamp a proposed fraction into [0, maxPct]. */
 export function constrainPct(proposed: string, maxPct: string): string {
-  return Decimal.max(new Decimal(0), Decimal.min(new Decimal(proposed), new Decimal(maxPct))).toString();
+  return MoneyDecimal.max(new MoneyDecimal(0), MoneyDecimal.min(new MoneyDecimal(proposed), new MoneyDecimal(maxPct))).toString();
 }

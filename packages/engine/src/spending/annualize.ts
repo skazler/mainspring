@@ -1,5 +1,4 @@
-import Decimal from "decimal.js";
-import { Money } from "@mainspring/schema";
+import { Money, MoneyDecimal } from "@mainspring/schema";
 
 export interface SpendingEntry {
   category: string;
@@ -18,7 +17,7 @@ export function annualizeSpending(entries: readonly SpendingEntry[]): Money {
   // String() guards against a non-string date leaking in (e.g. a raw pg Date).
   const months = new Set(entries.map((e) => String(e.spentAt).slice(0, 7)));
   const total = entries.reduce((sum, e) => sum.add(e.amount), Money.zero());
-  return total.multiply(new Decimal(12).div(months.size));
+  return total.multiply(new MoneyDecimal(12).div(months.size));
 }
 
 /**
