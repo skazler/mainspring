@@ -21,7 +21,10 @@ pub fn run() {
             greet,
             run_forecast,
             market::fetch_market,
-            copilot::anthropic_message
+            copilot::anthropic_message,
+            copilot::set_anthropic_key,
+            copilot::has_anthropic_key,
+            copilot::clear_anthropic_key
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

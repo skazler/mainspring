@@ -40,8 +40,15 @@ export const fetchMarket = (ticker: string, range = "5y", interval = "1d") =>
   invoke<Bar[]>("fetch_market", { ticker, range, interval });
 
 /**
- * POST a pre-built Anthropic Messages API body through the Rust core (key stays
- * native, no CORS). Returns the raw response JSON text. (FRONTEND §4 / AI_WORKFLOWS.)
+ * POST a pre-built Anthropic Messages API body through the Rust core. The key is
+ * read from the OS keychain natively — the webview never sends it (F7). Returns
+ * the raw response JSON text. (FRONTEND §4 / AI_WORKFLOWS.)
  */
-export const anthropicMessage = (apiKey: string, body: string) =>
-  invoke<string>("anthropic_message", { apiKey, body });
+export const anthropicMessage = (body: string) => invoke<string>("anthropic_message", { body });
+
+/** Store the Anthropic API key in the OS keychain (the only time it leaves the input). */
+export const setAnthropicKey = (key: string) => invoke<void>("set_anthropic_key", { key });
+/** Whether a key is set — the only key fact the webview learns. */
+export const hasAnthropicKey = () => invoke<boolean>("has_anthropic_key");
+/** Forget the stored key. */
+export const clearAnthropicKey = () => invoke<void>("clear_anthropic_key");
