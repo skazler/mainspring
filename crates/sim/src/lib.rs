@@ -102,6 +102,24 @@ pub fn simulate(p: &SimParams) -> Forecast {
     let mut year_balances: Vec<Vec<f64>> = vec![Vec::with_capacity(p.n_paths); n_years];
     let mut survived = 0usize;
 
+    // Sanitize: mu is an *arithmetic* annual return, so mu <= -1 would make the
+    // GBM log-drift undefined; non-finite mu/sigma would poison the percentile
+    // sort with NaN. Clamp both to a safe finite range.
+    let mu = if p.mu.is_finite() {
+        p.mu.max(-0.999)
+    } else {
+        0.0
+    };
+    let sigma = if p.sigma.is_finite() {
+        p.sigma.max(0.0)
+    } else {
+        0.0
+    };
+    // GBM log-drift m so that E[growth] = 1 + mu and sigma = 0 reduces *exactly*
+    // to (1 + mu) compounding — matching projectBalances (D3). mu arrives as an
+    // arithmetic annual return (annualizedStats), never as a log-drift.
+    let m = (1.0 + mu).ln() - 0.5 * sigma * sigma;
+
     for path in 0..p.n_paths {
         let mut rng = Rng::new(p.seed ^ (path as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15));
         let mut bal = p.start_balance;
@@ -111,12 +129,14 @@ pub fn simulate(p: &SimParams) -> Forecast {
             let growth = match p.model {
                 Model::Gbm => {
                     let z = rng.next_normal();
-                    ((p.mu - 0.5 * p.sigma * p.sigma) + p.sigma * z).exp()
+                    (m + sigma * z).exp()
                 }
                 Model::Bootstrap => {
                     if p.historical_returns.is_empty() {
-                        1.0 + p.mu
+                        1.0 + mu
                     } else {
+                        // Modulo bias is negligible at these array lengths; do not
+                        // "fix" it into a rejection loop and break reproducibility.
                         let idx = (rng.next_u64() as usize) % p.historical_returns.len();
                         1.0 + p.historical_returns[idx]
                     }
@@ -146,7 +166,8 @@ pub fn simulate(p: &SimParams) -> Forecast {
     let mut p90 = Vec::with_capacity(n_years);
     for y in 0..n_years {
         let mut v = std::mem::take(&mut year_balances[y]);
-        v.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        // NaN-safe (inputs are sanitized above, but never unwrap a partial_cmp).
+        v.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         p10.push(percentile(&v, 0.10));
         p25.push(percentile(&v, 0.25));
         p50.push(percentile(&v, 0.50));
@@ -216,7 +237,8 @@ mod tests {
 
     #[test]
     fn zero_vol_matches_closed_form_accumulation() {
-        // sigma = 0 → deterministic compounding; median == hand projection.
+        // sigma = 0 → deterministic compounding at exactly (1 + mu); the MC
+        // median must equal projectBalances' (1 + mu) recurrence (D3/F3).
         let mut p = base();
         p.sigma = 0.0;
         p.years_accumulation = 10;
@@ -224,10 +246,9 @@ mod tests {
         p.n_paths = 16;
         let f = simulate(&p);
 
-        let factor = (0.05_f64).exp();
         let mut bal = 100_000.0_f64;
         for _ in 0..10 {
-            bal = bal * factor + 30_000.0;
+            bal = bal * 1.05 + 30_000.0; // (1 + mu), mu = 0.05
         }
         let median = f.p50[9];
         assert!(

@@ -41,8 +41,10 @@ export function stdev(xs: readonly number[]): number {
 /**
  * Annualized stats from a price series. `periodsPerYear`: 252 (daily), 12
  * (monthly), 1 (annual). μ compounds the mean period return; σ scales by √periods.
- * Note: this is a *nominal* historical estimate — inflation-adjustment to a real
- * return is a refinement for later.
+ * μ is a **nominal** historical estimate; the forecast caller deflates it to a
+ * real return via {@link toRealReturn} before the kernel, so it shares one
+ * inflation basis with the flat real contributions/expenses (F4). σ is left as-is
+ * (an acceptable approximation — deflation barely changes the spread).
  */
 export function annualizedStats(closes: readonly number[], periodsPerYear = 252): MarketStats {
   const r = periodReturns(closes);
@@ -50,4 +52,13 @@ export function annualizedStats(closes: readonly number[], periodsPerYear = 252)
   const mu = (1 + mean(r)) ** periodsPerYear - 1;
   const sigma = stdev(r) * Math.sqrt(periodsPerYear);
   return { mu, sigma, samples: r.length };
+}
+
+/**
+ * Deflate a nominal annual return to a real one: (1 + nominal) / (1 + inflation) − 1.
+ * The Monte Carlo kernel runs in real dollars (flat real contributions/expenses),
+ * so a nominal market μ must be deflated before it's fed in (F4).
+ */
+export function toRealReturn(nominalMu: number, inflation: number): number {
+  return (1 + nominalMu) / (1 + inflation) - 1;
 }

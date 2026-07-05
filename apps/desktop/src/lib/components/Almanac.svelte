@@ -5,12 +5,19 @@
   let showKey = $state(false);
 
   function consult() {
-    if (!almanac.apiKey.trim()) {
+    if (!almanac.hasKey) {
       showKey = true; // no key yet — reveal the field
       return;
     }
     showKey = false;
     almanac.ask();
+  }
+  async function saveKey() {
+    await almanac.saveKey();
+    if (almanac.hasKey) {
+      showKey = false;
+      if (almanac.request.trim()) almanac.ask();
+    }
   }
   function onkeydown(e: KeyboardEvent) {
     if (e.key === "Enter") consult();
@@ -54,17 +61,17 @@
         <input
           class="apikey"
           type="password"
-          placeholder="Paste your Anthropic API key to enable the Almanac (stored locally)"
+          placeholder="Paste your Anthropic API key (stored in your OS keychain, never in the app)"
           bind:value={almanac.apiKey}
-          onkeydown={(e) => e.key === "Enter" && consult()}
+          onkeydown={(e) => e.key === "Enter" && saveKey()}
         />
-        <button class="toggle" onclick={consult}>Save</button>
+        <button class="toggle" onclick={saveKey}>Save</button>
       </div>
     {/if}
 
     {#if almanac.error}<p class="warn">{almanac.error}</p>{/if}
     <p class="disclaimer">
-      Only dial percentages and derived ratios/ages are sent — never balances or income. Informational, not advice.{#if almanac.apiKey.trim()}
+      Only dial percentages and derived ratios/ages are sent — never balances or income. Informational, not advice.{#if almanac.hasKey}
         <button class="linkkey" onclick={() => (showKey = !showKey)}>· change key</button>{/if}
     </p>
   </section>

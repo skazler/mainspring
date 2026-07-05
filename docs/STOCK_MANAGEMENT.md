@@ -53,6 +53,12 @@ lots
   columns as a cached snapshot if convenient, recomputed on lot change.
 - Dividends are **not** lots — they're income (see §6).
 
+> **App status (F11): specific-ID is engine-only for now.** `realizeSale` fully
+> supports `specific-id` (disposing against a named lot, throwing on a shortfall),
+> but the desktop app's sell flow hardcodes `method: "fifo"` — the in-app `lots`
+> table has no `method`/`closes_lot_id` columns yet (they arrive with the F10
+> relational cutover). A lot picker in `Holdings.svelte` is the follow-up.
+
 ---
 
 ## 3. Valuation (pure engine, `packages/engine`)

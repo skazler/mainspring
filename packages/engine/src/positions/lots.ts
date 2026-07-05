@@ -62,6 +62,18 @@ export function isLongTerm(acquiredOn: string, soldOn: string): boolean {
 export function realizeSale(sale: SaleInput, openLots: readonly OpenLot[]): SaleResult {
   const fee = sale.fee ?? Money.zero();
   const ordered = orderLots(sale, openLots);
+  // D2: a specific-id sale disposes against the named lot ONLY — never spilling
+  // into unrelated lots (a tax-lot integrity violation). The named lot leads
+  // `ordered`, so if it can't cover the sale, throw naming the lot + shortfall.
+  if (sale.method === "specific-id") {
+    const named = ordered[0]!;
+    if (named.shares.lt(sale.shares)) {
+      throw new Error(
+        `realizeSale: specific lot ${sale.specificLotId} has ${named.shares.toString()} open shares, ` +
+          `${sale.shares.minus(named.shares).toString()} short of the ${sale.shares.toString()}-share sale`,
+      );
+    }
+  }
   // working copies so we don't mutate the input
   const working = ordered.map((l) => ({ ...l }));
 
@@ -110,6 +122,8 @@ function orderLots(sale: SaleInput, openLots: readonly OpenLot[]): OpenLot[] {
     }
     const named = openLots.find((l) => l.id === sale.specificLotId);
     if (!named) throw new Error(`realizeSale: lot ${sale.specificLotId} not found`);
+    // The named lot leads; the rest follow so they survive in remainingLots. A
+    // guard in realizeSale (D2) ensures disposal never spills past the named lot.
     return [named, ...openLots.filter((l) => l.id !== sale.specificLotId)];
   }
   // FIFO — oldest first

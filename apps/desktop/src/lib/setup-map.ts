@@ -1,4 +1,4 @@
-import { Money } from "@mainspring/schema";
+import { Money, MoneyDecimal } from "@mainspring/schema";
 import type { Bucket, DialBase, FilingStatus, Frequency } from "@mainspring/schema";
 import { annualizeIncome, type DialInput, type ProfileState } from "@mainspring/engine";
 import { BUCKET_OPTIONS } from "./buckets";
@@ -29,6 +29,8 @@ export interface SetupForm {
   /** Whole-number percents. */
   swrPercent: number;
   realReturnPercent: number;
+  /** Assumed annual inflation, whole-number percent (deflates nominal market μ). */
+  inflationPct: number;
   /** Employer 401(k) match as a whole-number percent of gross, e.g. 4. */
   employerMatchPercent: number;
   contributions: ContributionForm[];
@@ -51,17 +53,20 @@ export function defaultSetupForm(): SetupForm {
     annualExpenses: 0,
     swrPercent: 4,
     realReturnPercent: 5,
+    inflationPct: 2.5,
     employerMatchPercent: 0,
     contributions: BUCKET_OPTIONS.map(defaultContribution),
   };
 }
 
-const frac = (percent: number): string => String(percent / 100);
+// F5: exact-decimal division — never stringify a JS float artifact into the
+// exact-Money pipeline (String(16.7 / 100) → "0.16699999999999998").
+const frac = (percent: number): string => new MoneyDecimal(percent).div(100).toString();
 
 /** Map the setup form to the engine's ProfileState. Pure. */
 export function buildProfileState(form: SetupForm): ProfileState {
   const incomeSources = [{ grossAmount: Money.of(String(form.grossAmount || 0)), frequency: form.frequency }];
-  const annualGross = Number(annualizeIncome(incomeSources).toString());
+  const annualGross = new MoneyDecimal(annualizeIncome(incomeSources).toString());
 
   const dials: DialInput[] = form.contributions
     .filter((c) => c.enabled && (c.mode === "amount" ? c.amount > 0 : c.percent > 0))
@@ -70,8 +75,8 @@ export function buildProfileState(form: SetupForm): ProfileState {
       // gross so the rest of the engine stays percentage-based.
       const pct =
         c.mode === "amount" && c.base === "gross"
-          ? annualGross > 0
-            ? String(c.amount / annualGross)
+          ? annualGross.gt(0)
+            ? new MoneyDecimal(c.amount).div(annualGross).toString()
             : "0"
           : frac(c.percent);
       const dial: DialInput = { bucket: c.bucket, base: c.base, pct, priority: i + 1 };
@@ -87,6 +92,7 @@ export function buildProfileState(form: SetupForm): ProfileState {
       currentBalance: Money.of(String(form.currentBalance || 0)),
       swr: frac(form.swrPercent),
       realReturn: frac(form.realReturnPercent),
+      inflation: frac(form.inflationPct ?? 2.5),
       employerMatchPercent: frac(form.employerMatchPercent || 0),
       currentAge: form.currentAge,
       targetRetireAge: form.targetRetireAge,
@@ -118,6 +124,8 @@ export function normalizeSetupForm(form: SetupForm): SetupForm {
   return {
     ...form,
     annualExpenses: 0,
+    // Fill fields introduced after the form was saved (F4).
+    inflationPct: form.inflationPct ?? 2.5,
     contributions: BUCKET_OPTIONS.map((o) => ({ ...defaultContribution(o), ...(byBucket.get(o.bucket) ?? {}) })),
   };
 }

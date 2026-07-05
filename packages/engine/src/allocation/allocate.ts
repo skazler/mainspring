@@ -1,5 +1,4 @@
-import Decimal from "decimal.js";
-import { Money } from "@mainspring/schema";
+import { Money, MoneyDecimal } from "@mainspring/schema";
 import type { DialBase } from "@mainspring/schema";
 import { minMoney } from "../money-util";
 import type { BucketAllocation, DialInput } from "../types";
@@ -28,11 +27,11 @@ export function allocateBase(
 ): BaseAllocation {
   const ordered = [...dials].sort((a, b) => a.priority - b.priority);
   let remaining = baseAmount;
-  let pctSum = new Decimal(0);
+  let pctSum = new MoneyDecimal(0);
   const allocations: BucketAllocation[] = [];
 
   for (const dial of ordered) {
-    pctSum = pctSum.plus(new Decimal(dial.pct));
+    pctSum = pctSum.plus(new MoneyDecimal(dial.pct));
     const desired = baseAmount.multiply(dial.pct);
     const capped = dial.annualCap ? minMoney(desired, dial.annualCap) : desired;
     const actual = minMoney(capped, remaining);

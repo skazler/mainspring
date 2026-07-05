@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { annualizedStats, mean, periodReturns, stdev } from "../../src/index";
+import { annualizedStats, mean, periodReturns, stdev, toRealReturn } from "../../src/index";
 
 describe("periodReturns", () => {
   it("computes period-over-period simple returns", () => {
@@ -38,5 +38,16 @@ describe("annualizedStats", () => {
 
   it("empty/flat series yields zeros", () => {
     expect(annualizedStats([], 252)).toEqual({ mu: 0, sigma: 0, samples: 0 });
+  });
+});
+
+describe("toRealReturn (F4)", () => {
+  it("deflates a nominal return by inflation: (1+μ)/(1+i) − 1", () => {
+    // 7% nominal at 2.5% inflation ≈ 4.39% real
+    expect(toRealReturn(0.07, 0.025)).toBeCloseTo((1.07 / 1.025) - 1, 10);
+    // zero inflation is a no-op
+    expect(toRealReturn(0.06, 0)).toBeCloseTo(0.06, 12);
+    // real < nominal whenever inflation is positive
+    expect(toRealReturn(0.05, 0.03)).toBeLessThan(0.05);
   });
 });

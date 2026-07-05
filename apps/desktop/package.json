@@ -1,7 +1,7 @@
 {
   "name": "desktop",
   "version": "1.0.0",
-  "description": "",
+  "description": "MAINSPRING desktop app — Tauri 2 + Svelte 5. See the root README.",
   "type": "module",
   "scripts": {
     "dev": "vite dev",
@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+    "pretest": "svelte-kit sync",
     "test": "vitest run",
     "test:watch": "vitest",
     "tauri": "tauri"

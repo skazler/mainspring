@@ -50,7 +50,7 @@ jobs:
       - name: Build frontend
         run: pnpm --filter desktop build
 
-  # Rust: the Tauri crate (and crates/sim once it lands). tauri's
+  # Rust: the Tauri crate and crates/sim (the Monte-Carlo kernel). tauri's
   # generate_context! embeds the frontend dist at compile time, so the
   # frontend is built first.
   rust:

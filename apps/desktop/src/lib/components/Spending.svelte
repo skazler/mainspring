@@ -16,14 +16,15 @@
   let showBreakdown = $state(false);
   const propSlices = $derived(v.whereItGoes.map((s) => ({ label: s.label, amount: Number(s.amount.toString()) })));
 
-  // Cash-flow health, from take-home. Consumption (living + bills + spending) is
-  // money that's gone; the rest goes to the future (goals + investing). Spare is
-  // whatever income is left after everything — negative means over budget.
+  // Cash-flow health, from take-home. Consumption (essentials + spending) is money
+  // that's gone; the rest goes to the future (goals + investing). Spare derives from
+  // the engine's Leftover slice and deficit (F12) — over budget ⟺ deficit > 0.
   const slice = (label: string) => v.whereItGoes.find((s) => s.label === label)?.amount ?? Money.zero();
   const consumption = $derived(slice("Bills & essentials").add(slice("Spending")));
   const toFuture = $derived(slice("Goals").add(slice("Investing")));
-  const spare = $derived(v.gross.subtract(slice("Taxes")).subtract(consumption).subtract(toFuture));
+  const spare = $derived(slice("Leftover").subtract(v.deficit)); // gross − accounted (may be negative)
   const spareN = $derived(Number(spare.toString()));
+  const deficitN = $derived(Number(v.deficit.toString()));
   const mo = (m: Money) => Number(m.toString()) / 12;
 
   // Group logged spending by month (rows already arrive newest-first).
@@ -149,11 +150,11 @@
     <p class="lede">Everything leaving your account — fixed commitments and day-to-day spending. Both feed your total expenses, so your savings pool and freedom date move with them.</p>
   {/if}
 
-  <div class="cashflow" class:over={spareN < 0}>
+  <div class="cashflow" class:over={deficitN > 0}>
     <div class="verdict">
-      {#if spareN < 0}
+      {#if deficitN > 0}
         <span class="tag red">Over budget</span>
-        <span class="msg">You're spending <strong>{formatUsd(-mo(spare))}/mo</strong> more than you take home. Trim spending, bills, or contributions.</span>
+        <span class="msg">You're spending <strong>{formatUsd(mo(v.deficit))}/mo</strong> more than you take home. Trim spending, bills, or contributions.</span>
       {:else if mo(spare) < mo(v.net) * 0.03}
         <span class="tag amber">Fully allocated</span>
         <span class="msg">Every dollar is spoken for — about <strong>{formatUsd(mo(spare))}/mo</strong> spare. No cushion for surprises.</span>
@@ -205,6 +206,14 @@
                 {/if}
               {/if}
             {/each}
+            {#if deficitN > 0}
+              <tr class="deficit-row">
+                <td class="cap">Over budget</td>
+                <td class="mono">−{formatUsd(mo(v.deficit))}/mo</td>
+                <td class="mono">−{formatUsd(deficitN)}/yr</td>
+                <td class="mono">{Math.round((deficitN / Number(v.gross.toString())) * 100)}%</td>
+              </tr>
+            {/if}
           </tbody>
         </table>
       </div>
@@ -687,6 +696,10 @@
   .lines .muted {
     color: var(--color-soot);
     font-size: 0.85rem;
+  }
+  .deficit-row td {
+    color: var(--color-oxblood);
+    border-top: 1px solid var(--color-oxblood);
   }
   .expand {
     background: transparent;

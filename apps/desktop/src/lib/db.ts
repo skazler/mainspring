@@ -83,6 +83,24 @@ function db() {
   return dbPromise;
 }
 
+/** The μ/σ reference ticker (F21) — persisted so it survives reloads. VTI is the shipped default. */
+export async function saveRefTicker(ticker: string): Promise<void> {
+  if (!browser) return;
+  const d = await db();
+  await d.query(
+    `INSERT INTO app_state (key, value) VALUES ('ref_ticker', $1::jsonb)
+     ON CONFLICT (key) DO UPDATE SET value = $1::jsonb;`,
+    [JSON.stringify(ticker)],
+  );
+}
+
+export async function loadRefTicker(): Promise<string | null> {
+  if (!browser) return null;
+  const d = await db();
+  const res = await d.query<{ value: string }>("SELECT value FROM app_state WHERE key = 'ref_ticker';");
+  return res.rows[0]?.value ?? null;
+}
+
 export async function saveSetupForm(form: SetupForm): Promise<void> {
   if (!browser) return;
   const d = await db();
@@ -358,27 +376,28 @@ export async function deleteScenario(id: string): Promise<void> {
   await d.query("DELETE FROM scenarios WHERE id = $1;", [id]);
 }
 
-export async function saveApiKey(key: string): Promise<void> {
-  if (!browser) return;
-  const d = await db();
-  await d.query(
-    `INSERT INTO app_state (key, value) VALUES ('anthropic_key', $1::jsonb)
-     ON CONFLICT (key) DO UPDATE SET value = $1::jsonb;`,
-    [JSON.stringify(key)],
-  );
-}
-
-export async function loadApiKey(): Promise<string> {
+// The Anthropic API key is NOT stored here anymore — it lives in the OS keychain
+// (F7). These two exist only to migrate a legacy plaintext row into the keychain
+// on first launch after the upgrade, then delete it.
+export async function loadLegacyApiKey(): Promise<string> {
   if (!browser) return "";
   const d = await db();
   const res = await d.query<{ value: string }>("SELECT value FROM app_state WHERE key = 'anthropic_key';");
   return res.rows[0]?.value ?? "";
 }
 
+export async function deleteLegacyApiKey(): Promise<void> {
+  if (!browser) return;
+  const d = await db();
+  await d.query("DELETE FROM app_state WHERE key = 'anthropic_key';");
+}
+
 // ── Backup / restore ──────────────────────────────────────────────
-// A portable snapshot of everything you've entered. The API key is left out on
-// purpose (it's a re-enterable secret we don't want sitting in a plaintext file);
-// market data is a re-fetchable cache, so it's skipped too.
+// A portable snapshot of everything you've entered. NOTE (F9): the exported JSON
+// is your full financial ledger in PLAINTEXT — unencrypted — so it must be stored
+// like a bank statement. (Passphrase encryption via age/WebCrypto is a possible
+// follow-up.) The API key is left out (it's a re-enterable secret we don't want
+// in a plaintext file); market data is a re-fetchable cache, so it's skipped too.
 
 export interface BackupData {
   app: "mainspring";

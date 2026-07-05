@@ -1,5 +1,5 @@
 import { annualizeItem, goalStatus, type GoalStatus } from "@mainspring/engine";
-import { Money } from "@mainspring/schema";
+import { Money, MoneyDecimal } from "@mainspring/schema";
 import { deleteGoal, loadGoals, saveGoal, type GoalRow } from "$lib/db";
 import { profile } from "./profile.svelte";
 
@@ -25,7 +25,8 @@ class GoalsStore {
 
   status(g: GoalRow): GoalStatus {
     // The engine works in months; convert whatever cadence to a monthly figure.
-    const monthly = g.contribution ? annualContribution(g).multiply(String(1 / 12)) : null;
+    // Pass the exact Decimal 1/12 — never String(1 / 12) (a float artifact, F5).
+    const monthly = g.contribution ? annualContribution(g).multiply(new MoneyDecimal(1).div(12)) : null;
     return goalStatus(
       {
         target: Money.of(g.targetAmount),
