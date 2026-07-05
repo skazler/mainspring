@@ -2,6 +2,13 @@
 
 Local-first persistence, the analytical engine, market-data ingestion, and the optional multi-device path.
 
+> **As built vs on the bench (D5).** Fitted today: **PGlite** (the local store) and
+> market data via the **Yahoo Finance v8 chart endpoint** (free, no key — not the
+> `yfinance` Python library). Designed-for but **not yet fitted**: **DuckDB**
+> analytics, **Finnhub**/Twelve Data quotes, and **ElectricSQL** sync (scaffold
+> only in `infra/sync`). Read the sections below as the target design, not the
+> current wiring.
+
 ---
 
 ## 1. Two stores, one record

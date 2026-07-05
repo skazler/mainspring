@@ -215,7 +215,7 @@ export const recurring = pgTable("recurring", {
   label: text("label").notNull(),
   category: text("category").notNull(),
   amount: money("amount").notNull(), // per-occurrence, not annualized
-  cadence: text("cadence").notNull().default("monthly"), // monthly | quarterly | annual
+  cadence: text("cadence").notNull().default("monthly"), // weekly | biweekly | monthly | quarterly | annual
   kind: text("kind").notNull().default("bill"), // bill (expense) | investment (contribution)
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

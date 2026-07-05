@@ -28,9 +28,10 @@ Read this plus the relevant `docs/*.md` before touching a bounded context.
 See `docs/ARCHITECTURE.md §7`. Bounded contexts → packages:
 - `packages/engine` — pure money math (cashflow, tax, allocation, fire metrics)
 - `packages/schema` — Zod + Drizzle (shared types, system of record)
-- `packages/ui` — shared Svelte components incl. `<Gauge>`
 - `crates/sim` — Rust Monte Carlo kernel (native + wasm)
-- `apps/desktop` — the Tauri app
+- `apps/desktop` — the Tauri app; UI components (incl. `<Gauge>`) live in
+  `apps/desktop/src/lib/components` for now — extracting a shared `packages/ui`
+  is a later refactor (ARCHITECTURE.md §7).
 
 ## Commands
 - `pnpm tauri dev` — launch the desktop app (from repo root)

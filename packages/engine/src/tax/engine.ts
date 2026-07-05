@@ -10,7 +10,7 @@ import { computeStateTax, stateMarginalRate } from "./state";
 export interface TaxInput {
   /** Annual gross W-2 wages. */
   grossWages: Money;
-  /** Pre-tax deferrals (401k_pretax + hsa + trad_ira) — reduce federal taxable income. */
+  /** Pre-tax deferrals (401k_pretax + hsa + ira) — reduce federal taxable income. */
   pretax: Money;
   filingStatus: FilingStatus;
   /** Two-letter state code, e.g. "TX". */

@@ -1,7 +1,7 @@
 {
   "name": "desktop",
   "version": "1.0.0",
-  "description": "",
+  "description": "MAINSPRING desktop app — Tauri 2 + Svelte 5. See the root README.",
   "type": "module",
   "scripts": {
     "dev": "vite dev",
