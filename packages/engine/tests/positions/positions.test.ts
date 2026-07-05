@@ -59,6 +59,15 @@ describe("realizeSale", () => {
     expect(r.remainingLots.map((l) => l.id)).toEqual(["A"]);
   });
 
+  it("F2: an oversized specific-ID sale throws instead of spilling into other lots", () => {
+    expect(() =>
+      realizeSale(
+        { shares: new Decimal("15"), pricePerShare: Money.of("300"), soldOn: "2026-03-01", method: "specific-id", specificLotId: "B" },
+        [lotA(), lotB()],
+      ),
+    ).toThrow(/specific lot B/);
+  });
+
   it("partial sale allocates basis and fee pro-rata", () => {
     const r = realizeSale(
       { shares: new Decimal("5"), pricePerShare: Money.of("300"), fee: Money.of("10"), soldOn: "2026-03-01", method: "fifo" },
