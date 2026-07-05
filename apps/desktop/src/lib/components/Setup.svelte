@@ -198,7 +198,7 @@
       <input bind:this={fileInput} type="file" accept="application/json,.json" onchange={onImportFile} hidden />
     </div>
     {#if backupMsg}<p class="backup-msg">{backupMsg}</p>{/if}
-    <p class="note dim">Restore merges records by id; your API key isn't included (re-enter it after restoring).</p>
+    <p class="note dim">⚠ The backup file is your full financial ledger, <strong>unencrypted</strong> — store it somewhere you'd keep a bank statement. Restore merges records by id; your API key isn't included (re-enter it after restoring).</p>
   </fieldset>
 
   <button type="submit" disabled={session.hasProfile && !dirty}>
