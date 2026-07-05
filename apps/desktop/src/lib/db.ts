@@ -83,6 +83,24 @@ function db() {
   return dbPromise;
 }
 
+/** The μ/σ reference ticker (F21) — persisted so it survives reloads. VTI is the shipped default. */
+export async function saveRefTicker(ticker: string): Promise<void> {
+  if (!browser) return;
+  const d = await db();
+  await d.query(
+    `INSERT INTO app_state (key, value) VALUES ('ref_ticker', $1::jsonb)
+     ON CONFLICT (key) DO UPDATE SET value = $1::jsonb;`,
+    [JSON.stringify(ticker)],
+  );
+}
+
+export async function loadRefTicker(): Promise<string | null> {
+  if (!browser) return null;
+  const d = await db();
+  const res = await d.query<{ value: string }>("SELECT value FROM app_state WHERE key = 'ref_ticker';");
+  return res.rows[0]?.value ?? null;
+}
+
 export async function saveSetupForm(form: SetupForm): Promise<void> {
   if (!browser) return;
   const d = await db();
