@@ -19,6 +19,7 @@ export const bucket = z.enum([
   "401k_pretax",
   "roth_401k",
   "ira",
+  "roth_ira",
   "hsa",
   "brokerage",
   "emergency",

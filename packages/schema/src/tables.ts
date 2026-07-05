@@ -71,7 +71,7 @@ export const dials = pgTable("dials", {
   profileId: uuid("profile_id")
     .notNull()
     .references(() => profiles.id, { onDelete: "cascade" }),
-  bucket: text("bucket").notNull(), // 401k_pretax|roth_401k|ira|hsa|brokerage|emergency|sinking|cash
+  bucket: text("bucket").notNull(), // 401k_pretax|roth_401k|ira|roth_ira|hsa|brokerage|emergency|sinking|cash
   pct: rate("pct").notNull(), // 0..1 of base
   base: text("base").notNull(), // gross|net|post_tax_savings
   priority: integer("priority").notNull(), // fill order for capped buckets

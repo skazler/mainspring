@@ -6,12 +6,14 @@
     label: string;
     pct: number;
     amount: string;
+    /** Small caption under the label, e.g. "pre-tax". */
+    tag?: string;
     clamped?: boolean;
     outflow?: boolean;
     active?: boolean;
     onChange?: (pct: number) => void;
   }
-  let { label, pct, amount, clamped = false, outflow = false, active = false, onChange }: Props = $props();
+  let { label, pct, amount, tag, clamped = false, outflow = false, active = false, onChange }: Props = $props();
 
   let svgEl: SVGSVGElement | null = $state(null);
   let dragging = $state(false);
@@ -89,6 +91,7 @@
   </svg>
   <div class="meta">
     <div class="label">{label}</div>
+    {#if tag}<div class="tag">{tag}</div>{/if}
     <div class="readout"><span class="pct">{formatPct(pct)}</span><span class="amount">{amount}</span></div>
   </div>
 </div>
@@ -153,6 +156,15 @@
     font-size: 0.8rem;
     letter-spacing: 0.04em;
     text-align: center;
+  }
+  .tag {
+    font-family: var(--font-body);
+    color: var(--color-dim);
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-align: center;
+    margin-top: -0.15rem;
   }
   .readout {
     display: flex;

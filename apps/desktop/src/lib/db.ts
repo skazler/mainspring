@@ -374,3 +374,57 @@ export async function loadApiKey(): Promise<string> {
   const res = await d.query<{ value: string }>("SELECT value FROM app_state WHERE key = 'anthropic_key';");
   return res.rows[0]?.value ?? "";
 }
+
+// ── Backup / restore ──────────────────────────────────────────────
+// A portable snapshot of everything you've entered. The API key is left out on
+// purpose (it's a re-enterable secret we don't want sitting in a plaintext file);
+// market data is a re-fetchable cache, so it's skipped too.
+
+export interface BackupData {
+  app: "mainspring";
+  version: number;
+  exportedAt: string;
+  setup: SetupForm | null;
+  spending: SpendingRow[];
+  recurring: RecurringRow[];
+  goals: GoalRow[];
+  lots: LotRow[];
+  scenarios: Scenario[];
+}
+
+/** Gather all user-entered data into a single portable object. */
+export async function exportAll(): Promise<BackupData> {
+  const [setup, spending, recurring, goals, lots, scenarios] = await Promise.all([
+    loadSetupForm(),
+    loadSpending(),
+    loadRecurring(),
+    loadGoals(),
+    loadLots(),
+    listScenarios(),
+  ]);
+  return {
+    app: "mainspring",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    setup,
+    spending,
+    recurring,
+    goals,
+    lots,
+    scenarios,
+  };
+}
+
+/** Restore a backup, upserting every record by id (non-destructive merge). */
+export async function importAll(data: BackupData): Promise<void> {
+  if (!browser) return;
+  if (data?.app !== "mainspring" || !Array.isArray(data.spending)) {
+    throw new Error("That doesn't look like a MAINSPRING backup file.");
+  }
+  if (data.setup) await saveSetupForm(data.setup);
+  for (const r of data.spending) await saveSpending(r);
+  for (const r of data.recurring ?? []) await saveRecurring(r);
+  for (const g of data.goals ?? []) await saveGoal(g);
+  for (const l of data.lots ?? []) await saveLot(l);
+  for (const s of data.scenarios ?? []) await saveScenario(s);
+}

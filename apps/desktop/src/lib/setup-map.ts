@@ -1,14 +1,18 @@
 import { Money } from "@mainspring/schema";
 import type { Bucket, DialBase, FilingStatus, Frequency } from "@mainspring/schema";
-import type { DialInput, ProfileState } from "@mainspring/engine";
+import { annualizeIncome, type DialInput, type ProfileState } from "@mainspring/engine";
 import { BUCKET_OPTIONS } from "./buckets";
 
 export interface ContributionForm {
   bucket: Bucket;
   base: DialBase;
   enabled: boolean;
-  /** Whole-number percent, e.g. 15 for 15%. */
+  /** Enter this contribution as a percent of the base, or a fixed dollar amount. */
+  mode: "percent" | "amount";
+  /** Whole-number percent, e.g. 15 for 15% (when mode = percent). */
   percent: number;
+  /** Fixed annual dollars (when mode = amount). Only meaningful for gross-base buckets. */
+  amount: number;
   /** IRS cap in dollars, if applicable. */
   cap?: string;
 }
@@ -44,13 +48,7 @@ export function defaultSetupForm(): SetupForm {
     swrPercent: 4,
     realReturnPercent: 5,
     employerMatchPercent: 0,
-    contributions: BUCKET_OPTIONS.map((o) => ({
-      bucket: o.bucket,
-      base: o.base,
-      enabled: o.defaultEnabled ?? false,
-      percent: o.defaultPercent ?? 0,
-      ...(o.cap ? { cap: o.cap } : {}),
-    })),
+    contributions: BUCKET_OPTIONS.map(defaultContribution),
   };
 }
 
@@ -58,16 +56,27 @@ const frac = (percent: number): string => String(percent / 100);
 
 /** Map the setup form to the engine's ProfileState. Pure. */
 export function buildProfileState(form: SetupForm): ProfileState {
+  const incomeSources = [{ grossAmount: Money.of(String(form.grossAmount || 0)), frequency: form.frequency }];
+  const annualGross = Number(annualizeIncome(incomeSources).toString());
+
   const dials: DialInput[] = form.contributions
-    .filter((c) => c.enabled && c.percent > 0)
+    .filter((c) => c.enabled && (c.mode === "amount" ? c.amount > 0 : c.percent > 0))
     .map((c, i) => {
-      const dial: DialInput = { bucket: c.bucket, base: c.base, pct: frac(c.percent), priority: i + 1 };
+      // A fixed dollar amount (gross-base only) becomes an equivalent % of annual
+      // gross so the rest of the engine stays percentage-based.
+      const pct =
+        c.mode === "amount" && c.base === "gross"
+          ? annualGross > 0
+            ? String(c.amount / annualGross)
+            : "0"
+          : frac(c.percent);
+      const dial: DialInput = { bucket: c.bucket, base: c.base, pct, priority: i + 1 };
       if (c.cap && Number(c.cap) > 0) dial.annualCap = Money.of(c.cap);
       return dial;
     });
 
   return {
-    incomeSources: [{ grossAmount: Money.of(String(form.grossAmount || 0)), frequency: form.frequency }],
+    incomeSources,
     annualExpenses: Money.of(String(form.annualExpenses || 0)),
     taxProfile: { filingStatus: form.filingStatus, state: form.state.toUpperCase(), taxYear: 2026 },
     plan: {
@@ -87,7 +96,9 @@ function defaultContribution(o: (typeof BUCKET_OPTIONS)[number]): ContributionFo
     bucket: o.bucket,
     base: o.base,
     enabled: o.defaultEnabled ?? false,
+    mode: "percent",
     percent: o.defaultPercent ?? 0,
+    amount: 0,
     ...(o.cap ? { cap: o.cap } : {}),
   };
 }
@@ -103,6 +114,6 @@ export function normalizeSetupForm(form: SetupForm): SetupForm {
   return {
     ...form,
     annualExpenses: 0,
-    contributions: BUCKET_OPTIONS.map((o) => byBucket.get(o.bucket) ?? defaultContribution(o)),
+    contributions: BUCKET_OPTIONS.map((o) => ({ ...defaultContribution(o), ...(byBucket.get(o.bucket) ?? {}) })),
   };
 }

@@ -2,106 +2,147 @@
 
 [![CI](https://github.com/skazler/mainspring/actions/workflows/ci.yml/badge.svg)](https://github.com/skazler/mainspring/actions/workflows/ci.yml)
 
-> A private, offline-first financial independence/retire early planner.
-> You wind it up — and it drives everything.
+> A private, offline-first planner for **financial independence**.
+> Wind it up — and the whole movement turns together.
 >
-> Behind the name **MAINSPRING**: the coiled spring that stores energy and releases it steadily to power a mechanical watch.
+> **MAINSPRING** — the coiled spring at the heart of a mechanical watch: wound once, it releases its energy steadily to drive every hand on the face.
 
-Single-user. Local-first. Privacy-critical (this holds your real money, so by default your data never leaves a machine you control). Built around **dials** — drag a percentage, watch take-home, every allocation bucket, and your projected freedom date move in real time.
+Single-user. Local-first. Privacy-critical — this holds your real money, so by default nothing leaves a machine you control. The instrument is built around **dials**: turn a percentage and watch your take-home, every allocation barrel, and your projected **freedom date** move on the same tick.
+
+## The face
+
+<p align="center">
+  <img src="assets/dashboard1_redacted.png" alt="The Plan dashboard — net worth projection and where every dollar goes" width="820"><br>
+  <sub><b>The Plan.</b> Projected net worth against your coast and freedom numbers, with every dollar of income laid out beneath. · <i>All figures on these screens are redacted and replaced with AI-generated values.</i></sub>
+</p>
+
+<p align="center">
+  <img src="assets/dashboard2_redacted.png" alt="The Plan — contribution gauges and post-tax distribution dials" width="820"><br>
+  <sub><b>The Plan, lower half.</b> The brass contribution dials (tagged pre-tax / post-tax) and post-tax distribution, above the Monte-Carlo forecast. · <i>Figures redacted / AI-generated.</i></sub>
+</p>
+
+<p align="center">
+  <img src="assets/outflows1_redacted.png" alt="Outflows — cash-flow verdict and budget breakdown" width="820"><br>
+  <sub><b>Outflows.</b> A cash-flow verdict — in the black or over budget — over the full where-it-goes breakdown, drillable line by line. · <i>Figures redacted / AI-generated.</i></sub>
+</p>
+
+<p align="center">
+  <img src="assets/outflows2_redacted.png" alt="Outflows — committed costs by category and variable spending history" width="820"><br>
+  <sub><b>Outflows, lower half.</b> Committed costs by category, and variable spending logged and grouped by month. · <i>Figures redacted / AI-generated.</i></sub>
+</p>
+
+<p align="center">
+  <img src="assets/goals1_redacted.png" alt="Savings goals as an ordered checklist" width="820"><br>
+  <sub><b>Goals.</b> Sinking funds as an ordered checklist — one funds at a time (active vs planned), at any cadence. · <i>Figures redacted / AI-generated.</i></sub>
+</p>
+
+<p align="center">
+  <img src="assets/holdings1_redacted.png" alt="Investments — recurring contributions and tracked positions" width="820"><br>
+  <sub><b>Investments.</b> Recurring auto-contributions (e.g. Acorns) alongside tracked, share-by-share positions. · <i>Figures redacted / AI-generated.</i></sub>
+</p>
 
 ---
 
-## What this is
+## The instrument
 
-A desktop app (Tauri) where the entire money model — tax, allocations, projections — is one shared TypeScript engine that runs instantly on-device, persisted to a local Postgres-compatible store, with a Rust simulation kernel for Monte Carlo forecasting. No server required. No round-trip to move a dial.
+A desktop movement (Tauri) in which the entire money model — tax, allocations, projections — is a single shared TypeScript engine that runs on-device the instant you touch a dial, kept in a local Postgres-compatible vault, with a Rust kernel for the one heavy calculation: Monte-Carlo forecasting. No server. No round-trip to move a hand.
 
-## How it works (at a glance)
+## How the movement turns
 
-Everything lives on your machine. A **pure TypeScript engine** does all the money math *in the app*, so the dials feel instant; a **Rust kernel** handles the one heavy job (Monte Carlo); a **local Postgres (PGlite)** holds your data. Two things only happen if you opt in: fetching market prices, and asking the AI.
+Everything sits inside the case, on your machine. A **pure TypeScript engine — the Mainspring** does all the money math *in the app*, so the dials answer instantly. A **Rust escapement** regulates the one heavy job (Monte-Carlo). A **local Postgres vault (PGlite)** keeps your ledger on disk. Only two things reach beyond the case, and only if you wind that key: fetching market prices, and consulting the Almanac (the optional AI).
 
 ```mermaid
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'Georgia, "Times New Roman", serif','primaryColor':'#1f1a15','primaryTextColor':'#ece0c6','primaryBorderColor':'#c9a24b','lineColor':'#a89a82','clusterBkg':'#161310','clusterBorder':'#3a3023','edgeLabelBackground':'#161310'}}}%%
 flowchart TB
-    subgraph machine["🖥️ Your machine — nothing leaves it by default"]
-      direction TB
-      subgraph app["MAINSPRING (Tauri desktop app)"]
-        UI["Steampunk UI\ngauges · dashboard · charts"]
-        ENGINE["Money engine — TypeScript\ntax · allocation · spending · FIRE · positions"]
-        KERNEL["Monte Carlo kernel — Rust"]
-      end
-      DB[("Local Postgres · PGlite\nyour data, on disk")]
-    end
-    OPT["yfinance · Anthropic\n(opt-in only)"]
+    You([" ⚙ You "]):::plain
+    You ==>|"turn a dial"| CONSOLE
 
-    UI <-->|"drag a dial"| ENGINE
-    ENGINE -->|"instant: take-home, buckets, freedom date"| UI
-    UI -->|"'Run forecast' (heavy)"| KERNEL
-    app <-->|"read / write"| DB
-    app -. "you choose" .-> OPT
+    subgraph CASE["◷ Inside the case — your machine · nothing leaves it by default"]
+      direction TB
+      CONSOLE["<b>The Console</b><br/>gauges · dashboard · ledgers<br/><i>Svelte + Tauri</i>"]:::plain
+      SPRING["<b>The Mainspring</b><br/>the money movement · pure TypeScript<br/>tax · allocation · spending · freedom math · positions"]:::spring
+      ESC["<b>The Escapement</b><br/>Monte-Carlo kernel · Rust"]:::plain
+      VAULT[("<b>The Vault</b><br/>local Postgres · PGlite<br/>your ledger, on disk")]:::vault
+
+      CONSOLE <==>|"recompute"| SPRING
+      SPRING ==>|"same tick"| CONSOLE
+      CONSOLE -->|"heavy: run forecast"| ESC
+      SPRING <-->|"read · write"| VAULT
+    end
+
+    BEYOND["<b>Beyond the case</b><br/>market data · the Almanac (AI)"]:::beyond
+    CASE -.->|"only if you wind that key"| BEYOND
+
+    classDef plain fill:#1f1a15,stroke:#3a3023,color:#ece0c6
+    classDef spring fill:#241d14,stroke:#e8c874,stroke-width:2px,color:#ece0c6
+    classDef vault fill:#14201d,stroke:#4a9e8f,color:#ece0c6
+    classDef beyond fill:#1a1310,stroke:#9b3b34,color:#ece0c6,stroke-dasharray:5 3
 ```
 
-**The core loop is a straight line — no network, no server, same frame:**
+**The core loop is a straight line — no wire, no server, the same tick:**
 
 ```mermaid
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'Georgia, serif','actorBkg':'#241d14','actorBorder':'#c9a24b','actorTextColor':'#ece0c6','signalColor':'#a89a82','signalTextColor':'#ece0c6','noteBkgColor':'#14201d','noteBorderColor':'#4a9e8f','noteTextColor':'#ece0c6'}}}%%
 sequenceDiagram
-    participant You
-    participant App as UI (Svelte)
-    participant Engine as Engine (TS, in-app)
-    You->>App: drag a gauge / log a coffee
-    App->>Engine: recompute(profile)
-    Engine-->>App: take-home · every bucket · FI date (<16ms)
+    actor You
+    participant C as The Console
+    participant M as The Mainspring
+    You->>C: turn a gauge · log a coffee
+    C->>M: recompute(profile)
+    M-->>C: take-home · every bucket · freedom date
+    Note over C,M: one tick — under 16 ms, no wire crossed
 ```
 
-**Why it's built this way:** the money engine is a *pure, framework-free* package with no UI/DB/network dependencies — it's the durable asset. UI (Svelte), shell (Tauri), store (PGlite), and kernel (Rust) are all replaceable around it. Deep dives: [`ARCHITECTURE.md`](./docs/ARCHITECTURE.md) (as-built diagrams) · [`SCHEMA.md`](./docs/SCHEMA.md) (every table).
+**Why the movement is cut this way:** the Mainspring is a *pure, framework-free* package — no UI, DB, or network in its gears. It is the durable asset. The Console (Svelte), the case (Tauri), the Vault (PGlite), and the Escapement (Rust) are all replaceable jewels set around it. Deep dives: [`ARCHITECTURE.md`](./docs/ARCHITECTURE.md) (as-built diagrams) · [`SCHEMA.md`](./docs/SCHEMA.md) (every table).
 
-## Stack at a glance
+## The parts list
 
-| Concern | Choice |
+| Component | Made of |
 |---|---|
-| App shell | Tauri 2 (Rust) — native, tiny, private |
-| UI | Svelte 5 (runes) + TypeScript + Vite |
-| Money/tax/allocation logic | **Isomorphic TypeScript engine** (one source of truth) |
-| Simulation kernel | Rust → native (desktop) / WASM (web) |
-| Local store | PGlite (Postgres in-process) + DuckDB (analytics) |
-| ORM / migrations | Drizzle |
-| Validation | Zod |
-| Charts | uPlot + Observable Plot |
-| Styling | Tailwind v4 + steampunk token layer |
-| Market data | yfinance + Finnhub (both free) |
-| Optional sync | ElectricSQL → self-hosted Postgres (multi-device only) |
-| Optional AI | general planning assistant (Q&A + NL→validated dial changes) via your own Anthropic key |
+| Case & crown | Tauri 2 (Rust) — native, tiny, private |
+| Face & dials | Svelte 5 (runes) + TypeScript + Vite |
+| The Mainspring | **isomorphic TypeScript engine** — one source of truth for tax, allocation, projection |
+| The Escapement | Rust → native (desktop) / WASM (web) |
+| The Vault | PGlite (Postgres in-process) + DuckDB (analytics) |
+| Engraving & fitting | Drizzle (migrations) · Zod (validation) |
+| Registers & charts | uPlot + Observable Plot |
+| Finish | Tailwind v4 + a steampunk token layer |
+| Market data | yfinance + Finnhub (both free, opt-in) |
+| Multi-device (optional) | ElectricSQL → self-hosted Postgres |
+| The Almanac (optional) | planning assistant — Q&A + plain-English → validated dial changes, via your own Anthropic key |
 
-## Doc index (handled by agents)
+## Maker's notes (for the agents who build it)
 
-| File | For the agent building… |
+| File | For the hand fitting… |
 |---|---|
 | [`ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | system overview, diagrams, full stack, scaling & longevity, repo layout |
 | [`DOMAIN_MODEL.md`](./docs/DOMAIN_MODEL.md) | entities, ER diagram, money-handling rules |
 | [`SCHEMA.md`](./docs/SCHEMA.md) | full backend schema reference — every table + column |
 | [`MONEY_ENGINE.md`](./docs/MONEY_ENGINE.md) | the isomorphic TS core: cashflow + tax + allocation |
 | [`STOCK_MANAGEMENT.md`](./docs/STOCK_MANAGEMENT.md) | positions as a lot ledger, valuation, capital-gains tax |
-| [`PREDICTION_ENGINE.md`](./docs/PREDICTION_ENGINE.md) | deterministic + Monte Carlo + FIRE metrics + Rust kernel + optional ML |
+| [`PREDICTION_ENGINE.md`](./docs/PREDICTION_ENGINE.md) | deterministic + Monte-Carlo + freedom metrics + Rust kernel + optional ML |
 | [`DATA_LAYER.md`](./docs/DATA_LAYER.md) | PGlite + DuckDB, persistence, market data, optional sync |
 | [`FRONTEND.md`](./docs/FRONTEND.md) | Svelte 5 + Tauri, the dial component, live recompute |
 | [`DESIGN_SYSTEM.md`](./docs/DESIGN_SYSTEM.md) | steampunk design tokens, gauges, type |
-| [`AI_WORKFLOWS.md`](./docs/AI_WORKFLOWS.md) | how to build it *with* agents + optional in-app AI |
+| [`AI_WORKFLOWS.md`](./docs/AI_WORKFLOWS.md) | how to build it *with* agents + the optional in-app AI |
 | [`BUILD_PLAN.md`](./docs/BUILD_PLAN.md) | phased milestones with acceptance criteria |
 | [`TESTING.md`](./docs/TESTING.md) | golden + property + E2E strategy |
 | [`COSTS.md`](./docs/COSTS.md) | running-cost breakdown ($0 local) |
 
-## Quickstart
+## Winding it up
 
 ```bash
 pnpm install
-pnpm tauri dev        # launches the desktop app (local PGlite store)
+pnpm tauri dev        # opens the movement (local PGlite vault)
 pnpm test             # vitest (schema + engine + app)
 cargo test --workspace # Rust kernel + market parser
 pnpm lint && pnpm typecheck
 pnpm --filter desktop tauri build   # packaged MAINSPRING.app
 ```
 
-First run shows a **setup page** (income, taxes, contributions); it persists locally and the dial console follows.
+First run shows a **setup page** (income, taxes, contributions); it's kept locally and the dial console follows.
 
-## Download
+## Taking one home
 
 Packaged installers are published under **[Releases](../../releases)** (GitHub "Packages" is for npm/Docker registries, not app binaries). To cut one, push a version tag — the [release workflow](./.github/workflows/release.yml) builds the app and attaches the installer:
 
@@ -111,9 +152,9 @@ git tag v0.1.0 && git push origin v0.1.0   # creates a draft Release; publish it
 
 macOS builds are currently **unsigned** (no Apple Developer cert) — first launch: right-click → **Open**.
 
-## Build status
+## What's ticking
 
-Phases 0–8 of [`BUILD_PLAN.md`](./docs/BUILD_PLAN.md) are implemented, plus the optional AI assistant (the Almanac).
+Phases 0–8 of [`BUILD_PLAN.md`](./docs/BUILD_PLAN.md) are fitted, plus the optional AI assistant (the Almanac).
 
 | Area | State |
 |---|---|
@@ -123,19 +164,19 @@ Phases 0–8 of [`BUILD_PLAN.md`](./docs/BUILD_PLAN.md) are implemented, plus th
 | Positions + capital gains (lots, FIFO/spec-ID, NIIT) | ✅ engine + lot-ledger UI (normalized `lots` table) |
 | Cashflow + allocation + `recompute` | ✅ property-tested |
 | Deterministic projection + steampunk gauges | ✅ |
-| Monte Carlo kernel (Rust) + fan chart | ✅ |
+| Monte-Carlo kernel (Rust) + fan chart | ✅ |
 | Market data (yfinance → PGlite, μ/σ) | ✅ |
-| Setup/onboarding + persistence | ✅ |
+| Setup/onboarding + persistence + local backup/restore | ✅ |
 | Scenarios (save/load/compare) | ✅ |
 | Stock trend estimations (per-holding fan chart) | ✅ |
 | Theme polish + packaged `.app` build | ✅ |
-| AI assistant — the Almanac (plan Q&A + NL → validated dial changes) | ✅ (bring your own Anthropic key) |
+| The Almanac — plan Q&A + plain-English → validated dial changes | ✅ (bring your own Anthropic key) |
 | Multi-device sync (ElectricSQL) | scaffold only — [`infra/sync`](./infra/sync) |
 
-Known follow-ups: macOS code-signing (needs an Apple Developer cert), Finnhub live quotes (needs a key), full *relational* profile persistence (the profile is a jsonb snapshot today; positions are normalized), and end-to-end sync wiring.
+Follow-ups on the bench: macOS code-signing (needs an Apple Developer cert), Finnhub live quotes (needs a key), full *relational* profile persistence (the profile is a jsonb snapshot today; positions are normalized), and end-to-end sync wiring.
 
-## Non-negotiables
+## The three rules of the escapement
 
-1. Money is never a float. `Decimal` end-to-end, exact in the DB.
-2. The money engine is pure and framework-free — it outlives any UI, DB, or shell choice.
-3. Your financial data stays local by default. Nothing is sent anywhere without an explicit opt-in.
+1. **Money is never a float.** `Decimal` end-to-end, exact in the vault.
+2. **The Mainspring is pure and framework-free** — it outlives any face, vault, or case it's set in.
+3. **Your ledger stays local by default.** Nothing is sent beyond the case without an explicit turn of the key.
