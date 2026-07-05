@@ -9,7 +9,32 @@
 
 Single-user. Local-first. Privacy-critical — this holds your real money, so by default nothing leaves a machine you control. The instrument is built around **dials**: turn a percentage and watch your take-home, every allocation barrel, and your projected **freedom date** move on the same tick.
 
-<!-- Gallery — populated from /assets. Drop screenshots in and they get wired in here. -->
+## The face
+
+<p align="center">
+  <img src="assets/dashboard1_redacted.png" alt="The Plan dashboard — net worth projection and where every dollar goes" width="820"><br>
+  <sub><b>The Plan.</b> Projected net worth against your coast and freedom numbers, with every dollar of income laid out beneath. · <i>All figures on these screens are redacted and replaced with AI-generated values.</i></sub>
+</p>
+
+<p align="center">
+  <img src="assets/outflows1_redacted.png" alt="Outflows — cash-flow verdict and budget breakdown" width="820"><br>
+  <sub><b>Outflows.</b> A cash-flow verdict — in the black or over budget — over the full where-it-goes breakdown, drillable line by line. · <i>Figures redacted / AI-generated.</i></sub>
+</p>
+
+<p align="center">
+  <img src="assets/outflows2_redacted.png" alt="Outflows — committed costs by category and variable spending history" width="820"><br>
+  <sub><b>Outflows, lower half.</b> Committed costs by category, and variable spending logged and grouped by month. · <i>Figures redacted / AI-generated.</i></sub>
+</p>
+
+<p align="center">
+  <img src="assets/goals1_redacted.png" alt="Savings goals as an ordered checklist" width="820"><br>
+  <sub><b>Goals.</b> Sinking funds as an ordered checklist — one funds at a time (active vs planned), at any cadence. · <i>Figures redacted / AI-generated.</i></sub>
+</p>
+
+<p align="center">
+  <img src="assets/holdings1_redacted.png" alt="Investments — recurring contributions and tracked positions" width="820"><br>
+  <sub><b>Investments.</b> Recurring auto-contributions (e.g. Acorns) alongside tracked, share-by-share positions. · <i>Figures redacted / AI-generated.</i></sub>
+</p>
 
 ---
 
