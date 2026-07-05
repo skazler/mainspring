@@ -10,7 +10,7 @@
 <p align="center">
   <a href="https://github.com/skazler/mainspring/releases/latest"><img src="https://img.shields.io/badge/Download-MAINSPRING-c9a24b?style=for-the-badge&labelColor=1f1a15" alt="Download MAINSPRING"></a>
   <br>
-  <sub>Pick the installer for your OS. macOS builds are unsigned — on first launch, right-click the app → <b>Open</b>.</sub>
+  <sub>Pick the installer for your OS. Unsigned builds — macOS needs a one-time <code>xattr -cr</code> unlock (<a href="#macos--unsigned-one-time-unlock">see below</a>); Windows: SmartScreen → Run anyway.</sub>
 </p>
 
 Single-user. Local-first. Privacy-critical — this holds your real money, so by default nothing leaves a machine you control. The instrument is built around **dials**: turn a percentage and watch your take-home, every allocation barrel, and your projected **freedom date** move on the same tick.
@@ -150,13 +150,20 @@ First run shows a **setup page** (income, taxes, contributions); it's kept local
 
 ## Taking one home
 
-Packaged installers are published under **[Releases](../../releases)** (GitHub "Packages" is for npm/Docker registries, not app binaries). To cut one, push a version tag — the [release workflow](./.github/workflows/release.yml) builds the app and attaches the installer:
+Packaged installers are published under **[Releases](../../releases)** (GitHub "Packages" is for npm/Docker registries, not app binaries) — macOS, Windows, and Linux. To cut one, push a version tag; the [release workflow](./.github/workflows/release.yml) builds all three and attaches the installers:
 
 ```bash
-git tag v0.1.0 && git push origin v0.1.0   # creates a draft Release; publish it to share
+git tag v1.0.1 && git push origin v1.0.1   # creates a draft Release; publish it to share
 ```
 
-macOS builds are currently **unsigned** (no Apple Developer cert) — first launch: right-click → **Open**.
+### macOS — unsigned, one-time unlock
+There's no Apple Developer cert yet, so macOS quarantines the download and may claim **"MAINSPRING is damaged and can't be opened."** It isn't damaged — that's just Gatekeeper on an unsigned app. Drag it to **/Applications**, then run once in Terminal:
+
+```bash
+xattr -cr /Applications/MAINSPRING.app
+```
+
+Open it normally afterward. (If it still refuses, ad-hoc sign it once: `codesign --force --deep --sign - /Applications/MAINSPRING.app`.) Windows shows a SmartScreen prompt — **More info → Run anyway**. Proper signing/notarization removes both, and the [release workflow](./.github/workflows/release.yml) documents the secrets to wire in.
 
 ## What's ticking
 

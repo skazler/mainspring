@@ -95,6 +95,11 @@ jobs:
           args: ${{ matrix.args }}
           tagName: ${{ github.ref_name }}
           releaseName: "MAINSPRING ${{ github.ref_name }}"
-          releaseBody: "Local-first planner for financial independence — your data stays on your machine. Download the installer for your OS below. Builds are unsigned; on macOS, first launch: right-click → Open."
+          releaseBody: |
+            Local-first planner for financial independence — your data stays on your machine. Download the installer for your OS below.
+
+            **Builds are unsigned.**
+            - **macOS:** it may say *"MAINSPRING is damaged and can't be opened"* — it isn't. Move it to `/Applications`, then run once: `xattr -cr /Applications/MAINSPRING.app` and open it normally.
+            - **Windows:** SmartScreen → **More info → Run anyway**.
           releaseDraft: true
           prerelease: false
