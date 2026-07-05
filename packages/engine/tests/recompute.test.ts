@@ -1,7 +1,10 @@
-import { Money } from "@mainspring/schema";
+import { Money, MoneyDecimal } from "@mainspring/schema";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { recompute, type ProfileState } from "../src/index";
+
+/** Basis-points integer → exact decimal fraction string (avoids float artifacts). */
+const bps = (n: number): string => new MoneyDecimal(n).div(10000).toString();
 
 describe("recompute — income → pre-tax → tax → net → buckets", () => {
   it("caps pre-tax, feeds it to tax, then allocates the savings pool", () => {
@@ -203,9 +206,9 @@ describe("recompute — income → pre-tax → tax → net → buckets", () => {
       taxProfile: { filingStatus: "single", state: "TX", taxYear: 2026 },
       plan: { currentBalance: Money.zero(), swr: "0.04", realReturn: "0.05", currentAge: 35, targetRetireAge: 65 },
       dials: [
-        { bucket: "401k_pretax", base: "gross", pct: String(k / 10000), priority: 1 },
-        { bucket: "roth_ira", base: "gross", pct: String(roth / 10000), priority: 2 },
-        { bucket: "brokerage", base: "post_tax_savings", pct: String(brok / 10000), priority: 3 },
+        { bucket: "401k_pretax", base: "gross", pct: bps(k), priority: 1 },
+        { bucket: "roth_ira", base: "gross", pct: bps(roth), priority: 2 },
+        { bucket: "brokerage", base: "post_tax_savings", pct: bps(brok), priority: 3 },
       ],
     });
     fc.assert(
@@ -218,7 +221,7 @@ describe("recompute — income → pre-tax → tax → net → buckets", () => {
         (g, k, roth, brok, ef) => {
           const gross = Money.of(String(g));
           const net = recompute(mk(gross, k, roth, brok, Money.zero())).net;
-          const expenses = net.multiply(String(ef / 10000));
+          const expenses = net.multiply(bps(ef));
           const v = recompute(mk(gross, k, roth, brok, expenses));
           // Only assert feasible plans: gross/net claims + expenses fit take-home.
           const priorClaims = v.buckets

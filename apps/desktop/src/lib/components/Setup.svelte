@@ -151,6 +151,7 @@
     <label>Invested assets today<input type="number" min="0" step="1000" bind:value={form.currentBalance} /></label>
     <label>Withdrawal rate %<input type="number" min="1" max="10" step="0.1" bind:value={form.swrPercent} /></label>
     <label>Assumed real return %<input type="number" min="0" max="15" step="0.1" bind:value={form.realReturnPercent} /></label>
+    <label title="Deflates nominal market returns into real ones for the forecast.">Assumed inflation %<input type="number" min="0" max="15" step="0.1" bind:value={form.inflationPct} /></label>
   </fieldset>
 
   <fieldset class="contributions">

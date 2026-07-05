@@ -34,6 +34,8 @@ export interface PlanInput {
   swr: string;
   /** Assumed real return, e.g. "0.05". */
   realReturn: string;
+  /** Assumed annual inflation, e.g. "0.025". Deflates nominal market μ (F4). Default 0.025. */
+  inflation?: string;
   currentAge: number;
   targetRetireAge: number;
   /** Employer 401(k) match as a fraction of gross, e.g. "0.04" for 4%. Default 0. */
