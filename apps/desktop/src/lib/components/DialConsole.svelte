@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Money } from "@mainspring/schema";
-  import { bucketLabel } from "$lib/buckets";
+  import { bucketLabel, isPreTax } from "$lib/buckets";
   import { formatMoney } from "$lib/format";
   import { profile, setDialPct } from "$lib/stores/profile.svelte";
   import { view } from "$lib/stores/derived.svelte";
@@ -23,8 +23,8 @@
 
   // Editable contribution dials, split by tax treatment.
   const dialIdx = $derived(profile.dials.map((d, i) => ({ d, i })));
-  const preTaxDials = $derived(dialIdx.filter((x) => x.d.base === "gross"));
-  const postTaxDialsEditable = $derived(dialIdx.filter((x) => x.d.base !== "gross"));
+  const preTaxDials = $derived(dialIdx.filter((x) => isPreTax(x.d.bucket)));
+  const postTaxDialsEditable = $derived(dialIdx.filter((x) => !isPreTax(x.d.bucket)));
 
   // Read-only "post-tax distribution": where take-home (net) actually goes.
   const sliceOf = (label: string) => v.whereItGoes.find((s) => s.label === label)?.amount ?? Money.zero();
@@ -33,7 +33,7 @@
   const distribution = $derived(
     (() => {
       const preTaxContrib = v.buckets
-        .filter((b) => b.base === "gross")
+        .filter((b) => isPreTax(b.bucket))
         .reduce((sum, b) => sum.add(b.amount), Money.zero());
       const taxableInvesting = v.ownContributions.subtract(preTaxContrib);
       const rows = [
@@ -104,7 +104,7 @@
   {/if}
 
   {#if postTaxDialsEditable.length > 0}
-    <h3 class="group-title">Post-tax investing</h3>
+    <h3 class="group-title">Post-tax contributions</h3>
     <div class="gauges">
       {#each postTaxDialsEditable as { d, i } (d.bucket + "/" + d.base)}
         {@const a = allocFor(d.bucket, d.base)}
