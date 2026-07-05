@@ -14,10 +14,12 @@
   import FanChart from "./FanChart.svelte";
   import NetWorthChart from "./NetWorthChart.svelte";
   import Proportions from "./Proportions.svelte";
+  import ProgressToFreedom from "./ProgressToFreedom.svelte";
   import ScenarioBar from "./ScenarioBar.svelte";
   import Almanac from "./Almanac.svelte";
 
   const v = $derived(view.current);
+  let showForecast = $state(false);
 
   const propSlices = $derived(v.whereItGoes.map((s) => ({ label: s.label, amount: Number(s.amount.toString()) })));
 
@@ -67,28 +69,12 @@
     <button class="edit" onclick={() => (session.configured = false)}>Edit setup</button>
   </header>
 
-  <div class="panel graph">
-    <h3>Net worth → coast & FI</h3>
-    <NetWorthChart
-      currentBalance={profile.plan.currentBalance}
-      annualContribution={v.totalContributions}
-      realReturn={profile.plan.realReturn}
-      currentAge={profile.plan.currentAge}
-      targetRetireAge={profile.plan.targetRetireAge}
-      coast={v.fire.coastNumber}
-      fi={v.fire.fiNumber}
-      discretionary={v.commitments.add(profile.variableAnnualSpending ?? Money.zero())}
-    />
-    <div class="dollar-bar">
-      <span class="bar-label">Where every dollar goes</span>
-      <Proportions slices={propSlices} total={Number(v.gross.toString())} />
-    </div>
-  </div>
-
   <div class="readouts">
     <TakeHomeReadout net={v.net} gross={v.gross} tax={v.tax.total} />
     <FireSummary fire={v.fire} savingsRate={v.savingsRate} employerMatch={v.employerMatch} />
   </div>
+
+  <ProgressToFreedom currentBalance={profile.plan.currentBalance} coast={v.fire.coastNumber} fi={v.fire.fiNumber} />
 
   {#if dialIdx.length > 0}
     <h3 class="group-title">Contributions</h3>
@@ -121,39 +107,64 @@
     {/each}
   </div>
 
-  <div class="forecast">
-    <div class="market">
-      <label>
-        Ticker
-        <input bind:value={market.ticker} class="ticker" />
-      </label>
-      <button class="run" onclick={() => market.refresh()} disabled={market.loading}>
-        {market.loading ? "Fetching…" : "Refresh market data"}
-      </button>
-      {#if market.mu !== null}
-        <span class="stats">
-          μ {Math.round(market.mu * 1000) / 10}% · σ {Math.round((market.sigma ?? 0) * 1000) / 10}%
-          <span class="caption">({market.samples} days{market.refreshedAt ? `, updated ${new Date(market.refreshedAt).toLocaleDateString()}` : ", cached"})</span>
-        </span>
-      {/if}
-      {#if market.error}<p class="warn">{market.error}</p>{/if}
+  <h3 class="flow-title">
+    <button class="forecast-toggle" onclick={() => (showForecast = !showForecast)}>
+      {showForecast ? "▾" : "▸"} Forecast &amp; projections
+    </button>
+  </h3>
+  {#if showForecast}
+    <div class="panel graph">
+      <h3>Net worth → coast &amp; FI</h3>
+      <NetWorthChart
+        currentBalance={profile.plan.currentBalance}
+        annualContribution={v.totalContributions}
+        realReturn={profile.plan.realReturn}
+        currentAge={profile.plan.currentAge}
+        targetRetireAge={profile.plan.targetRetireAge}
+        coast={v.fire.coastNumber}
+        fi={v.fire.fiNumber}
+        discretionary={v.commitments.add(profile.variableAnnualSpending ?? Money.zero())}
+      />
+      <div class="dollar-bar">
+        <span class="bar-label">Where every dollar goes</span>
+        <Proportions slices={propSlices} total={Number(v.gross.toString())} />
+      </div>
     </div>
 
-    <button class="run" onclick={() => forecast.run()} disabled={forecast.running}>
-      {forecast.running ? "Running…" : "Run forecast"}
-    </button>
-    {#if forecast.error}
-      <p class="warn">{forecast.error}</p>
-    {/if}
-    {#if forecast.result}
-      <p class="success">
-        Success probability:
-        <strong>{Math.round(forecast.result.successProbability * 100)}%</strong>
-        <span class="caption">— Monte Carlo projection from historical trends, an estimate, not advice.</span>
-      </p>
-      <FanChart forecast={forecast.result} currentAge={profile.plan.currentAge} />
-    {/if}
-  </div>
+    <div class="forecast">
+      <div class="market">
+        <label>
+          Ticker
+          <input bind:value={market.ticker} class="ticker" />
+        </label>
+        <button class="run" onclick={() => market.refresh()} disabled={market.loading}>
+          {market.loading ? "Fetching…" : "Refresh market data"}
+        </button>
+        {#if market.mu !== null}
+          <span class="stats">
+            μ {Math.round(market.mu * 1000) / 10}% · σ {Math.round((market.sigma ?? 0) * 1000) / 10}%
+            <span class="caption">({market.samples} days{market.refreshedAt ? `, updated ${new Date(market.refreshedAt).toLocaleDateString()}` : ", cached"})</span>
+          </span>
+        {/if}
+        {#if market.error}<p class="warn">{market.error}</p>{/if}
+      </div>
+
+      <button class="run" onclick={() => forecast.run()} disabled={forecast.running}>
+        {forecast.running ? "Running…" : "Run forecast"}
+      </button>
+      {#if forecast.error}
+        <p class="warn">{forecast.error}</p>
+      {/if}
+      {#if forecast.result}
+        <p class="success">
+          Success probability:
+          <strong>{Math.round(forecast.result.successProbability * 100)}%</strong>
+          <span class="caption">— Monte Carlo projection from historical trends, an estimate, not advice.</span>
+        </p>
+        <FanChart forecast={forecast.result} currentAge={profile.plan.currentAge} />
+      {/if}
+    </div>
+  {/if}
 
   <ScenarioBar />
 </section>
@@ -262,6 +273,18 @@
     border-top: 1px solid var(--color-etch);
     padding-top: 1.8rem;
     margin: 1.5rem 0 0.2rem;
+  }
+  .forecast-toggle {
+    background: transparent;
+    border: none;
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
+    cursor: pointer;
+    padding: 0;
+  }
+  .forecast-toggle:hover {
+    color: var(--color-parchment);
   }
   .flow-sub {
     text-align: center;

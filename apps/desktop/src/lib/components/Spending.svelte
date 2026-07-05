@@ -98,7 +98,7 @@
     }
   }
 
-  const CATEGORIES = ["coffee", "dining", "groceries", "clothes", "entertainment", "transport", "subscriptions", "other"];
+  const CATEGORIES = ["software dev", "dining", "groceries", "clothes", "entertainment", "transport", "subscriptions", "other"];
   const BILL_CATEGORIES = ["rent", "mortgage", "groceries", "utilities", "insurance", "car", "phone", "software dev", "api", "subscription", "loan", "other"];
   const CADENCES = ["weekly", "biweekly", "monthly", "quarterly", "annual"] as const;
   const today = () => new Date().toISOString().slice(0, 10);
