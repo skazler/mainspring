@@ -1,5 +1,4 @@
-import Decimal from "decimal.js";
-import { Money } from "@mainspring/schema";
+import { Money, MoneyDecimal } from "@mainspring/schema";
 
 export interface ProjectionInput {
   currentBalance: Money;
@@ -16,7 +15,7 @@ export interface ProjectionInput {
  * Returns the end-of-year balance for each year 1..years. Pure, exact.
  */
 export function projectBalances(input: ProjectionInput): Money[] {
-  const onePlusR = new Decimal(1).plus(new Decimal(input.realReturn));
+  const onePlusR = new MoneyDecimal(1).plus(new MoneyDecimal(input.realReturn));
   const series: Money[] = [];
   let balance = input.currentBalance;
   for (let y = 0; y < input.years; y++) {

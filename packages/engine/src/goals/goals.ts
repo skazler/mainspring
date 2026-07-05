@@ -1,5 +1,4 @@
-import Decimal from "decimal.js";
-import { Money } from "@mainspring/schema";
+import { Money, MoneyDecimal } from "@mainspring/schema";
 import { maxMoney } from "../money-util";
 
 export interface GoalInput {
@@ -33,13 +32,13 @@ export function goalStatus(goal: GoalInput, asOf: string): GoalStatus {
   let monthsToGoal: number | null = complete ? 0 : null;
   const monthly = goal.monthlyContribution;
   if (!complete && monthly && !monthly.isZero() && !monthly.isNegative()) {
-    monthsToGoal = new Decimal(remaining.toString()).div(new Decimal(monthly.toString())).ceil().toNumber();
+    monthsToGoal = new MoneyDecimal(remaining.toString()).div(new MoneyDecimal(monthly.toString())).ceil().toNumber();
   }
 
   let requiredMonthly: Money | null = null;
   if (goal.targetDate && !complete) {
     const months = monthsBetween(asOf, goal.targetDate);
-    if (months > 0) requiredMonthly = remaining.multiply(new Decimal(1).div(months));
+    if (months > 0) requiredMonthly = remaining.multiply(new MoneyDecimal(1).div(months));
   }
 
   return { progress, remaining, complete, monthsToGoal, requiredMonthly };
