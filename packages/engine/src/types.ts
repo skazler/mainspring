@@ -89,6 +89,8 @@ export interface RecomputeView {
   goalContributions: Money;
   /** Where each gross dollar goes; slices sum to gross (for the proportions graph). */
   whereItGoes: { label: string; amount: Money }[];
+  /** Amount the plan over-commits gross, else 0 (F12) — the mirror of clamped Leftover. */
+  deficit: Money;
   /** Contributions from your own income (dials + auto-invest), excluding match. */
   ownContributions: Money;
   /** Employer 401(k) match — free money on top of your own contributions. */

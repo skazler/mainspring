@@ -101,6 +101,10 @@ export function recompute(state: ProfileState): RecomputeView {
   ];
   const accounted = whereItGoes.reduce((sum, s) => sum.add(s.amount), Money.zero());
   whereItGoes.push({ label: "Leftover", amount: maxMoney(gross.subtract(accounted), Money.zero()) });
+  // F12: how much the plan over-commits gross (0 when it fits). Leftover clamps at
+  // 0 for the donut; the deficit is the mirror image, so the verdict and the
+  // breakdown both derive from this one field instead of computing it twice.
+  const deficit = maxMoney(accounted.subtract(gross), Money.zero());
 
   const fire = fireMetrics({
     currentBalance: state.plan.currentBalance,
@@ -124,6 +128,7 @@ export function recompute(state: ProfileState): RecomputeView {
     autoInvestments,
     goalContributions,
     whereItGoes,
+    deficit,
     ownContributions,
     employerMatch,
     totalContributions,

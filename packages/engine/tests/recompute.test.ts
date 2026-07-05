@@ -199,6 +199,26 @@ describe("recompute — income → pre-tax → tax → net → buckets", () => {
     expect(lhs.toString()).toBe(r.gross.toString());
   });
 
+  it("F12: an over-committed plan reports a deficit; a feasible one reports zero", () => {
+    const base: ProfileState = {
+      incomeSources: [{ grossAmount: Money.of("100000"), frequency: "annual" }],
+      annualExpenses: Money.zero(),
+      taxProfile: { filingStatus: "single", state: "TX", taxYear: 2026 },
+      plan: { currentBalance: Money.zero(), swr: "0.04", realReturn: "0.05", currentAge: 35, targetRetireAge: 65 },
+      dials: [
+        { bucket: "401k_pretax", base: "gross", pct: "0.5", priority: 1 }, // $50k
+        { bucket: "roth_ira", base: "gross", pct: "0.4", priority: 2 }, // $40k after-tax → exceeds take-home
+      ],
+    };
+    const over = recompute(base);
+    expect(Number(over.deficit.toString())).toBeGreaterThan(0);
+    // deficit and clamped Leftover are mirror images — never both non-zero
+    expect(over.whereItGoes.find((s) => s.label === "Leftover")!.amount.isZero()).toBe(true);
+
+    const feasible = recompute({ ...base, dials: [{ bucket: "brokerage", base: "post_tax_savings", pct: "0.5", priority: 1 }] });
+    expect(feasible.deficit.isZero()).toBe(true);
+  });
+
   it("F1 property: taxes + own contributions + expenses ≤ gross for feasible dial sets", () => {
     const mk = (gross: Money, k: number, roth: number, brok: number, expenses: Money): ProfileState => ({
       incomeSources: [{ grossAmount: gross, frequency: "annual" }],
