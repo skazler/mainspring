@@ -32,4 +32,15 @@ describe("buildProfileState", () => {
     expect(p.taxProfile.state).toBe("TX");
     expect(p.dials.map((d) => d.bucket)).toEqual(["401k_pretax", "ira"]);
   });
+
+  it("converts a fixed dollar (amount-mode) gross contribution to a % of gross", () => {
+    const form = defaultSetupForm(); // gross 105,000/yr
+    form.contributions = form.contributions.map((c) =>
+      c.bucket === "roth_401k" ? { ...c, enabled: true, mode: "amount" as const, amount: 10500 } : c,
+    );
+    const p = buildProfileState(form);
+    const roth = p.dials.find((d) => d.bucket === "roth_401k")!;
+    // 10,500 / 105,000 = 0.1
+    expect(roth.pct).toBe("0.1");
+  });
 });
