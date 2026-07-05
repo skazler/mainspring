@@ -34,16 +34,20 @@ export interface SetupForm {
   contributions: ContributionForm[];
 }
 
+/**
+ * A blank starting form — no personal figures baked in. Money and age fields
+ * start empty/at zero so the user enters their own; only neutral structural
+ * assumptions (SWR, assumed return) carry generic textbook defaults.
+ */
 export function defaultSetupForm(): SetupForm {
   return {
-    grossAmount: 105000,
+    grossAmount: 0,
     frequency: "annual",
     filingStatus: "single",
     state: "TX",
-    currentAge: 32,
-    targetRetireAge: 60,
-    currentBalance: 150000,
-    // No unitemized lump — essentials are itemized as bills in Outflows.
+    currentAge: 0,
+    targetRetireAge: 0,
+    currentBalance: 0,
     annualExpenses: 0,
     swrPercent: 4,
     realReturnPercent: 5,

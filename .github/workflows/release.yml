@@ -67,6 +67,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Stamp the app version from the tag (v1.2.3 -> 1.2.3) so the installer
+      # filenames always match the release, no manual bump needed.
+      - name: Sync app version to the tag
+        shell: bash
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          node -e "const fs=require('fs');const f='apps/desktop/src-tauri/tauri.conf.json';const j=JSON.parse(fs.readFileSync(f,'utf8'));j.version='$VER';fs.writeFileSync(f,JSON.stringify(j,null,2)+'\n')"
+          echo "Set app version to $VER"
+
       - name: Build + publish release
         uses: tauri-apps/tauri-action@v0
         env:
