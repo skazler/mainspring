@@ -13,7 +13,7 @@
   let draft = $state({ ticker: "", side: "buy" as "buy" | "sell", shares: 0, price: 0, fee: 0, date: today() });
   let auto = $state<{ label: string; category: string; amount: number; cadence: (typeof CADENCES)[number] }>({
     label: "",
-    category: "acorns",
+    category: "",
     amount: 0,
     cadence: "weekly",
   });
@@ -50,7 +50,7 @@
       kind: "investment",
       active: true,
     });
-    auto = { label: "", category: auto.category, amount: 0, cadence: auto.cadence };
+    auto = { label: "", category: "", amount: 0, cadence: auto.cadence };
   }
 
   const positions = $derived(lots.positions);
