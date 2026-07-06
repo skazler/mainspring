@@ -17,54 +17,51 @@ Single-user. Local-first. Privacy-critical — this holds your real money, so by
 
 ## The face
 
+<sub><i>Every figure on these screens is redacted and replaced with AI-generated values.</i></sub>
+
+### The Plan — your whole position on one tick
+
+Turn any dial and the vitals, the forecast, and your freedom date all move together — no wire, no server, under one tick.
+
 <p align="center">
-  <img src="assets/dashboard1_redacted.png" alt="The Plan dashboard — net worth projection and where every dollar goes" width="820"><br>
-  <sub><b>The Plan.</b> Projected net worth against your coast and freedom numbers, with every dollar of income laid out beneath. · <i>All figures on these screens are redacted and replaced with AI-generated values.</i></sub>
+  <img src="assets/dashboard1_redacted.png" alt="The Plan — take-home and freedom vitals over a progress-to-freedom meter" width="820"><br>
+  <sub><b>Vitals.</b> Take-home (gross minus tax) beside the freedom readout — FI age, FI number, savings rate, employer match, coast number — over a progress-to-freedom meter that runs from where you stand now, through your coast point, to full independence.</sub>
 </p>
 
 <p align="center">
-  <img src="assets/dashboard2_redacted.png" alt="The Plan — contribution gauges and post-tax distribution dials" width="820"><br>
-  <sub><b>The Plan, lower half.</b> The brass contribution dials (tagged pre-tax / post-tax) and post-tax distribution, above the Monte-Carlo forecast. · <i>Figures redacted / AI-generated.</i></sub>
+  <img src="assets/dashboard2_redacted.png" alt="The Plan — contribution dials and post-tax distribution gauges" width="820"><br>
+  <sub><b>The levers.</b> Brass contribution dials tagged pre-tax / post-tax (401(k), Roth…), and the post-tax distribution of every take-home dollar across bills, spending, goals, and taxable investing.</sub>
 </p>
 
 <p align="center">
-  <!-- SCREENSHOT: The Calibre tab. Full view — preset shelf at top, the asset-class
-       weight gauges in the middle, and the μ/σ · bad-year · success readout strip.
-       Turn one gauge off its saved mix first so the deltas-vs-applied show. -->
-  <img src="assets/calibre1_redacted.png" alt="The Calibre — design an asset-class mix and watch μ, σ, and success respond" width="820"><br>
-  <sub><b>The Calibre.</b> Design an asset-class <i>mix</i>, not a stock pick — turn the gauges and watch expected real return (μ), volatility (σ), and success probability respond live. The chosen calibre becomes the return assumption behind the Plan's forecast. A modeling instrument, not advice. · <i>Figures redacted / AI-generated.</i></sub>
+  <img src="assets/dashboard3_redacted.png" alt="The Plan — net-worth forecast, opportunity cost, and where every dollar goes" width="820"><br>
+  <sub><b>The forecast.</b> Projected net worth against your coast and FI lines, the opportunity cost of everything spent rather than invested (<i>“bills + spending invested instead”</i>), and a where-every-dollar-goes bar — over a Monte-Carlo success run when you expand it.</sub>
 </p>
 
-<p align="center">
-  <!-- SCREENSHOT: The Registers tab, top panel ("Registers — drift vs. your design").
-       Needs a few tracked positions across ≥2 asset classes with classes assigned,
-       ideally at least one class drifted past ±5pp so the drift chip + rebalance
-       helper line (months-to-close or the tax-costed trim) is visible. -->
-  <img src="assets/registers1_redacted.png" alt="The Registers — holdings regrouped by asset class, drift against the designed mix" width="820"><br>
-  <sub><b>The Registers.</b> Your actual holdings regrouped by asset class and read against the Calibre you designed — target-vs-held bars, drift flagged past ±5 points, and for a drifted class either a no-sell contribution path or a to-the-cent tax cost to trim. · <i>Figures redacted / AI-generated.</i></sub>
-</p>
+### The Calibre — design the portfolio, watch the odds move
 
 <p align="center">
-  <!-- SCREENSHOT: The Registers tab, lower panels — "Recurring contributions" (with
-       an Acorns-style auto-invest row) and "Tracked positions & lots" showing a
-       positions table with cost basis / value / realized gains. -->
-  <img src="assets/holdings1_redacted.png" alt="The Registers — recurring contributions and tracked positions" width="820"><br>
-  <sub><b>The Registers, lower half.</b> Recurring auto-contributions (e.g. Acorns) alongside tracked, share-by-share positions with cost basis, gains, and a per-holding trend projection. · <i>Figures redacted / AI-generated.</i></sub>
+  <img src="assets/calibre1_redacted.png" alt="The Calibre — design an asset-class mix and watch μ, σ, bad year, and success respond" width="820"><br>
+  <sub><b>The Calibre.</b> Design an asset-class <i>mix</i>, not a stock pick. Turn the class gauges — each badged <i>historical</i> or <i>assumed</i> with its own μ/σ — and watch expected real return, volatility, a typical bad year, and plan-success probability respond live at the foot. The chosen calibre becomes the return assumption behind the Plan's forecast. A modeling instrument, not advice.</sub>
 </p>
 
-<p align="center">
-  <img src="assets/outflows1_redacted.png" alt="Outflows — cash-flow verdict and budget breakdown" width="820"><br>
-  <sub><b>Outflows.</b> A cash-flow verdict — in the black or over budget — over the full where-it-goes breakdown, drillable line by line. · <i>Figures redacted / AI-generated.</i></sub>
-</p>
+### The Registers — track what you actually hold, against the design
 
 <p align="center">
-  <img src="assets/outflows2_redacted.png" alt="Outflows — committed costs by category and variable spending history" width="820"><br>
-  <sub><b>Outflows, lower half.</b> Committed costs by category, and variable spending logged and grouped by month. · <i>Figures redacted / AI-generated.</i></sub>
+  <img src="assets/registers1_redacted.png" alt="The Registers — return assumptions, recurring contributions, and tracked positions" width="820"><br>
+  <sub><b>The Registers.</b> Track what you invest: a reference ticker's local price history sets the forecast's μ/σ, recurring auto-contributions (Acorns, a robo-advisor) feed the net-worth projection, and share-by-share lots carry cost basis and realized gains. Record positions and tag each with an asset class, and the top panel regroups them by class to flag <b>drift</b> from your Calibre — offering a no-sell contribution path or a to-the-cent tax cost to trim.</sub>
+</p>
+
+### Outflows &amp; Goals — what leaves, and what you're building toward
+
+<p align="center">
+  <img src="assets/outflows1_redacted.png" alt="Outflows — cash-flow verdict, bills, and variable spending" width="820"><br>
+  <sub><b>Outflows.</b> A cash-flow verdict — in the black or over budget — from take-home minus essentials, spending, goals, and investing. Bills roll up by category; variable spending is logged, projected to an annual run-rate, and grouped by month.</sub>
 </p>
 
 <p align="center">
   <img src="assets/goals1_redacted.png" alt="Savings goals as an ordered checklist" width="820"><br>
-  <sub><b>Goals.</b> Sinking funds as an ordered checklist — one funds at a time (active vs planned), at any cadence. · <i>Figures redacted / AI-generated.</i></sub>
+  <sub><b>Goals.</b> Sinking funds as an ordered checklist — one funds at a time (active vs. planned), at any cadence, each with progress, ETA, and a deposit log.</sub>
 </p>
 
 ---
