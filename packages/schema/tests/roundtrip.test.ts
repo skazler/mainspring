@@ -4,7 +4,7 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 import { eq } from "drizzle-orm";
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
-import { Money, accounts, lots, profiles, schema, spending } from "../src/index";
+import { Money, accounts, lots, profiles, schema, spending, tickerClasses } from "../src/index";
 
 const migrationsFolder = fileURLToPath(new URL("../drizzle", import.meta.url));
 
@@ -124,6 +124,19 @@ describe("variable spending round-trip", () => {
     expect(rows).toHaveLength(2);
     const total = rows.reduce((a, r) => a.add(r.amount), Money.zero());
     expect(total.toString()).toBe("134.7400");
+  });
+});
+
+describe("ticker_classes (C2)", () => {
+  it("maps a ticker to an asset class and round-trips", async () => {
+    const db = await freshDb();
+    await db.insert(tickerClasses).values([
+      { ticker: "VTI", classId: "us_total" },
+      { ticker: "BND", classId: "bonds" },
+    ]);
+    const rows = await db.select().from(tickerClasses);
+    expect(rows).toHaveLength(2);
+    expect(rows.find((r) => r.ticker === "VTI")!.classId).toBe("us_total");
   });
 });
 

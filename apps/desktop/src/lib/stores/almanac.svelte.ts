@@ -5,6 +5,8 @@ import { anthropicMessage, hasAnthropicKey, setAnthropicKey } from "$lib/bridge/
 import { deleteLegacyApiKey, loadLegacyApiKey } from "$lib/db";
 import { profile } from "./profile.svelte";
 import { view } from "./derived.svelte";
+import { calibre } from "./calibre.svelte";
+import { setupForm } from "./setup-form.svelte";
 
 const BUCKETS = BUCKET_OPTIONS.map((o) => o.bucket);
 const BASES = ["gross", "net", "post_tax_savings"] as const;
@@ -44,6 +46,7 @@ export interface ChatMessage {
 
 function buildBody(history: ChatMessage[]): string {
   const v = view.current;
+  const cal = calibre.applied;
   const context = {
     dials: profile.dials.map((d) => ({ bucket: d.bucket, base: d.base, pct: d.pct })),
     metrics: {
@@ -54,6 +57,9 @@ function buildBody(history: ChatMessage[]): string {
       effectiveTaxRate: v.tax.effectiveRate,
       marginalTaxRate: v.tax.marginalRate,
     },
+    // Calibre mix + portfolio stats — ratios only, never dollars (C4).
+    calibre: { name: setupForm.calibre.name, weights: setupForm.calibre.weights },
+    portfolio: { mu: cal.mu.toFixed(4), sigma: cal.sigma.toFixed(4) },
   };
   const system = `${SYSTEM}
 

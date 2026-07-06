@@ -65,6 +65,8 @@
         <tr><td>Savings rate</td>{#each columns as c (c.id)}<td>{formatPct(c.summary.savingsRate)}</td>{/each}</tr>
         <tr><td>FI age</td>{#each columns as c (c.id)}<td>{c.summary.fiAge ?? "—"}</td>{/each}</tr>
         <tr><td>FI number</td>{#each columns as c (c.id)}<td>{formatUsd(c.summary.fiNumber)}</td>{/each}</tr>
+        <tr><td>Calibre μ</td>{#each columns as c (c.id)}<td>{(c.summary.calibreMu * 100).toFixed(1)}%</td>{/each}</tr>
+        <tr><td>Calibre σ</td>{#each columns as c (c.id)}<td>{(c.summary.calibreSigma * 100).toFixed(1)}%</td>{/each}</tr>
       </tbody>
     </table>
   {/if}

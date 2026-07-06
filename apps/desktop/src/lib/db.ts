@@ -74,6 +74,10 @@ async function open() {
       created_at timestamptz NOT NULL DEFAULT now()
     );
     ALTER TABLE recurring ADD COLUMN IF NOT EXISTS kind text NOT NULL DEFAULT 'bill';
+    CREATE TABLE IF NOT EXISTS ticker_classes (
+      ticker text PRIMARY KEY,
+      class_id text NOT NULL
+    );
   `);
   return db;
 }
@@ -99,6 +103,24 @@ export async function loadRefTicker(): Promise<string | null> {
   const d = await db();
   const res = await d.query<{ value: string }>("SELECT value FROM app_state WHERE key = 'ref_ticker';");
   return res.rows[0]?.value ?? null;
+}
+
+/** The Registers' ticker → asset-class map (a one-time pick per held ticker). */
+export async function loadTickerClasses(): Promise<Record<string, string>> {
+  if (!browser) return {};
+  const d = await db();
+  const res = await d.query<{ ticker: string; class_id: string }>("SELECT ticker, class_id FROM ticker_classes;");
+  return Object.fromEntries(res.rows.map((r) => [r.ticker, r.class_id]));
+}
+
+export async function saveTickerClass(ticker: string, classId: string): Promise<void> {
+  if (!browser) return;
+  const d = await db();
+  await d.query(
+    `INSERT INTO ticker_classes (ticker, class_id) VALUES ($1, $2)
+     ON CONFLICT (ticker) DO UPDATE SET class_id = $2;`,
+    [ticker, classId],
+  );
 }
 
 export async function saveSetupForm(form: SetupForm): Promise<void> {
