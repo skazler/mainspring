@@ -46,8 +46,8 @@ Turn any dial and the vitals, the forecast, and your freedom date all move toget
 ### The Registers — track what you actually hold, against the design
 
 <p align="center">
-  <img src="assets/registers1_redacted.png" alt="The Registers — return assumptions, recurring contributions, and tracked positions" width="820"><br>
-  <sub><b>The Registers.</b> Track what you invest: a reference ticker's local price history sets the forecast's μ/σ, recurring auto-contributions (Acorns, a robo-advisor) feed the net-worth projection, and share-by-share lots carry cost basis and realized gains. Record positions and tag each with an asset class, and the top panel regroups them by class to flag <b>drift</b> from your Calibre — offering a no-sell contribution path or a to-the-cent tax cost to trim. · <i>Figures redacted; values AI-generated.</i></sub>
+  <img src="assets/registers1_redacted.png" alt="The Registers — holdings regrouped by asset class with drift flagged against the designed mix" width="820"><br>
+  <sub><b>The Registers.</b> Your holdings regrouped by asset class and read against the mix you designed in the Calibre — held-vs-target bars with <b>drift</b> flagged in percentage points, and off-plan or unassigned holdings called out. Each drifted class gets the cheaper fix: a no-sell contribution path for underweights, or a to-the-cent capital-gains cost to trim an overweight. A one-time picker maps each ticker to a class; elsewhere on the tab a reference ticker sets the forecast's μ/σ and recurring auto-contributions feed the projection. Modeled from your lots, cached prices, and tax profile — not tax advice. · <i>Figures redacted; values AI-generated.</i></sub>
 </p>
 
 ### Outflows &amp; Goals — what leaves, and what you're building toward
