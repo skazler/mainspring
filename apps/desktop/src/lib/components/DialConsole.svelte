@@ -6,7 +6,8 @@
   import { view } from "$lib/stores/derived.svelte";
   import { session } from "$lib/stores/session.svelte";
   import { forecast } from "$lib/stores/forecast.svelte";
-  import { market } from "$lib/stores/market.svelte";
+  import { calibre } from "$lib/stores/calibre.svelte";
+  import { setupForm } from "$lib/stores/setup-form.svelte";
   import { hints } from "$lib/stores/hints.svelte";
   import Gauge from "./Gauge.svelte";
   import TakeHomeReadout from "./TakeHomeReadout.svelte";
@@ -132,11 +133,7 @@
     </div>
 
     <div class="forecast">
-      {#if market.mu !== null}
-        <p class="caption">Using μ {Math.round(market.mu * 1000) / 10}% · σ {Math.round((market.sigma ?? 0) * 1000) / 10}% from {market.ticker} — set the reference ticker in Holdings.</p>
-      {:else}
-        <p class="caption">Using the assumed real return — refresh a reference ticker in Holdings for history-based μ/σ.</p>
-      {/if}
+      <p class="caption">Using your <strong>{setupForm.calibre.name}</strong> calibre — μ {Math.round(calibre.applied.mu * 1000) / 10}% · σ {Math.round(calibre.applied.sigma * 1000) / 10}% (real). Design the mix in the Calibre tab.</p>
       <button class="run" onclick={() => forecast.run()} disabled={forecast.running}>
         {forecast.running ? "Running…" : "Run forecast"}
       </button>
