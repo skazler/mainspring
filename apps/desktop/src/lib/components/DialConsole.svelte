@@ -14,10 +14,12 @@
   import FanChart from "./FanChart.svelte";
   import NetWorthChart from "./NetWorthChart.svelte";
   import Proportions from "./Proportions.svelte";
+  import ProgressToFreedom from "./ProgressToFreedom.svelte";
   import ScenarioBar from "./ScenarioBar.svelte";
   import Almanac from "./Almanac.svelte";
 
   const v = $derived(view.current);
+  let showForecast = $state(false);
 
   const propSlices = $derived(v.whereItGoes.map((s) => ({ label: s.label, amount: Number(s.amount.toString()) })));
 
@@ -67,28 +69,12 @@
     <button class="edit" onclick={() => (session.configured = false)}>Edit setup</button>
   </header>
 
-  <div class="panel graph">
-    <h3>Net worth → coast & FI</h3>
-    <NetWorthChart
-      currentBalance={profile.plan.currentBalance}
-      annualContribution={v.totalContributions}
-      realReturn={profile.plan.realReturn}
-      currentAge={profile.plan.currentAge}
-      targetRetireAge={profile.plan.targetRetireAge}
-      coast={v.fire.coastNumber}
-      fi={v.fire.fiNumber}
-      discretionary={v.commitments.add(profile.variableAnnualSpending ?? Money.zero())}
-    />
-    <div class="dollar-bar">
-      <span class="bar-label">Where every dollar goes</span>
-      <Proportions slices={propSlices} total={Number(v.gross.toString())} />
-    </div>
-  </div>
-
   <div class="readouts">
     <TakeHomeReadout net={v.net} gross={v.gross} tax={v.tax.total} />
     <FireSummary fire={v.fire} savingsRate={v.savingsRate} employerMatch={v.employerMatch} />
   </div>
+
+  <ProgressToFreedom currentBalance={profile.plan.currentBalance} coast={v.fire.coastNumber} fi={v.fire.fiNumber} />
 
   {#if dialIdx.length > 0}
     <h3 class="group-title">Contributions</h3>
@@ -121,39 +107,52 @@
     {/each}
   </div>
 
-  <div class="forecast">
-    <div class="market">
-      <label>
-        Ticker
-        <input bind:value={market.ticker} class="ticker" />
-      </label>
-      <button class="run" onclick={() => market.refresh()} disabled={market.loading}>
-        {market.loading ? "Fetching…" : "Refresh market data"}
-      </button>
-      {#if market.mu !== null}
-        <span class="stats">
-          μ {Math.round(market.mu * 1000) / 10}% · σ {Math.round((market.sigma ?? 0) * 1000) / 10}%
-          <span class="caption">({market.samples} days{market.refreshedAt ? `, updated ${new Date(market.refreshedAt).toLocaleDateString()}` : ", cached"})</span>
-        </span>
-      {/if}
-      {#if market.error}<p class="warn">{market.error}</p>{/if}
+  <h3 class="flow-title">
+    <button class="forecast-toggle" onclick={() => (showForecast = !showForecast)}>
+      {showForecast ? "▾" : "▸"} Forecast &amp; projections
+    </button>
+  </h3>
+  {#if showForecast}
+    <div class="panel graph">
+      <h3>Net worth → coast &amp; FI</h3>
+      <NetWorthChart
+        currentBalance={profile.plan.currentBalance}
+        annualContribution={v.totalContributions}
+        realReturn={profile.plan.realReturn}
+        currentAge={profile.plan.currentAge}
+        targetRetireAge={profile.plan.targetRetireAge}
+        coast={v.fire.coastNumber}
+        fi={v.fire.fiNumber}
+        discretionary={v.commitments.add(profile.variableAnnualSpending ?? Money.zero())}
+      />
+      <div class="dollar-bar">
+        <span class="bar-label">Where every dollar goes</span>
+        <Proportions slices={propSlices} total={Number(v.gross.toString())} />
+      </div>
     </div>
 
-    <button class="run" onclick={() => forecast.run()} disabled={forecast.running}>
-      {forecast.running ? "Running…" : "Run forecast"}
-    </button>
-    {#if forecast.error}
-      <p class="warn">{forecast.error}</p>
-    {/if}
-    {#if forecast.result}
-      <p class="success">
-        Success probability:
-        <strong>{Math.round(forecast.result.successProbability * 100)}%</strong>
-        <span class="caption">— Monte Carlo projection from historical trends, an estimate, not advice.</span>
-      </p>
-      <FanChart forecast={forecast.result} currentAge={profile.plan.currentAge} />
-    {/if}
-  </div>
+    <div class="forecast">
+      {#if market.mu !== null}
+        <p class="caption">Using μ {Math.round(market.mu * 1000) / 10}% · σ {Math.round((market.sigma ?? 0) * 1000) / 10}% from {market.ticker} — set the reference ticker in Holdings.</p>
+      {:else}
+        <p class="caption">Using the assumed real return — refresh a reference ticker in Holdings for history-based μ/σ.</p>
+      {/if}
+      <button class="run" onclick={() => forecast.run()} disabled={forecast.running}>
+        {forecast.running ? "Running…" : "Run forecast"}
+      </button>
+      {#if forecast.error}
+        <p class="warn">{forecast.error}</p>
+      {/if}
+      {#if forecast.result}
+        <p class="success">
+          Success probability:
+          <strong>{Math.round(forecast.result.successProbability * 100)}%</strong>
+          <span class="caption">— Monte Carlo projection from historical trends, an estimate, not advice.</span>
+        </p>
+        <FanChart forecast={forecast.result} currentAge={profile.plan.currentAge} />
+      {/if}
+    </div>
+  {/if}
 
   <ScenarioBar />
 </section>
@@ -263,6 +262,18 @@
     padding-top: 1.8rem;
     margin: 1.5rem 0 0.2rem;
   }
+  .forecast-toggle {
+    background: transparent;
+    border: none;
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
+    cursor: pointer;
+    padding: 0;
+  }
+  .forecast-toggle:hover {
+    color: var(--color-parchment);
+  }
   .flow-sub {
     text-align: center;
     color: var(--color-dim);
@@ -284,37 +295,6 @@
     border-top: 1px solid var(--color-etch);
     padding-top: 2rem;
     text-align: center;
-  }
-  .market {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
-    flex-wrap: wrap;
-    margin-bottom: 1.5rem;
-  }
-  .market label {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: var(--color-soot);
-    font-family: var(--font-body);
-    font-size: 0.85rem;
-  }
-  .ticker {
-    width: 5rem;
-    background: var(--color-coal);
-    border: 1px solid var(--color-etch);
-    border-radius: 6px;
-    color: var(--color-parchment);
-    font-family: var(--font-meter);
-    text-transform: uppercase;
-    padding: 0.4rem 0.5rem;
-  }
-  .stats {
-    font-family: var(--font-meter);
-    color: var(--color-copper);
-    font-variant-numeric: tabular-nums;
   }
   .run {
     background: transparent;
