@@ -37,6 +37,18 @@ export { minMoney, maxMoney, addRates } from "./money-util";
 export { periodReturns, mean, stdev, annualizedStats, toRealReturn } from "./market/stats";
 export type { MarketStats } from "./market/stats";
 
+// portfolio / the Calibre
+export { ASSET_CLASSES, assetClass, defaultCorrelation } from "./market/asset-classes";
+export type { AssetClass, AssetClassId } from "./market/asset-classes";
+export {
+  alignedReturns,
+  covarianceMatrix,
+  portfolioStats,
+  assumedCovariance,
+  blendWithFallbacks,
+} from "./market/portfolio";
+export type { PricePoint, BlendedClass } from "./market/portfolio";
+
 // positions
 export {
   positionValue,
