@@ -17,7 +17,7 @@ export const session = $state<{
   loaded: boolean;
   /** true once a profile has ever been saved — gates the setup "Back" button. */
   hasProfile: boolean;
-  tab: "plan" | "holdings" | "spending" | "goals";
+  tab: "plan" | "calibre" | "holdings" | "spending" | "goals";
 }>({
   configured: false,
   loaded: false,

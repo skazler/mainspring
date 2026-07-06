@@ -5,6 +5,7 @@
   import Spending from "$lib/components/Spending.svelte";
   import Goals from "$lib/components/Goals.svelte";
   import Setup from "$lib/components/Setup.svelte";
+  import Calibre from "$lib/components/Calibre.svelte";
   import BackupControls from "$lib/components/BackupControls.svelte";
   import { initSession, session } from "$lib/stores/session.svelte";
   import { hints } from "$lib/stores/hints.svelte";
@@ -22,6 +23,7 @@
   <div class="topbar">
     <nav class="tabs">
       <button class:active={session.tab === "plan"} onclick={() => (session.tab = "plan")}>Plan</button>
+      <button class:active={session.tab === "calibre"} onclick={() => (session.tab = "calibre")}>Calibre</button>
       <button class:active={session.tab === "holdings"} onclick={() => (session.tab = "holdings")}>Holdings</button>
       <button class:active={session.tab === "spending"} onclick={() => (session.tab = "spending")}>Outflows</button>
       <button class:active={session.tab === "goals"} onclick={() => (session.tab = "goals")}>Goals</button>
@@ -36,6 +38,8 @@
   {/if}
   {#if session.tab === "plan"}
     <DialConsole />
+  {:else if session.tab === "calibre"}
+    <Calibre />
   {:else if session.tab === "holdings"}
     <Holdings />
   {:else if session.tab === "spending"}
