@@ -5,8 +5,11 @@
   import Spending from "$lib/components/Spending.svelte";
   import Goals from "$lib/components/Goals.svelte";
   import Setup from "$lib/components/Setup.svelte";
+  import BackupControls from "$lib/components/BackupControls.svelte";
   import { initSession, session } from "$lib/stores/session.svelte";
   import { hints } from "$lib/stores/hints.svelte";
+
+  let showData = $state(false);
 
   onMount(() => {
     void initSession();
@@ -16,13 +19,21 @@
 {#if !session.loaded}
   <p class="loading">Winding up…</p>
 {:else if session.configured}
-  <nav class="tabs">
-    <button class:active={session.tab === "plan"} onclick={() => (session.tab = "plan")}>Plan</button>
-    <button class:active={session.tab === "holdings"} onclick={() => (session.tab = "holdings")}>Holdings</button>
-    <button class:active={session.tab === "spending"} onclick={() => (session.tab = "spending")}>Outflows</button>
-    <button class:active={session.tab === "goals"} onclick={() => (session.tab = "goals")}>Goals</button>
-    <button class="tips" class:on={hints.show} title="Show or hide explanatory tips" onclick={() => hints.toggle()}>ⓘ</button>
-  </nav>
+  <div class="topbar">
+    <nav class="tabs">
+      <button class:active={session.tab === "plan"} onclick={() => (session.tab = "plan")}>Plan</button>
+      <button class:active={session.tab === "holdings"} onclick={() => (session.tab = "holdings")}>Holdings</button>
+      <button class:active={session.tab === "spending"} onclick={() => (session.tab = "spending")}>Outflows</button>
+      <button class:active={session.tab === "goals"} onclick={() => (session.tab = "goals")}>Goals</button>
+    </nav>
+    <div class="tools">
+      <button class="tool" class:on={hints.show} title="Show or hide explanatory tips" onclick={() => hints.toggle()}>ⓘ</button>
+      <button class="tool" class:on={showData} title="Back up or restore your data" onclick={() => (showData = !showData)}>⤓</button>
+    </div>
+  </div>
+  {#if showData}
+    <div class="data-panel"><BackupControls /></div>
+  {/if}
   {#if session.tab === "plan"}
     <DialConsole />
   {:else if session.tab === "holdings"}
@@ -44,11 +55,14 @@
     font-family: var(--font-display);
     letter-spacing: 0.2em;
   }
+  .topbar {
+    position: relative;
+    padding: 1.25rem 0 0;
+  }
   .tabs {
     display: flex;
     justify-content: center;
     gap: 0.5rem;
-    padding: 1.25rem 0 0;
   }
   .tabs button {
     background: transparent;
@@ -65,12 +79,42 @@
     background: var(--color-brass);
     border-color: var(--color-brass);
   }
-  .tabs button.tips {
-    padding: 0.4rem 0.7rem;
-    color: var(--color-dim);
+  /* Utility icons tucked into the top-right corner — findable, not central. */
+  .tools {
+    position: absolute;
+    top: 1.25rem;
+    right: 1rem;
+    display: flex;
+    gap: 0.35rem;
   }
-  .tabs button.tips.on {
+  .tool {
+    background: transparent;
+    border: 1px solid var(--color-etch);
+    border-radius: 6px;
+    color: var(--color-dim);
+    font-size: 0.9rem;
+    padding: 0.35rem 0.55rem;
+    cursor: pointer;
+  }
+  .tool:hover,
+  .tool.on {
     color: var(--color-gilt);
     border-color: var(--color-gilt);
+  }
+  @media (max-width: 640px) {
+    .tools {
+      position: static;
+      justify-content: center;
+      margin-top: 0.6rem;
+    }
+  }
+  .data-panel {
+    max-width: 42rem;
+    margin: 1.25rem auto 0;
+    padding: 1.1rem 1.3rem;
+    border: 1px solid var(--color-etch);
+    border-radius: 10px;
+    background: var(--color-panel);
+    box-shadow: var(--bevel);
   }
 </style>
