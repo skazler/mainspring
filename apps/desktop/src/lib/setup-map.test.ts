@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildProfileState, defaultSetupForm } from "./setup-map";
+import { buildProfileState, defaultSetupForm, fullWeights, normalizeSetupForm } from "./setup-map";
 
 describe("buildProfileState", () => {
   it("maps the default form to a ProfileState", () => {
@@ -45,5 +45,33 @@ describe("buildProfileState", () => {
     const roth = p.dials.find((d) => d.bucket === "roth_401k")!;
     // 10,000 / 100,000 = 0.1
     expect(roth.pct).toBe("0.1");
+  });
+});
+
+describe("calibre (C2)", () => {
+  it("the default form carries the three-fund default calibre summing to 1", () => {
+    const c = defaultSetupForm().calibre;
+    expect(c.name).toBe("Three-fund");
+    expect(c.weights.us_total).toBe("0.6");
+    expect(c.weights.intl_dev).toBe("0.3");
+    expect(c.weights.bonds).toBe("0.1");
+    expect(c.weights.cash).toBe("0");
+    const sum = Object.values(c.weights).reduce((a, w) => a + Number(w), 0);
+    expect(sum).toBeCloseTo(1, 10);
+  });
+
+  it("normalizeSetupForm backfills the default calibre for older saved forms", () => {
+    const legacy = defaultSetupForm();
+    delete (legacy as { calibre?: unknown }).calibre; // saved before calibre existed
+    expect(normalizeSetupForm(legacy).calibre.name).toBe("Three-fund");
+  });
+
+  it("a calibre survives a scenario JSON round-trip exactly", () => {
+    const form = defaultSetupForm();
+    form.calibre = { name: "Custom", weights: fullWeights({ us_large: "0.7", emerging: "0.3" }) };
+    const back = JSON.parse(JSON.stringify(form)).calibre;
+    expect(back).toEqual(form.calibre);
+    expect(back.weights.us_large).toBe("0.7");
+    expect(back.weights.us_total).toBe("0");
   });
 });

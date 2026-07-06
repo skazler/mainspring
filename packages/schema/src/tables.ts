@@ -221,6 +221,14 @@ export const recurring = pgTable("recurring", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Maps a held ticker to a Calibre asset class (the Registers group positions by
+// class; unknown tickers get a one-time class picker). Single-user local, so no
+// profile scope — the mapping is a shared classification, not personal data.
+export const tickerClasses = pgTable("ticker_classes", {
+  ticker: text("ticker").primaryKey(),
+  classId: text("class_id").notNull(), // AssetClassId: us_total | us_large | intl_dev | emerging | bonds | reits | cash
+});
+
 export const schema = {
   profiles,
   incomeSources,
@@ -237,4 +245,5 @@ export const schema = {
   netWorthSnapshots,
   goals,
   recurring,
+  tickerClasses,
 };
