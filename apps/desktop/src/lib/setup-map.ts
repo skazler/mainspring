@@ -1,7 +1,25 @@
 import { Money, MoneyDecimal } from "@mainspring/schema";
 import type { Bucket, DialBase, FilingStatus, Frequency } from "@mainspring/schema";
-import { annualizeIncome, type DialInput, type ProfileState } from "@mainspring/engine";
+import { annualizeIncome, ASSET_CLASSES, type AssetClassId, type DialInput, type ProfileState } from "@mainspring/engine";
 import { BUCKET_OPTIONS } from "./buckets";
+
+/** A designed asset-class mix (the Calibre). Weights are decimal strings summing to 1. */
+export interface Calibre {
+  name: string;
+  weights: Record<AssetClassId, string>;
+}
+
+/** Fill every asset class, defaulting the unspecified ones to "0". */
+export function fullWeights(partial: Partial<Record<AssetClassId, string>>): Record<AssetClassId, string> {
+  const w = {} as Record<AssetClassId, string>;
+  for (const c of ASSET_CLASSES) w[c.id] = partial[c.id] ?? "0";
+  return w;
+}
+
+/** The shipped default calibre — a classic three-fund mix (60/30/10). */
+export function defaultCalibre(): Calibre {
+  return { name: "Three-fund", weights: fullWeights({ us_total: "0.6", intl_dev: "0.3", bonds: "0.1" }) };
+}
 
 export interface ContributionForm {
   bucket: Bucket;
@@ -33,6 +51,8 @@ export interface SetupForm {
   inflationPct: number;
   /** Employer 401(k) match as a whole-number percent of gross, e.g. 4. */
   employerMatchPercent: number;
+  /** The applied asset-class mix driving the forecast's return assumptions. */
+  calibre: Calibre;
   contributions: ContributionForm[];
 }
 
@@ -55,6 +75,7 @@ export function defaultSetupForm(): SetupForm {
     realReturnPercent: 5,
     inflationPct: 2.5,
     employerMatchPercent: 0,
+    calibre: defaultCalibre(),
     contributions: BUCKET_OPTIONS.map(defaultContribution),
   };
 }
@@ -124,8 +145,9 @@ export function normalizeSetupForm(form: SetupForm): SetupForm {
   return {
     ...form,
     annualExpenses: 0,
-    // Fill fields introduced after the form was saved (F4).
+    // Fill fields introduced after the form was saved (F4 inflation; C2 calibre).
     inflationPct: form.inflationPct ?? 2.5,
+    calibre: form.calibre ?? defaultCalibre(),
     contributions: BUCKET_OPTIONS.map((o) => ({ ...defaultContribution(o), ...(byBucket.get(o.bucket) ?? {}) })),
   };
 }
