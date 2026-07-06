@@ -71,9 +71,9 @@
 </script>
 
 <section class="holdings">
-  <header class="title">Investments</header>
+  <header class="title">The Registers</header>
   {#if hints.show}
-    <p class="lede">Two ways to track what you invest: <strong>automatic contributions</strong> (recurring transfers like Acorns — they feed your net-worth projection) and <strong>tracked positions</strong> (individual buys/sells of a ticker, so you can project that holding's trend).</p>
+    <p class="lede">What you actually hold, regrouped by asset class and read against the mix you designed in the <strong>Calibre</strong>. Track investments two ways: <strong>automatic contributions</strong> (recurring transfers like Acorns — they feed your net-worth projection) and <strong>tracked positions</strong> (individual buys/sells of a ticker, which the drift view groups by class).</p>
   {/if}
 
   {#if positions.length > 0}
