@@ -1,12 +1,19 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { ASSET_CLASSES, DRIFT_THRESHOLD_PP, type AssetClassId } from "@mainspring/engine";
   import { cadenceAbbrev, formatUsd } from "$lib/format";
   import { lots } from "$lib/stores/lots.svelte";
   import { recurring } from "$lib/stores/recurring.svelte";
   import { market } from "$lib/stores/market.svelte";
+  import { registers } from "$lib/stores/registers.svelte";
+  import { setupForm } from "$lib/stores/setup-form.svelte";
   import { hints } from "$lib/stores/hints.svelte";
   import FanChart from "./FanChart.svelte";
   import ConfirmButton from "./ConfirmButton.svelte";
+
+  const CLASS_LABEL: Record<string, string> = Object.fromEntries(ASSET_CLASSES.map((c) => [c.id, c.label]));
+  const classLabel = (id: string) => (id === "unassigned" ? "Unassigned" : (CLASS_LABEL[id] ?? id));
+  const pct1 = (x: number) => `${(x * 100).toFixed(1)}%`;
 
   const CADENCES = ["weekly", "biweekly", "monthly", "quarterly", "annual"] as const;
   const INVEST_CATEGORIES = ["acorns", "robo-advisor", "brokerage", "401k", "ira", "crypto", "other"];
@@ -22,7 +29,10 @@
   onMount(() => {
     void lots.load();
     void recurring.load();
+    void registers.load();
   });
+
+  const report = $derived(registers.report);
 
   async function add(e: Event) {
     e.preventDefault();
@@ -64,6 +74,72 @@
   <header class="title">Investments</header>
   {#if hints.show}
     <p class="lede">Two ways to track what you invest: <strong>automatic contributions</strong> (recurring transfers like Acorns — they feed your net-worth projection) and <strong>tracked positions</strong> (individual buys/sells of a ticker, so you can project that holding's trend).</p>
+  {/if}
+
+  {#if positions.length > 0}
+    <div class="block registers">
+      <h2 class="section">Registers — drift vs. your design</h2>
+      {#if hints.show}
+        <p class="hint">Your tracked positions, regrouped by asset class and compared with the <strong>{setupForm.calibre.name}</strong> mix you designed in the Calibre. Drift past ±{DRIFT_THRESHOLD_PP} points is flagged. This is a modeling instrument — it shows the trade-offs, never a "you should."</p>
+      {/if}
+
+      {#if registers.unassigned.length > 0}
+        <div class="assign">
+          <p class="assign-lede">Assign a class to each holding so it can be grouped (a one-time pick):</p>
+          {#each registers.unassigned as t (t)}
+            <label class="assign-row">
+              <span class="tk mono">{t}</span>
+              <select onchange={(e) => registers.setClass(t, (e.currentTarget as HTMLSelectElement).value as AssetClassId)}>
+                <option value="" selected disabled>Pick a class…</option>
+                {#each ASSET_CLASSES as c (c.id)}<option value={c.id}>{c.label}</option>{/each}
+              </select>
+            </label>
+          {/each}
+        </div>
+      {/if}
+
+      {#if report.total > 0}
+        <div class="drift">
+          {#each report.rows as row (row.classId)}
+            {@const over = row.driftPp > 0}
+            <div class="drift-row" class:flagged={row.drifted}>
+              <div class="drift-head">
+                <span class="cls">{classLabel(row.classId)}{#if row.estimated}<span class="est"> · est.</span>{/if}</span>
+                <span class="nums mono">
+                  {pct1(row.actual)} <span class="of">held</span> · {pct1(row.target)} <span class="of">target</span>
+                  {#if row.drifted}<span class="chip" class:over class:under={!over}>{over ? "+" : ""}{row.driftPp.toFixed(1)} pp</span>{/if}
+                </span>
+              </div>
+              <div class="bar">
+                <div class="target-tick" style="left: {Math.min(100, row.target * 100)}%"></div>
+                <div class="fill" class:over={row.drifted && over} class:under={row.drifted && !over} style="width: {Math.min(100, row.actual * 100)}%"></div>
+              </div>
+
+              {#if row.drifted && !over}
+                {@const m = registers.monthsToClose(row)}
+                <p class="helper">
+                  Underweight. {#if m === null}Add contributions to route toward this class.{:else if m === 0}Already at target.{:else}Directing your current contributions here closes the gap in about <strong>{m}</strong> month{m === 1 ? "" : "s"} — no selling, no tax.{/if}
+                </p>
+              {:else if row.drifted && over && row.classId !== "unassigned"}
+                {@const plan = registers.sellPlanFor(row)}
+                {#if plan}
+                  <p class="helper">
+                    Overweight. Trimming ~<strong>{formatUsd(plan.sellDollars)}</strong> back to target realizes
+                    {formatUsd(plan.longTermGain)} long-term / {formatUsd(plan.shortTermGain)} short-term in gains —
+                    an estimated tax of <strong>{formatUsd(Number(plan.tax.total.toString()))}</strong>
+                    <span class="est">(LT {formatUsd(Number(plan.tax.longTermTax.toString()))} · ST {formatUsd(Number(plan.tax.shortTermTax.toString()))} · NIIT {formatUsd(Number(plan.tax.niit.toString()))})</span>.
+                    Or let new contributions to other classes dilute it down — no tax.
+                  </p>
+                {/if}
+              {/if}
+            </div>
+          {/each}
+        </div>
+        <p class="disclaimer">Drift and rebalance costs are modeled from your lots, cached prices, and tax profile — an estimate for weighing trade-offs, not tax advice. Tax-advantaged accounts (401k/IRA) rebalance without capital-gains tax; account linkage is not yet modeled here.</p>
+      {:else}
+        <p class="empty">Assign classes above to see how your holdings sit against your design.</p>
+      {/if}
+    </div>
   {/if}
 
   <div class="block">
@@ -428,6 +504,118 @@
     font-family: var(--font-meter);
     color: var(--color-copper);
     font-size: 1.15rem;
+  }
+  .registers .assign {
+    max-width: 32rem;
+    margin: 0 auto 1.4rem;
+  }
+  .assign-lede {
+    text-align: center;
+    color: var(--color-dim);
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    margin: 0 0 0.7rem;
+  }
+  .assign-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    padding: 0.35rem 0;
+  }
+  .assign-row .tk {
+    font-family: var(--font-meter);
+  }
+  .drift {
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+    margin-top: 0.5rem;
+  }
+  .drift-row {
+    border-left: 2px solid transparent;
+    padding-left: 0.8rem;
+  }
+  .drift-row.flagged {
+    border-left-color: var(--color-copper);
+  }
+  .drift-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.4rem;
+  }
+  .drift-head .cls {
+    font-family: var(--font-display);
+    color: var(--color-gilt);
+    letter-spacing: 0.05em;
+  }
+  .drift-head .nums {
+    color: var(--color-parchment);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.9rem;
+  }
+  .drift-head .of {
+    color: var(--color-soot);
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+  }
+  .est {
+    color: var(--color-dim);
+    font-size: 0.78rem;
+  }
+  .chip {
+    margin-left: 0.5rem;
+    padding: 0.05rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.78rem;
+  }
+  .chip.over {
+    color: var(--color-oxblood);
+    border: 1px solid var(--color-oxblood);
+  }
+  .chip.under {
+    color: var(--color-copper);
+    border: 1px solid var(--color-copper);
+  }
+  .bar {
+    position: relative;
+    height: 10px;
+    background: var(--color-coal);
+    border: 1px solid var(--color-etch);
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  .bar .fill {
+    height: 100%;
+    background: var(--color-brass);
+  }
+  .bar .fill.over {
+    background: var(--color-oxblood);
+  }
+  .bar .fill.under {
+    background: var(--color-copper);
+  }
+  .bar .target-tick {
+    position: absolute;
+    top: -2px;
+    bottom: -2px;
+    width: 2px;
+    background: var(--color-parchment);
+    z-index: 1;
+  }
+  .helper {
+    color: var(--color-soot);
+    font-family: var(--font-body);
+    font-size: 0.83rem;
+    margin: 0.5rem 0 0;
+    line-height: 1.5;
+  }
+  .helper strong {
+    color: var(--color-parchment);
+    font-family: var(--font-meter);
   }
   .autos {
     width: 100%;

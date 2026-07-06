@@ -49,6 +49,17 @@ export {
 } from "./market/portfolio";
 export type { PricePoint, BlendedClass } from "./market/portfolio";
 
+// the Registers — holdings regrouped by class, drift, and rebalance costing
+export {
+  DRIFT_THRESHOLD_PP,
+  bucketHoldings,
+  driftReport,
+  monthsToClose,
+  realizeClassSell,
+  estimateRebalanceTax,
+} from "./market/registers";
+export type { ClassKey, ClassBucket, DriftRow, TickerLots, RebalanceTaxInput, RebalanceTaxResult } from "./market/registers";
+
 // positions
 export {
   positionValue,
