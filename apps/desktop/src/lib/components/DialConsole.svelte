@@ -132,23 +132,11 @@
     </div>
 
     <div class="forecast">
-      <div class="market">
-        <label>
-          Ticker
-          <input bind:value={market.ticker} class="ticker" />
-        </label>
-        <button class="run" onclick={() => market.refresh()} disabled={market.loading}>
-          {market.loading ? "Fetching…" : "Refresh market data"}
-        </button>
-        {#if market.mu !== null}
-          <span class="stats">
-            μ {Math.round(market.mu * 1000) / 10}% · σ {Math.round((market.sigma ?? 0) * 1000) / 10}%
-            <span class="caption">({market.samples} days{market.refreshedAt ? `, updated ${new Date(market.refreshedAt).toLocaleDateString()}` : ", cached"})</span>
-          </span>
-        {/if}
-        {#if market.error}<p class="warn">{market.error}</p>{/if}
-      </div>
-
+      {#if market.mu !== null}
+        <p class="caption">Using μ {Math.round(market.mu * 1000) / 10}% · σ {Math.round((market.sigma ?? 0) * 1000) / 10}% from {market.ticker} — set the reference ticker in Holdings.</p>
+      {:else}
+        <p class="caption">Using the assumed real return — refresh a reference ticker in Holdings for history-based μ/σ.</p>
+      {/if}
       <button class="run" onclick={() => forecast.run()} disabled={forecast.running}>
         {forecast.running ? "Running…" : "Run forecast"}
       </button>
@@ -307,37 +295,6 @@
     border-top: 1px solid var(--color-etch);
     padding-top: 2rem;
     text-align: center;
-  }
-  .market {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
-    flex-wrap: wrap;
-    margin-bottom: 1.5rem;
-  }
-  .market label {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: var(--color-soot);
-    font-family: var(--font-body);
-    font-size: 0.85rem;
-  }
-  .ticker {
-    width: 5rem;
-    background: var(--color-coal);
-    border: 1px solid var(--color-etch);
-    border-radius: 6px;
-    color: var(--color-parchment);
-    font-family: var(--font-meter);
-    text-transform: uppercase;
-    padding: 0.4rem 0.5rem;
-  }
-  .stats {
-    font-family: var(--font-meter);
-    color: var(--color-copper);
-    font-variant-numeric: tabular-nums;
   }
   .run {
     background: transparent;

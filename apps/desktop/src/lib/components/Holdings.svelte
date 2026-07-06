@@ -3,6 +3,7 @@
   import { cadenceAbbrev, formatUsd } from "$lib/format";
   import { lots } from "$lib/stores/lots.svelte";
   import { recurring } from "$lib/stores/recurring.svelte";
+  import { market } from "$lib/stores/market.svelte";
   import { hints } from "$lib/stores/hints.svelte";
   import FanChart from "./FanChart.svelte";
   import ConfirmButton from "./ConfirmButton.svelte";
@@ -64,6 +65,29 @@
   {#if hints.show}
     <p class="lede">Two ways to track what you invest: <strong>automatic contributions</strong> (recurring transfers like Acorns — they feed your net-worth projection) and <strong>tracked positions</strong> (individual buys/sells of a ticker, so you can project that holding's trend).</p>
   {/if}
+
+  <div class="block">
+    <h2 class="section">Return assumptions (μ / σ)</h2>
+    {#if hints.show}
+      <p class="hint">A reference ticker's local price history sets the mean return (μ) and volatility (σ) the forecast uses. Persisted; VTI by default.</p>
+    {/if}
+    <div class="market">
+      <label>
+        Reference ticker
+        <input bind:value={market.ticker} class="ticker" />
+      </label>
+      <button class="run" onclick={() => market.refresh()} disabled={market.loading}>
+        {market.loading ? "Fetching…" : "Refresh market data"}
+      </button>
+      {#if market.mu !== null}
+        <span class="stats">
+          μ {Math.round(market.mu * 1000) / 10}% · σ {Math.round((market.sigma ?? 0) * 1000) / 10}%
+          <span class="caption">({market.samples} days{market.refreshedAt ? `, updated ${new Date(market.refreshedAt).toLocaleDateString()}` : ", cached"})</span>
+        </span>
+      {/if}
+      {#if market.error}<p class="warn">{market.error}</p>{/if}
+    </div>
+  </div>
 
   <div class="block">
     <h2 class="section">Recurring contributions</h2>
@@ -320,6 +344,37 @@
   .warn {
     color: var(--color-oxblood);
     margin-left: 0.75rem;
+  }
+  .market {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .market label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--color-soot);
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+  }
+  .market .ticker {
+    width: 6rem;
+    text-transform: uppercase;
+    text-align: center;
+  }
+  .stats {
+    font-family: var(--font-meter);
+    color: var(--color-copper);
+    font-variant-numeric: tabular-nums;
+  }
+  .caption {
+    display: block;
+    color: var(--color-dim);
+    font-size: 0.78rem;
+    margin-top: 0.25rem;
   }
   .lede {
     text-align: center;
