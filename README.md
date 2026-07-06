@@ -13,7 +13,7 @@
   <sub>Pick the installer for your OS. Unsigned builds — macOS needs a one-time <code>xattr -cr</code> unlock (<a href="#macos--unsigned-one-time-unlock">see below</a>); Windows: SmartScreen → Run anyway.</sub>
 </p>
 
-Single-user. Local-first. Privacy-critical — this holds your real money, so by default nothing leaves a machine you control. The instrument is built around **dials**: turn a percentage and watch your take-home, every allocation barrel, and your projected **freedom date** move on the same tick.
+Single-user. Local-first. Privacy-critical — this holds your real money, so by default nothing leaves a machine you control. The instrument is built around **dials**: turn a percentage and watch your take-home, every allocation barrel, and your projected **freedom date** move on the same tick. On the portfolio side, the **Calibre** lets you design an asset-class mix and watch expected return, risk, and success probability respond live, while the **Registers** show how the holdings you actually own have drifted from that design — and what closing the gap costs. Throughout, it's a modeling instrument that explains trade-offs, never a "you should."
 
 ## The face
 
@@ -25,6 +25,31 @@ Single-user. Local-first. Privacy-critical — this holds your real money, so by
 <p align="center">
   <img src="assets/dashboard2_redacted.png" alt="The Plan — contribution gauges and post-tax distribution dials" width="820"><br>
   <sub><b>The Plan, lower half.</b> The brass contribution dials (tagged pre-tax / post-tax) and post-tax distribution, above the Monte-Carlo forecast. · <i>Figures redacted / AI-generated.</i></sub>
+</p>
+
+<p align="center">
+  <!-- SCREENSHOT: The Calibre tab. Full view — preset shelf at top, the asset-class
+       weight gauges in the middle, and the μ/σ · bad-year · success readout strip.
+       Turn one gauge off its saved mix first so the deltas-vs-applied show. -->
+  <img src="assets/calibre1_redacted.png" alt="The Calibre — design an asset-class mix and watch μ, σ, and success respond" width="820"><br>
+  <sub><b>The Calibre.</b> Design an asset-class <i>mix</i>, not a stock pick — turn the gauges and watch expected real return (μ), volatility (σ), and success probability respond live. The chosen calibre becomes the return assumption behind the Plan's forecast. A modeling instrument, not advice. · <i>Figures redacted / AI-generated.</i></sub>
+</p>
+
+<p align="center">
+  <!-- SCREENSHOT: The Registers tab, top panel ("Registers — drift vs. your design").
+       Needs a few tracked positions across ≥2 asset classes with classes assigned,
+       ideally at least one class drifted past ±5pp so the drift chip + rebalance
+       helper line (months-to-close or the tax-costed trim) is visible. -->
+  <img src="assets/registers1_redacted.png" alt="The Registers — holdings regrouped by asset class, drift against the designed mix" width="820"><br>
+  <sub><b>The Registers.</b> Your actual holdings regrouped by asset class and read against the Calibre you designed — target-vs-held bars, drift flagged past ±5 points, and for a drifted class either a no-sell contribution path or a to-the-cent tax cost to trim. · <i>Figures redacted / AI-generated.</i></sub>
+</p>
+
+<p align="center">
+  <!-- SCREENSHOT: The Registers tab, lower panels — "Recurring contributions" (with
+       an Acorns-style auto-invest row) and "Tracked positions & lots" showing a
+       positions table with cost basis / value / realized gains. -->
+  <img src="assets/holdings1_redacted.png" alt="The Registers — recurring contributions and tracked positions" width="820"><br>
+  <sub><b>The Registers, lower half.</b> Recurring auto-contributions (e.g. Acorns) alongside tracked, share-by-share positions with cost basis, gains, and a per-holding trend projection. · <i>Figures redacted / AI-generated.</i></sub>
 </p>
 
 <p align="center">
@@ -40,11 +65,6 @@ Single-user. Local-first. Privacy-critical — this holds your real money, so by
 <p align="center">
   <img src="assets/goals1_redacted.png" alt="Savings goals as an ordered checklist" width="820"><br>
   <sub><b>Goals.</b> Sinking funds as an ordered checklist — one funds at a time (active vs planned), at any cadence. · <i>Figures redacted / AI-generated.</i></sub>
-</p>
-
-<p align="center">
-  <img src="assets/holdings1_redacted.png" alt="Investments — recurring contributions and tracked positions" width="820"><br>
-  <sub><b>Investments.</b> Recurring auto-contributions (e.g. Acorns) alongside tracked, share-by-share positions. · <i>Figures redacted / AI-generated.</i></sub>
 </p>
 
 ---
@@ -113,7 +133,7 @@ sequenceDiagram
 | The Escapement | Rust Monte-Carlo kernel (`crates/sim`) → native (desktop) |
 | The Vault | PGlite (Postgres in-process) — local, on disk |
 | Engraving & fitting | Drizzle (migrations) · Zod (validation) |
-| Registers & charts | uPlot |
+| Charts & sub-dials | uPlot |
 | Finish | a hand-rolled steampunk token layer (`tokens.css`) — no CSS framework |
 | Market data | the Yahoo Finance v8 chart endpoint (free, opt-in; not the `yfinance` Python lib) |
 | Key custody | the OS keychain (macOS Keychain / Windows Credential Manager / Linux secret-service) |
@@ -186,6 +206,8 @@ Phases 0–8 of [`BUILD_PLAN.md`](./docs/BUILD_PLAN.md) are fitted, plus the opt
 | Schema + `Money` (decimal.js) + PGlite | ✅ |
 | Tax engine (federal + FICA + TX, 2026) | ✅ golden-tested |
 | Positions + capital gains (lots, FIFO/spec-ID, NIIT) | ✅ engine + lot-ledger UI (normalized `lots` table) |
+| **The Calibre** — asset-class mix design (live μ/σ + success) | ✅ portfolio math (golden + property-tested); feeds the Plan's forecast |
+| **The Registers** — holdings by class, drift, tax-costed rebalance | ✅ engine (golden-tested) + drift UI; taxable-account trim cost |
 | Cashflow + allocation + `recompute` | ✅ property-tested |
 | Deterministic projection + steampunk gauges | ✅ |
 | Monte-Carlo kernel (Rust) + fan chart | ✅ |
