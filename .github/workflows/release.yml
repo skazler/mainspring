@@ -1,22 +1,29 @@
 name: Release
 
 # Push a version tag to build the desktop app for macOS, Windows, and Linux and
-# publish a single GitHub Release with every installer attached (Releases is
-# where app binaries live — GitHub "Packages" is for npm/Docker/etc.):
+# publish a single GitHub Release with every installer attached. Because this
+# repo is PRIVATE, the release is published to the PUBLIC downloads repo
+# (skazler/mainspring-releases) so anyone can grab the installers without
+# seeing the source:
 #
 #   git tag v1.0.1 && git push origin v1.0.1
 #
-# The release is created as a DRAFT — review it, then publish to make the
-# downloads public. Builds are UNSIGNED (no Apple/Windows cert wired in); on
-# macOS, first launch: right-click → Open. Add signing secrets later via
-# tauri-action's env (APPLE_CERTIFICATE, WINDOWS_CERTIFICATE, etc.).
+# How it works: the `build` job (matrix) compiles the installers on each OS and
+# uploads them as workflow artifacts; the `publish` job then attaches all of
+# them to ONE release in the public repo, using the MAINSPRING_RELEASES_REPO_TOKEN
+# secret (a fine-grained PAT scoped to skazler/mainspring-releases with
+# Contents: read/write).
+#
+# The release is created as a DRAFT — review it in the public repo, then hit
+# Publish to make the downloads live. Builds are UNSIGNED (no Apple/Windows cert
+# wired in); on macOS, first launch: right-click → Open.
 
 on:
   push:
     tags: ["v*"]
 
 jobs:
-  release:
+  build:
     strategy:
       fail-fast: false
       matrix:
@@ -32,8 +39,6 @@ jobs:
             args: ""
             rust-targets: ""
     runs-on: ${{ matrix.os }}
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -76,7 +81,9 @@ jobs:
           node -e "const fs=require('fs');const f='apps/desktop/src-tauri/tauri.conf.json';const j=JSON.parse(fs.readFileSync(f,'utf8'));j.version='$VER';fs.writeFileSync(f,JSON.stringify(j,null,2)+'\n')"
           echo "Set app version to $VER"
 
-      - name: Build + publish release
+      # Build only — no tagName/releaseName, so tauri-action compiles the
+      # installers without creating a release here in the private repo.
+      - name: Build installers
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -102,13 +109,45 @@ jobs:
         with:
           projectPath: apps/desktop
           args: ${{ matrix.args }}
-          tagName: ${{ github.ref_name }}
-          releaseName: "MAINSPRING ${{ github.ref_name }}"
-          releaseBody: |
+
+      # Collect the installers this OS produced. Globs cover every Tauri bundle
+      # type; if-no-files-found: ignore so a platform that skips a format (e.g.
+      # no .rpm) doesn't fail the job. REPLACE/trim these globs as needed.
+      - name: Stage installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.os }}
+          if-no-files-found: ignore
+          path: |
+            apps/desktop/src-tauri/target/**/release/bundle/**/*.dmg
+            apps/desktop/src-tauri/target/**/release/bundle/**/*.msi
+            apps/desktop/src-tauri/target/**/release/bundle/**/*.exe
+            apps/desktop/src-tauri/target/**/release/bundle/**/*.AppImage
+            apps/desktop/src-tauri/target/**/release/bundle/**/*.deb
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all installers
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish release to public downloads repo
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: skazler/mainspring-releases
+          token: ${{ secrets.MAINSPRING_RELEASES_REPO_TOKEN }}
+          tag_name: ${{ github.ref_name }}
+          name: "MAINSPRING ${{ github.ref_name }}"
+          draft: true
+          prerelease: false
+          files: dist/**/*
+          body: |
             Local-first planner for financial independence — your data stays on your machine. Download the installer for your OS below.
 
             **Builds are unsigned.**
             - **macOS:** it may say *"MAINSPRING is damaged and can't be opened"* — it isn't. Move it to `/Applications`, then run once: `xattr -cr /Applications/MAINSPRING.app` and open it normally.
             - **Windows:** SmartScreen → **More info → Run anyway**.
-          releaseDraft: true
-          prerelease: false
