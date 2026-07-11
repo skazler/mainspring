@@ -22,6 +22,10 @@
   const v = $derived(view.current);
   let showForecast = $state(false);
 
+  // "The beginning": nothing to plan yet (no expenses → $0 FI number). Prompt the
+  // user to enter data instead of implying they've already reached freedom.
+  const empty = $derived(Number(v.fire.fiNumber.toString()) <= 0);
+
   const propSlices = $derived(v.whereItGoes.map((s) => ({ label: s.label, amount: Number(s.amount.toString()) })));
 
   // Editable contribution dials, split by tax treatment.
@@ -69,6 +73,13 @@
     <span>MAINSPRING</span>
     <button class="edit" onclick={() => (session.configured = false)}>Edit setup</button>
   </header>
+
+  {#if empty}
+    <div class="welcome">
+      <strong>Welcome — let's wind it up.</strong>
+      Start in <button class="inline" onclick={() => (session.configured = false)}>Edit setup</button> with your income and assumptions, then log your bills in <button class="inline" onclick={() => (session.tab = "spending")}>Outflows</button>. Your freedom date, forecast, and dials fill in as you go.
+    </div>
+  {/if}
 
   <div class="readouts">
     <TakeHomeReadout net={v.net} gross={v.gross} tax={v.tax.total} />
@@ -234,6 +245,39 @@
   .edit:hover {
     color: var(--color-gilt);
     border-color: var(--color-gilt);
+  }
+  .welcome {
+    max-width: 46rem;
+    margin: 0 auto 2rem;
+    padding: 0.9rem 1.2rem;
+    border: 1px solid var(--color-brass);
+    border-radius: 10px;
+    background: var(--color-panel);
+    color: var(--color-soot);
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    line-height: 1.55;
+    text-align: center;
+  }
+  .welcome strong {
+    color: var(--color-gilt);
+    font-family: var(--font-display);
+    letter-spacing: 0.04em;
+    display: block;
+    margin-bottom: 0.2rem;
+  }
+  .welcome .inline {
+    background: transparent;
+    border: none;
+    padding: 0;
+    color: var(--color-brass);
+    font: inherit;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .welcome .inline:hover {
+    color: var(--color-gilt);
   }
   .readouts {
     display: flex;
