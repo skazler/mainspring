@@ -30,7 +30,7 @@
     </nav>
     <div class="tools">
       <button class="tool" class:on={hints.show} title="Show or hide explanatory tips" onclick={() => hints.toggle()}>ⓘ</button>
-      <button class="tool" class:on={showData} title="Back up or restore your data" onclick={() => (showData = !showData)}>⤓</button>
+      <button class="tool" class:on={showData} title="Back up or restore your data" onclick={() => (showData = !showData)}>⇅</button>
     </div>
   </div>
   {#if showData}
