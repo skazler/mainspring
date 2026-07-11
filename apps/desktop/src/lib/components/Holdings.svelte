@@ -10,6 +10,7 @@
   import { hints } from "$lib/stores/hints.svelte";
   import FanChart from "./FanChart.svelte";
   import ConfirmButton from "./ConfirmButton.svelte";
+  import RecurringRemove from "./RecurringRemove.svelte";
 
   const CLASS_LABEL: Record<string, string> = Object.fromEntries(ASSET_CLASSES.map((c) => [c.id, c.label]));
   const classLabel = (id: string) => (id === "unassigned" ? "Unassigned" : (CLASS_LABEL[id] ?? id));
@@ -192,12 +193,12 @@
       <table class="autos">
         <tbody>
           {#each recurring.investments as r (r.id)}
-            <tr class:paused={!r.active}>
-              <td class="cap">{r.label}<span class="small"> · {r.category}</span></td>
+            <tr class:paused={!recurring.live(r)}>
+              <td class="cap">{r.label}<span class="small"> · {r.category}</span>{#if r.endsOn}<span class="small"> · ends {r.endsOn.slice(5)}</span>{/if}</td>
               <td class="mono">{formatUsd(Number(r.amount))}<span class="small">/{cadenceAbbrev(r.cadence)}</span></td>
               <td class="mono">{formatUsd(Number(recurring.annual(r).toString()))}<span class="small">/yr</span></td>
               <td><button class="link" onclick={() => recurring.toggle(r.id)}>{r.active ? "pause" : "resume"}</button></td>
-              <td><ConfirmButton onconfirm={() => recurring.remove(r.id)} title="Delete contribution" /></td>
+              <td><RecurringRemove onEndAfterMonth={() => recurring.endAfterThisMonth(r.id)} onRemoveNow={() => recurring.remove(r.id)} title="Remove contribution" /></td>
             </tr>
           {/each}
         </tbody>

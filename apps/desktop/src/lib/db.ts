@@ -74,6 +74,7 @@ async function open() {
       created_at timestamptz NOT NULL DEFAULT now()
     );
     ALTER TABLE recurring ADD COLUMN IF NOT EXISTS kind text NOT NULL DEFAULT 'bill';
+    ALTER TABLE recurring ADD COLUMN IF NOT EXISTS ends_on date;
     CREATE TABLE IF NOT EXISTS ticker_classes (
       ticker text PRIMARY KEY,
       class_id text NOT NULL
@@ -334,26 +335,28 @@ export interface RecurringRow {
   cadence: "weekly" | "biweekly" | "monthly" | "quarterly" | "annual";
   kind: "bill" | "investment";
   active: boolean;
+  /** ISO date this item stops counting (inclusive); null/undefined = runs indefinitely. */
+  endsOn?: string | null;
 }
 
 export async function loadRecurring(): Promise<RecurringRow[]> {
   if (!browser) return [];
   const d = await db();
-  const res = await d.query<{ id: string; label: string; category: string; amount: string; cadence: RecurringRow["cadence"]; kind: RecurringRow["kind"]; active: boolean }>(
-    "SELECT id, label, category, amount, cadence, kind, active FROM recurring ORDER BY created_at;",
+  const res = await d.query<{ id: string; label: string; category: string; amount: string; cadence: RecurringRow["cadence"]; kind: RecurringRow["kind"]; active: boolean; ends_on: string | null }>(
+    "SELECT id, label, category, amount, cadence, kind, active, ends_on::text AS ends_on FROM recurring ORDER BY created_at;",
   );
-  return res.rows.map((r) => ({ id: r.id, label: r.label, category: r.category, amount: r.amount, cadence: r.cadence, kind: r.kind, active: r.active }));
+  return res.rows.map((r) => ({ id: r.id, label: r.label, category: r.category, amount: r.amount, cadence: r.cadence, kind: r.kind, active: r.active, endsOn: r.ends_on }));
 }
 
 export async function saveRecurring(row: RecurringRow): Promise<void> {
   if (!browser) return;
   const d = await db();
   await d.query(
-    `INSERT INTO recurring (id, label, category, amount, cadence, kind, active)
-     VALUES ($1, $2, $3, $4::numeric, $5, $6, $7)
+    `INSERT INTO recurring (id, label, category, amount, cadence, kind, active, ends_on)
+     VALUES ($1, $2, $3, $4::numeric, $5, $6, $7, $8::date)
      ON CONFLICT (id) DO UPDATE SET
-       label = $2, category = $3, amount = $4::numeric, cadence = $5, kind = $6, active = $7;`,
-    [row.id, row.label, row.category, row.amount, row.cadence, row.kind, row.active],
+       label = $2, category = $3, amount = $4::numeric, cadence = $5, kind = $6, active = $7, ends_on = $8::date;`,
+    [row.id, row.label, row.category, row.amount, row.cadence, row.kind, row.active, row.endsOn ?? null],
   );
 }
 
