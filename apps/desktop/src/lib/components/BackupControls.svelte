@@ -23,6 +23,17 @@
     }
   }
 
+  // WKWebView (Tauri on macOS) throws "Load failed" from Blob/File.text(); a
+  // FileReader reads the picked file reliably instead.
+  function readText(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ""));
+      reader.onerror = () => reject(reader.error ?? new Error("Could not read the file."));
+      reader.readAsText(file);
+    });
+  }
+
   async function onImportFile(e: Event) {
     const input = e.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
@@ -30,7 +41,7 @@
     if (!file) return;
     backupMsg = "Restoring…";
     try {
-      const data = JSON.parse(await file.text()) as BackupData;
+      const data = JSON.parse(await readText(file)) as BackupData;
       await importAll(data);
       backupMsg = "Restored. Reloading…";
       setTimeout(() => location.reload(), 500);
