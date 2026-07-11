@@ -3,8 +3,28 @@ import { Money } from "@mainspring/schema";
 import { deleteRecurring, loadRecurring, saveRecurring, type RecurringRow } from "$lib/db";
 import { profile } from "./profile.svelte";
 
+/** Local calendar date as YYYY-MM-DD (matches how the plan keys "this month"). */
+function localToday(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** Last calendar day of the current month, YYYY-MM-DD. */
+function endOfThisMonth(): string {
+  const d = new Date();
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  return `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, "0")}-${String(last.getDate()).padStart(2, "0")}`;
+}
+
+/** A row still counts if it's active and today is on/before its end date. */
+function isLive(r: RecurringRow): boolean {
+  return r.active && (!r.endsOn || r.endsOn >= localToday());
+}
+
 function toItem(r: RecurringRow): RecurringItem {
-  return { amount: Money.of(r.amount), cadence: r.cadence, category: r.category, kind: r.kind, active: r.active };
+  // The engine is date-free; fold the end-date gate into `active` here so an
+  // ended item drops out of the rate automatically once the month rolls over.
+  return { amount: Money.of(r.amount), cadence: r.cadence, category: r.category, kind: r.kind, active: isLive(r) };
 }
 
 /**
@@ -74,6 +94,21 @@ class RecurringStore {
     if (r) this.save({ ...r, active: !r.active });
   }
 
+  /** True while a row still counts toward the plan (active and not past its end). */
+  live(r: RecurringRow): boolean {
+    return isLive(r);
+  }
+
+  /**
+   * Stop a recurring item at the end of the current month: it still counts this
+   * month (its charge already landed), then drops out of the plan next month.
+   */
+  endAfterThisMonth(id: string): void {
+    const r = this.rows.find((x) => x.id === id);
+    if (r) this.save({ ...r, active: true, endsOn: endOfThisMonth() });
+  }
+
+  /** Remove a recurring item outright, effective now (drops from this month too). */
   remove(id: string): void {
     this.rows = this.rows.filter((r) => r.id !== id);
     this.sync();

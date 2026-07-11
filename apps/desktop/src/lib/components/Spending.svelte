@@ -11,6 +11,7 @@
   import Donut from "./Donut.svelte";
   import Proportions from "./Proportions.svelte";
   import ConfirmButton from "./ConfirmButton.svelte";
+  import RecurringRemove from "./RecurringRemove.svelte";
 
   const v = $derived(view.current);
   let showBreakdown = $state(false);
@@ -79,7 +80,7 @@
       }
       case "Bills & essentials":
         return recurring.bills
-          .filter((r) => r.active)
+          .filter((r) => recurring.live(r))
           .map((r) => ({ name: r.label, amount: Number(recurring.annual(r).toString()) }));
       case "Goals": {
         const active = goals.rows.find((g) => g.id === goals.activeId);
@@ -248,12 +249,12 @@
       <table class="bills">
         <tbody>
           {#each recurring.bills as r (r.id)}
-            <tr class:paused={!r.active}>
-              <td class="cap">{r.label}<span class="dim"> · {r.category}</span></td>
+            <tr class:paused={!recurring.live(r)}>
+              <td class="cap">{r.label}<span class="dim"> · {r.category}</span>{#if r.endsOn}<span class="dim"> · ends {r.endsOn.slice(5)}</span>{/if}</td>
               <td class="mono">{formatUsd(Number(r.amount))}<span class="dim">/{cadenceAbbrev(r.cadence)}</span></td>
               <td class="mono">{formatUsd(Number(recurring.annual(r).toString()))}<span class="dim">/yr</span></td>
               <td><button class="link" onclick={() => recurring.toggle(r.id)}>{r.active ? "pause" : "resume"}</button></td>
-              <td><ConfirmButton onconfirm={() => recurring.remove(r.id)} title="Delete bill" /></td>
+              <td><RecurringRemove onEndAfterMonth={() => recurring.endAfterThisMonth(r.id)} onRemoveNow={() => recurring.remove(r.id)} title="Remove bill" /></td>
             </tr>
           {/each}
         </tbody>
