@@ -431,21 +431,24 @@ export interface BackupData {
   goals: GoalRow[];
   lots: LotRow[];
   scenarios: Scenario[];
+  /** The Registers' ticker → asset-class map (added in backup v2). */
+  tickerClasses: Record<string, string>;
 }
 
 /** Gather all user-entered data into a single portable object. */
 export async function exportAll(): Promise<BackupData> {
-  const [setup, spending, recurring, goals, lots, scenarios] = await Promise.all([
+  const [setup, spending, recurring, goals, lots, scenarios, tickerClasses] = await Promise.all([
     loadSetupForm(),
     loadSpending(),
     loadRecurring(),
     loadGoals(),
     loadLots(),
     listScenarios(),
+    loadTickerClasses(),
   ]);
   return {
     app: "mainspring",
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     setup,
     spending,
@@ -453,6 +456,7 @@ export async function exportAll(): Promise<BackupData> {
     goals,
     lots,
     scenarios,
+    tickerClasses,
   };
 }
 
@@ -468,4 +472,8 @@ export async function importAll(data: BackupData): Promise<void> {
   for (const g of data.goals ?? []) await saveGoal(g);
   for (const l of data.lots ?? []) await saveLot(l);
   for (const s of data.scenarios ?? []) await saveScenario(s);
+  // v2 backups carry the ticker → asset-class map; older files simply omit it.
+  for (const [ticker, classId] of Object.entries(data.tickerClasses ?? {})) {
+    await saveTickerClass(ticker, classId);
+  }
 }
