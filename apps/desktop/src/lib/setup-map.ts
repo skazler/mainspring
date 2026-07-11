@@ -82,7 +82,10 @@ export function defaultSetupForm(): SetupForm {
 
 // F5: exact-decimal division — never stringify a JS float artifact into the
 // exact-Money pipeline (String(16.7 / 100) → "0.16699999999999998").
-const frac = (percent: number): string => new MoneyDecimal(percent).div(100).toString();
+// A cleared number input binds to null (not 0), so guard before decimal.js sees
+// it — an empty field must not crash "Wind it up". Non-finite → 0.
+const frac = (percent: number): string =>
+  new MoneyDecimal(Number.isFinite(percent) ? percent : 0).div(100).toString();
 
 /** Map the setup form to the engine's ProfileState. Pure. */
 export function buildProfileState(form: SetupForm): ProfileState {
@@ -111,12 +114,14 @@ export function buildProfileState(form: SetupForm): ProfileState {
     taxProfile: { filingStatus: form.filingStatus, state: form.state.toUpperCase(), taxYear: 2026 },
     plan: {
       currentBalance: Money.of(String(form.currentBalance || 0)),
-      swr: frac(form.swrPercent),
-      realReturn: frac(form.realReturnPercent),
+      // Fall back to sensible defaults when a rate field is left blank — a 0 SWR
+      // would divide the FI number by zero.
+      swr: frac(form.swrPercent ?? 4),
+      realReturn: frac(form.realReturnPercent ?? 5),
       inflation: frac(form.inflationPct ?? 2.5),
       employerMatchPercent: frac(form.employerMatchPercent || 0),
-      currentAge: form.currentAge,
-      targetRetireAge: form.targetRetireAge,
+      currentAge: Number(form.currentAge) || 0,
+      targetRetireAge: Number(form.targetRetireAge) || 0,
     },
     dials,
   };
@@ -145,7 +150,10 @@ export function normalizeSetupForm(form: SetupForm): SetupForm {
   return {
     ...form,
     annualExpenses: 0,
-    // Fill fields introduced after the form was saved (F4 inflation; C2 calibre).
+    // Fill fields introduced after the form was saved (F4 inflation; C2 calibre)
+    // and backfill any rate a stored/imported form left null.
+    swrPercent: form.swrPercent ?? 4,
+    realReturnPercent: form.realReturnPercent ?? 5,
     inflationPct: form.inflationPct ?? 2.5,
     calibre: form.calibre ?? defaultCalibre(),
     contributions: BUCKET_OPTIONS.map((o) => ({ ...defaultContribution(o), ...(byBucket.get(o.bucket) ?? {}) })),

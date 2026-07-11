@@ -10,13 +10,18 @@
   }
   let { fire, savingsRate, employerMatch }: Props = $props();
   const matchN = $derived(employerMatch ? Number(employerMatch.toString()) : 0);
+  // With no expenses entered the FI number is $0, which makes alreadyFI trivially
+  // true — don't claim freedom is reached before there's anything to plan.
+  const empty = $derived(Number(fire.fiNumber.toString()) <= 0);
 </script>
 
 <div class="readout">
   <div class="big">
     <span class="k">Freedom</span>
-    <span class="v" class:reached={fire.alreadyFI}>
-      {#if fire.alreadyFI}
+    <span class="v" class:reached={fire.alreadyFI && !empty} class:pending={empty}>
+      {#if empty}
+        —
+      {:else if fire.alreadyFI}
         Reached
       {:else if fire.yearsToFI !== null}
         age {fire.fiAge} · {fire.yearsToFI} yrs
@@ -55,6 +60,9 @@
   }
   .big .v.reached {
     color: var(--color-lime-rust);
+  }
+  .big .v.pending {
+    color: var(--color-soot);
   }
   .k {
     font-family: var(--font-body);
