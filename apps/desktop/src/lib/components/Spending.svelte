@@ -52,11 +52,25 @@
   const isOpen = (key: string, i: number) => overrides[key] ?? i === 0;
   const toggleMonth = (key: string, i: number) => (overrides[key] = !isOpen(key, i));
 
-  // Expand a spending category to its individual entries.
+  // "By category" sits next to a month-grouped history, so it takes a period too
+  // — otherwise it shows lifetime totals beside a single month's entries. Null
+  // means all time; default to the newest logged month, matching History's
+  // newest-open default.
+  let catPeriod = $state<string | null>(null);
+  let catPeriodTouched = $state(false);
+  const activePeriod = $derived(catPeriodTouched ? catPeriod : (spending.loggedMonths[0] ?? null));
+  const monthLabel = (key: string) => new Date(key + "-01T00:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" });
+  function setPeriod(p: string | null) {
+    catPeriod = p;
+    catPeriodTouched = true;
+    openCats = {};
+  }
+
+  // Expand a spending category to its individual entries — within the same period.
   let openCats = $state<Record<string, boolean>>({});
   const catOpen = (c: string) => openCats[c] ?? false;
   const toggleCat = (c: string) => (openCats[c] = !catOpen(c));
-  const itemsOf = (c: string) => spending.rows.filter((r) => r.category === c);
+  const itemsOf = (c: string) => spending.rowsIn(activePeriod).filter((r) => r.category === c);
 
   // Expand a budget line to the pieces that make it up.
   let openLines = $state<Record<string, boolean>>({});
@@ -88,7 +102,8 @@
       }
       case "Spending": {
         // Annualize each category proportionally so the parts match the slice total.
-        const raw = spending.byCategory;
+        // Uses the trailing window's mix — the same rows the slice itself annualizes.
+        const raw = spending.windowByCategory;
         const rawTotal = raw.reduce((s, c) => s + Number(c.total.toString()), 0);
         const annual = Number(slice("Spending").toString());
         if (rawTotal <= 0) return [];
@@ -297,10 +312,18 @@
   {#if spending.byCategory.length > 0}
     <div class="grid">
       <div class="col">
-        <h3>By category</h3>
+        <div class="col-head">
+          <h3>By category</h3>
+          <div class="periods">
+            {#each spending.loggedMonths.slice(0, 6) as m (m)}
+              <button class="period" class:on={activePeriod === m} onclick={() => setPeriod(m)}>{monthLabel(m)}</button>
+            {/each}
+            <button class="period" class:on={activePeriod === null} onclick={() => setPeriod(null)}>All time</button>
+          </div>
+        </div>
         <table>
           <tbody>
-            {#each spending.byCategory as c (c.category)}
+            {#each spending.byCategoryIn(activePeriod) as c (c.category)}
               <tr>
                 <td class="cap"><button class="expand" onclick={() => toggleCat(c.category)}>{catOpen(c.category) ? "▾" : "▸"} {c.category}</button></td>
                 <td class="mono">{formatUsd(Number(c.total.toString()))}</td>
@@ -440,6 +463,35 @@
     color: var(--color-gilt);
     letter-spacing: 0.08em;
     margin: 0 0 0.4rem;
+  }
+  .col-head {
+    margin-bottom: 0.4rem;
+  }
+  .periods {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-bottom: 0.5rem;
+  }
+  .period {
+    background: transparent;
+    border: 1px solid var(--color-etch);
+    border-radius: 4px;
+    color: var(--color-soot);
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+    padding: 0.15rem 0.45rem;
+  }
+  .period:hover {
+    color: var(--color-gilt);
+    border-color: var(--color-gilt);
+  }
+  .period.on {
+    background: var(--color-brass);
+    border-color: var(--color-brass);
+    color: var(--color-coal);
   }
   table {
     width: 100%;

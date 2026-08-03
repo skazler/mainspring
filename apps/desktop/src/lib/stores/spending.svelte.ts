@@ -43,8 +43,43 @@ class SpendingStore {
   get thisMonthTotal(): Money {
     return monthTotal(this.rows.map(toEntry), thisMonth());
   }
+  /** All-time totals per category. */
   get byCategory(): { category: string; total: Money }[] {
     return spendingByCategory(this.rows.map(toEntry));
+  }
+
+  /** Rows for one calendar month (YYYY-MM), or all rows when month is null. */
+  rowsIn(month: string | null): SpendingRow[] {
+    return month ? this.rows.filter((r) => String(r.spentAt).slice(0, 7) === month) : this.rows;
+  }
+
+  /**
+   * Category totals for one calendar month (null = all time). The breakdown sits
+   * beside a month-grouped history, so it takes the same period rather than
+   * silently showing lifetime totals next to a single month's entries.
+   */
+  byCategoryIn(month: string | null): { category: string; total: Money }[] {
+    return spendingByCategory(this.rowsIn(month).map(toEntry));
+  }
+
+  /**
+   * Category totals over the trailing window — the same rows the plan annualizes.
+   * The budget drill-down splits the annualized Spending slice proportionally, so
+   * it has to use the window's mix, not an all-time one that no longer matches.
+   */
+  get windowByCategory(): { category: string; total: Money }[] {
+    const end = today();
+    const start = new Date(Date.now() - (TRAILING_WINDOW_DAYS - 1) * 86_400_000).toISOString().slice(0, 10);
+    const inWindow = this.rows.filter((r) => {
+      const d = String(r.spentAt).slice(0, 10);
+      return d >= start && d <= end;
+    });
+    return spendingByCategory(inWindow.map(toEntry));
+  }
+
+  /** The months present in the log, newest first (YYYY-MM). */
+  get loggedMonths(): string[] {
+    return [...new Set(this.rows.map((r) => String(r.spentAt).slice(0, 7)))].sort((a, b) => b.localeCompare(a));
   }
 
   private sync(): void {
