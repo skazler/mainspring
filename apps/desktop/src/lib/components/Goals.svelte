@@ -44,6 +44,32 @@
     goals.save({ ...g, cadence: cadence as GoalRow["cadence"] });
   }
 
+  // Rename in place: click the name to edit, Enter or blur commits, Escape reverts.
+  // A blank name is rejected rather than saved — a goal with no label is unusable
+  // in the checklist, and the drill-down renders it by name.
+  let editingId = $state<string | null>(null);
+  let editName = $state("");
+
+  function startRename(g: GoalRow): void {
+    editingId = g.id;
+    editName = g.name;
+  }
+  function commitRename(g: GoalRow): void {
+    if (editingId !== g.id) return;
+    const name = editName.trim();
+    if (name && name !== g.name) goals.save({ ...g, name });
+    editingId = null;
+  }
+  function renameKeys(e: KeyboardEvent, g: GoalRow): void {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      commitRename(g);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      editingId = null;
+    }
+  }
+
   function etaLabel(months: number | null): string {
     if (months === null) return "set a contribution for an ETA";
     if (months === 0) return "reached 🎉";
@@ -86,7 +112,18 @@
           <div class="head">
             <span class="name">
               {#if phase === "done"}<span class="badge done">✓</span>{:else if phase === "active"}<span class="badge active">active</span>{:else}<span class="badge planned">planned</span>{/if}
-              {g.name}
+              {#if editingId === g.id}
+                <!-- svelte-ignore a11y_autofocus -->
+                <input
+                  class="nameedit"
+                  autofocus
+                  bind:value={editName}
+                  onkeydown={(e) => renameKeys(e, g)}
+                  onblur={() => commitRename(g)}
+                />
+              {:else}
+                <button class="rename" title="Click to rename" onclick={() => startRename(g)}>{g.name}</button>
+              {/if}
             </span>
             <span class="controls">
               <button class="move" title="Move earlier" disabled={i === 0} onclick={() => goals.reorder(g.id, -1)}>▲</button>
@@ -285,6 +322,35 @@
     font-family: var(--font-display);
     color: var(--color-gilt);
     letter-spacing: 0.04em;
+    min-width: 0;
+    flex: 1;
+  }
+  /* The name reads as static text until hovered, then invites the click. */
+  .rename {
+    background: transparent;
+    border: none;
+    border-bottom: 1px dashed transparent;
+    color: inherit;
+    cursor: text;
+    font: inherit;
+    letter-spacing: inherit;
+    padding: 0;
+    text-align: left;
+  }
+  .rename:hover {
+    border-bottom-color: var(--color-soot);
+  }
+  .nameedit {
+    background: var(--color-coal);
+    border: 1px solid var(--color-brass);
+    border-radius: 4px;
+    color: var(--color-gilt);
+    font-family: var(--font-display);
+    letter-spacing: 0.04em;
+    font-size: 1rem;
+    padding: 0.15rem 0.35rem;
+    max-width: 100%;
+    width: 11rem;
   }
   .bar {
     height: 8px;
