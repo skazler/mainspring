@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { ASSET_CLASSES, DRIFT_THRESHOLD_PP, type AssetClassId } from "@mainspring/engine";
-  import { cadenceAbbrev, formatUsd } from "$lib/format";
+  import { formatUsd } from "$lib/format";
   import { lots } from "$lib/stores/lots.svelte";
   import { recurring } from "$lib/stores/recurring.svelte";
   import { market } from "$lib/stores/market.svelte";
@@ -10,22 +10,13 @@
   import { hints } from "$lib/stores/hints.svelte";
   import FanChart from "./FanChart.svelte";
   import ConfirmButton from "./ConfirmButton.svelte";
-  import RecurringRemove from "./RecurringRemove.svelte";
 
   const CLASS_LABEL: Record<string, string> = Object.fromEntries(ASSET_CLASSES.map((c) => [c.id, c.label]));
   const classLabel = (id: string) => (id === "unassigned" ? "Unassigned" : (CLASS_LABEL[id] ?? id));
   const pct1 = (x: number) => `${(x * 100).toFixed(1)}%`;
 
-  const CADENCES = ["weekly", "biweekly", "monthly", "quarterly", "annual"] as const;
-  const INVEST_CATEGORIES = ["acorns", "robo-advisor", "brokerage", "401k", "ira", "crypto", "other"];
   const today = () => new Date().toISOString().slice(0, 10);
   let draft = $state({ ticker: "", side: "buy" as "buy" | "sell", shares: 0, price: 0, fee: 0, date: today() });
-  let auto = $state<{ label: string; category: string; amount: number; cadence: (typeof CADENCES)[number] }>({
-    label: "",
-    category: "",
-    amount: 0,
-    cadence: "weekly",
-  });
 
   onMount(() => {
     void lots.load();
@@ -48,21 +39,6 @@
       fee: String(draft.fee || 0),
     });
     draft = { ticker: "", side: "buy", shares: 0, price: 0, fee: 0, date: today() };
-  }
-
-  function addAuto(e: Event) {
-    e.preventDefault();
-    if (!auto.label.trim() || auto.amount <= 0) return;
-    recurring.save({
-      id: crypto.randomUUID(),
-      label: auto.label.trim(),
-      category: auto.category.trim().toLowerCase(),
-      amount: String(auto.amount),
-      cadence: auto.cadence,
-      kind: "investment",
-      active: true,
-    });
-    auto = { label: "", category: "", amount: 0, cadence: auto.cadence };
   }
 
   const positions = $derived(lots.positions);
@@ -168,44 +144,14 @@
 
   <div class="block">
     <h2 class="section">Recurring contributions</h2>
-    {#if hints.show}
-      <p class="hint">Auto-invest transfers — e.g. $50/week into Acorns. Counted as savings, so they lift your total contributions and freedom date.</p>
-    {/if}
-
-    <form class="add" onsubmit={addAuto}>
-      <input class="lbl" placeholder="What is it? (e.g. Acorns)" bind:value={auto.label} />
-      <input class="cat" list="invest-cats" placeholder="Where" bind:value={auto.category} />
-      <datalist id="invest-cats">{#each INVEST_CATEGORIES as c (c)}<option value={c}></option>{/each}</datalist>
-      <input type="number" min="0" step="any" placeholder="Amount" bind:value={auto.amount} />
-      <select bind:value={auto.cadence}>
-        {#each CADENCES as c (c)}<option value={c}>{c}</option>{/each}
-      </select>
-      <button type="submit">Add</button>
-    </form>
-
-    <div class="summary">
-      <span>Auto-investing: <strong>{formatUsd(Number(recurring.investmentsAnnual.toString()))}</strong>/yr</span>
-    </div>
-
-    {#if recurring.error}<span class="warn">{recurring.error}</span>{/if}
-
-    {#if recurring.investments.length > 0}
-      <table class="autos">
-        <tbody>
-          {#each recurring.investments as r (r.id)}
-            <tr class:paused={!recurring.live(r)}>
-              <td class="cap">{r.label}<span class="small"> · {r.category}</span>{#if r.endsOn}<span class="small"> · ends {r.endsOn.slice(5)}</span>{/if}</td>
-              <td class="mono">{formatUsd(Number(r.amount))}<span class="small">/{cadenceAbbrev(r.cadence)}</span></td>
-              <td class="mono">{formatUsd(Number(recurring.annual(r).toString()))}<span class="small">/yr</span></td>
-              <td><button class="link" onclick={() => recurring.toggle(r.id)}>{r.active ? "pause" : "resume"}</button></td>
-              <td><RecurringRemove onEndAfterMonth={() => recurring.endAfterThisMonth(r.id)} onRemoveNow={() => recurring.remove(r.id)} title="Remove contribution" /></td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    {:else}
-      <p class="empty">No auto-invests yet — add one above (e.g. Acorns, $50, weekly).</p>
-    {/if}
+    <p class="moved">
+      Auto-invest transfers now live under <strong>Outflows → Automatic investments</strong>, beside the recurring
+      bills they share a shape with.
+      {#if Number(recurring.investmentsAnnual.toString()) > 0}
+        Currently <strong class="kept">{formatUsd(Number(recurring.investmentsAnnual.toString()))}/yr</strong> across
+        {recurring.investments.length} transfer{recurring.investments.length === 1 ? "" : "s"}.
+      {/if}
+    </p>
   </div>
 
   <h2 class="section">Tracked positions &amp; lots</h2>
@@ -488,23 +434,21 @@
     font-size: 0.85rem;
     margin: 0 0 1rem;
   }
-  .add .lbl {
-    width: 11rem;
-  }
-  .add .cat {
-    width: 8rem;
-    text-transform: lowercase;
-  }
-  .summary {
+  .moved {
     text-align: center;
+    color: var(--color-soot);
     font-family: var(--font-body);
-    color: var(--color-parchment);
-    margin: 0.6rem 0 1rem;
+    font-size: 0.88rem;
+    line-height: 1.6;
+    margin: 0;
   }
-  .summary strong {
+  .moved strong {
+    color: var(--color-gilt);
+    font-weight: 400;
+  }
+  .moved strong.kept {
+    color: var(--color-lime-rust);
     font-family: var(--font-meter);
-    color: var(--color-copper);
-    font-size: 1.15rem;
   }
   .registers .assign {
     max-width: 32rem;
@@ -617,15 +561,5 @@
   .helper strong {
     color: var(--color-parchment);
     font-family: var(--font-meter);
-  }
-  .autos {
-    width: 100%;
-  }
-  .autos .cap {
-    text-align: left;
-    text-transform: capitalize;
-  }
-  .autos .paused {
-    opacity: 0.45;
   }
 </style>

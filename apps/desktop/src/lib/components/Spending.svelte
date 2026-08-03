@@ -16,6 +16,7 @@
   const v = $derived(view.current);
   let showBreakdown = $state(false);
   let showBills = $state(false);
+  let showAutos = $state(false);
   const propSlices = $derived(v.whereItGoes.map((s) => ({ label: s.label, amount: Number(s.amount.toString()) })));
 
   // Cash-flow health, from take-home. Consumption (essentials + spending) is money
@@ -116,10 +117,17 @@
 
   const CATEGORIES = ["software dev", "dining", "groceries", "clothes", "entertainment", "transport", "subscriptions", "other"];
   const BILL_CATEGORIES = ["rent", "mortgage", "groceries", "utilities", "insurance", "car", "phone", "software dev", "api", "subscription", "loan", "other"];
+  const INVEST_CATEGORIES = ["acorns", "robo-advisor", "brokerage", "401k", "ira", "crypto", "other"];
   const CADENCES = ["weekly", "biweekly", "monthly", "quarterly", "annual"] as const;
   const today = () => new Date().toISOString().slice(0, 10);
   let draft = $state({ category: "", label: "", amount: 0, date: today() });
   let bill = $state<{ label: string; category: string; amount: number; cadence: (typeof CADENCES)[number] }>({
+    label: "",
+    category: "",
+    amount: 0,
+    cadence: "monthly",
+  });
+  let auto = $state<{ label: string; category: string; amount: number; cadence: (typeof CADENCES)[number] }>({
     label: "",
     category: "",
     amount: 0,
@@ -159,12 +167,37 @@
     });
     bill = { label: "", category: "", amount: 0, cadence: bill.cadence };
   }
+
+  // Same record as a bill — one `recurring` table, differing only by `kind`.
+  // "investment" routes the money to contributions instead of expenses, which is
+  // why the two live side by side here: the kept-vs-spent choice is the whole
+  // difference, and making it by picking a form is harder to get wrong than
+  // remembering a dropdown.
+  function addAuto(e: Event) {
+    e.preventDefault();
+    if (!auto.label.trim() || auto.amount <= 0) return;
+    recurring.save({
+      id: crypto.randomUUID(),
+      label: auto.label.trim(),
+      category: auto.category.trim().toLowerCase(),
+      amount: String(auto.amount),
+      cadence: auto.cadence,
+      kind: "investment",
+      active: true,
+    });
+    auto = { label: "", category: "", amount: 0, cadence: auto.cadence };
+  }
+
+  /** Flip a misfiled row between spent and kept without losing its history. */
+  function reclassify(r: (typeof recurring.rows)[number]): void {
+    recurring.save({ ...r, kind: r.kind === "bill" ? "investment" : "bill" });
+  }
 </script>
 
 <section class="spending">
   <header class="title">Outflows</header>
   {#if hints.show}
-    <p class="lede">Everything leaving your account — fixed commitments and day-to-day spending. Both feed your total expenses, so your savings pool and freedom date move with them.</p>
+    <p class="lede">Everything leaving your account — what's <strong>spent</strong> and what's <strong>kept</strong>. Bills and day-to-day spending feed your total expenses; automatic investments leave your account too, but stay yours and lift your contributions instead.</p>
   {/if}
 
   <div class="cashflow" class:over={deficitN > 0}>
@@ -269,6 +302,7 @@
               <td class="mono">{formatUsd(Number(r.amount))}<span class="dim">/{cadenceAbbrev(r.cadence)}</span></td>
               <td class="mono">{formatUsd(Number(recurring.annual(r).toString()))}<span class="dim">/yr</span></td>
               <td><button class="link" onclick={() => recurring.toggle(r.id)}>{r.active ? "pause" : "resume"}</button></td>
+              <td><button class="link" title="This is money you keep — move it to Automatic investments" onclick={() => reclassify(r)}>kept?</button></td>
               <td><RecurringRemove onEndAfterMonth={() => recurring.endAfterThisMonth(r.id)} onRemoveNow={() => recurring.remove(r.id)} title="Remove bill" /></td>
             </tr>
           {/each}
@@ -285,6 +319,48 @@
     {:else}
       <p class="empty">No commitments yet — add a bill above.</p>
     {/if}
+    {/if}
+  </div>
+
+  <div class="block">
+    <button class="block-head" onclick={() => (showAutos = !showAutos)}>
+      <span class="block-title">{showAutos ? "▾" : "▸"} Automatic investments</span>
+      <span class="block-total kept">{formatUsd(Number(recurring.investmentsAnnual.toString()))}/yr<span class="dim"> · {recurring.investments.length}</span></span>
+    </button>
+    {#if showAutos}
+      {#if hints.show}
+        <p class="hint">Scheduled transfers into investments — Acorns, a robo-advisor, a standing brokerage buy. This money leaves your account like a bill, but you keep it: it raises your total contributions and pulls your freedom date <strong>closer</strong>, where a bill pushes it away. Drills down under "Investing" in your budget.</p>
+      {/if}
+
+      <form class="add" onsubmit={addAuto}>
+        <input class="lbl" placeholder="What is it? (e.g. Acorns)" bind:value={auto.label} />
+        <input class="cat" list="invest-cats" placeholder="Where" bind:value={auto.category} />
+        <datalist id="invest-cats">{#each INVEST_CATEGORIES as c (c)}<option value={c}></option>{/each}</datalist>
+        <input type="number" min="0" step="any" placeholder="Amount" bind:value={auto.amount} />
+        <select bind:value={auto.cadence}>
+          {#each CADENCES as c (c)}<option value={c}>{c}</option>{/each}
+        </select>
+        <button type="submit">Add</button>
+      </form>
+
+      {#if recurring.investments.length > 0}
+        <table class="bills">
+          <tbody>
+            {#each recurring.investments as r (r.id)}
+              <tr class:paused={!recurring.live(r)}>
+                <td class="cap">{r.label}<span class="dim"> · {r.category}</span>{#if r.endsOn}<span class="dim"> · ends {r.endsOn.slice(5)}</span>{/if}</td>
+                <td class="mono">{formatUsd(Number(r.amount))}<span class="dim">/{cadenceAbbrev(r.cadence)}</span></td>
+                <td class="mono kept">{formatUsd(Number(recurring.annual(r).toString()))}<span class="dim">/yr</span></td>
+                <td><button class="link" onclick={() => recurring.toggle(r.id)}>{r.active ? "pause" : "resume"}</button></td>
+                <td><button class="link" title="This is money you spend — move it to Bills & essentials" onclick={() => reclassify(r)}>spent?</button></td>
+                <td><RecurringRemove onEndAfterMonth={() => recurring.endAfterThisMonth(r.id)} onRemoveNow={() => recurring.remove(r.id)} title="Remove contribution" /></td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      {:else}
+        <p class="empty">No automatic investments yet — add one above (e.g. Acorns, $50, monthly).</p>
+      {/if}
     {/if}
   </div>
 
@@ -570,6 +646,11 @@
     font-family: var(--font-meter);
     color: var(--color-copper);
     font-size: 0.95rem;
+  }
+  /* Kept money reads green against the copper of money that's spent, so the two
+     blocks are distinguishable at a glance without reading the headings. */
+  .kept {
+    color: var(--color-lime-rust);
   }
   .hint {
     text-align: center;
