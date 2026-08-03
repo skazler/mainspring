@@ -288,7 +288,8 @@
   </form>
 
   <div class="summary">
-    <span>This month: <strong>{formatUsd(Number(spending.thisMonthTotal.toString()))}</strong> · ~{formatUsd(Number(spending.annualized.toString()))}/yr projected</span>
+    <span>Last {spending.windowDays} days: <strong>{formatUsd(Number(spending.windowTotal.toString()))}</strong> · ~{formatUsd(Number(spending.annualized.toString()))}/yr projected</span>
+    <span class="sub">This month so far: {formatUsd(Number(spending.thisMonthTotal.toString()))}</span>
   </div>
 
   {#if spending.error}<p class="warn">{spending.error}</p>{/if}
@@ -421,6 +422,13 @@
     font-family: var(--font-meter);
     color: var(--color-copper);
     font-size: 1.15rem;
+  }
+  .summary .sub {
+    display: block;
+    margin-top: 0.25rem;
+    color: var(--color-dim);
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
   }
   .grid {
     display: grid;

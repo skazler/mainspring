@@ -73,7 +73,16 @@ export {
 export type { OpenLot, SaleInput, SaleResult, RealizedGains, LedgerLot, TickerPosition } from "./positions";
 
 // spending
-export { annualizeSpending, annualizeMonth, monthTotal, spendingByCategory } from "./spending/annualize";
+export {
+  annualizeSpending,
+  annualizeMonth,
+  annualizeTrailing,
+  trailingTotal,
+  monthTotal,
+  spendingByCategory,
+  TRAILING_WINDOW_DAYS,
+  MIN_TRAILING_DAYS,
+} from "./spending/annualize";
 export type { SpendingEntry } from "./spending/annualize";
 
 // savings goals

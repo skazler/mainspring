@@ -1,4 +1,11 @@
-import { annualizeMonth, monthTotal, spendingByCategory, type SpendingEntry } from "@mainspring/engine";
+import {
+  annualizeTrailing,
+  monthTotal,
+  spendingByCategory,
+  trailingTotal,
+  TRAILING_WINDOW_DAYS,
+  type SpendingEntry,
+} from "@mainspring/engine";
 import { Money } from "@mainspring/schema";
 import { deleteSpending, loadSpending, saveSpending, type SpendingRow } from "$lib/db";
 import { profile } from "./profile.svelte";
@@ -8,21 +15,31 @@ function toEntry(r: SpendingRow): SpendingEntry {
 }
 
 const thisMonth = () => new Date().toISOString().slice(0, 7);
+const today = () => new Date().toISOString().slice(0, 10);
 
 /**
- * Variable/discretionary spending. The plan uses the CURRENT month's spending,
- * projected out (×12) and resetting each month — so a big month doesn't haunt
- * the budget forever, and each month starts fresh. History is kept for the lists.
+ * Variable/discretionary spending. The plan uses a TRAILING 30-DAY run-rate
+ * scaled to a year. A calendar month was the obvious choice but reset to ~0 on
+ * the 1st, which cut the FI number (expenses ÷ SWR magnifies any change 25×)
+ * and inflated savings for the first days of every month — the projection
+ * sawtoothed. A sliding window has no boundary to fall off. History is kept in
+ * full for the lists and the category breakdown.
  */
 class SpendingStore {
+  readonly windowDays = TRAILING_WINDOW_DAYS;
+
   rows = $state<SpendingRow[]>([]);
   error = $state<string | null>(null);
 
-  /** This month's spending × 12 — the figure that feeds the plan. */
+  /** Trailing-30-day spending scaled to a year — the figure that feeds the plan. */
   get annualized(): Money {
-    return annualizeMonth(this.rows.map(toEntry), thisMonth());
+    return annualizeTrailing(this.rows.map(toEntry), today());
   }
-  /** This month's spending so far (not annualized). */
+  /** Trailing-30-day spending (not annualized) — matches what the plan uses. */
+  get windowTotal(): Money {
+    return trailingTotal(this.rows.map(toEntry), today());
+  }
+  /** This month's spending so far (not annualized). Calendar-month readout only. */
   get thisMonthTotal(): Money {
     return monthTotal(this.rows.map(toEntry), thisMonth());
   }
