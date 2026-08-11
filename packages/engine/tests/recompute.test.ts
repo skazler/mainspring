@@ -255,4 +255,36 @@ describe("recompute — income → pre-tax → tax → net → buckets", () => {
       { numRuns: 200 },
     );
   });
+
+  describe("discretionaryAllowance", () => {
+    const base: ProfileState = {
+      incomeSources: [{ grossAmount: Money.of("120000"), frequency: "annual" }],
+      annualExpenses: Money.of("36000"),
+      taxProfile: { filingStatus: "single", state: "TX", taxYear: 2026 },
+      plan: { currentBalance: Money.of("0"), swr: "0.04", realReturn: "0.05", currentAge: 35, targetRetireAge: 65 },
+      dials: [],
+    };
+
+    it("is gross less taxes, contributions, goals and bills", () => {
+      const r = recompute({ ...base, annualCommitments: Money.of("6000"), annualGoalContributions: Money.of("3600") });
+      const claims = r.tax.total.add(r.ownContributions).add(r.goalContributions).add(r.commitments).add(Money.of("36000"));
+      expect(r.discretionaryAllowance.toString()).toBe(r.gross.subtract(claims).toString());
+    });
+
+    it("does not move when variable spending does — it's the pot, not what's left in it", () => {
+      const quiet = recompute(base);
+      const heavy = recompute({ ...base, variableAnnualSpending: Money.of("18000") });
+      expect(heavy.discretionaryAllowance.toString()).toBe(quiet.discretionaryAllowance.toString());
+      // Leftover, by contrast, is spending-sensitive (and clamps at zero).
+      const lo = (v: typeof quiet) => v.whereItGoes.find((s) => s.label === "Leftover")!.amount;
+      expect(lo(heavy).compare(lo(quiet))).toBe(-1);
+    });
+
+    it("goes negative when the fixed plan alone outruns take-home", () => {
+      const r = recompute({ ...base, annualCommitments: Money.of("90000") });
+      expect(r.discretionaryAllowance.isNegative()).toBe(true);
+      // The deficit is the same overrun seen from the other side.
+      expect(r.deficit.toString()).toBe(r.discretionaryAllowance.multiply("-1").toString());
+    });
+  });
 });
