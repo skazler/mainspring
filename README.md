@@ -8,7 +8,7 @@
 > **MAINSPRING** — the coiled spring at the heart of a mechanical watch: wound once, it releases its energy steadily to drive every hand on the face.
 
 <p align="center">
-  <a href="https://github.com/skazler/mainspring/releases/latest"><img src="https://img.shields.io/badge/Download-MAINSPRING-c9a24b?style=for-the-badge&labelColor=1f1a15" alt="Download MAINSPRING"></a>
+  <a href="https://github.com/skazler/mainspring-releases/releases/latest"><img src="https://img.shields.io/badge/Download-MAINSPRING-c9a24b?style=for-the-badge&labelColor=1f1a15" alt="Download MAINSPRING"></a>
   <br>
   <sub>Pick the installer for your OS. Unsigned builds — macOS needs a one-time <code>xattr -cr</code> unlock (<a href="#macos--unsigned-one-time-unlock">see below</a>); Windows: SmartScreen → Run anyway.</sub>
 </p>
@@ -176,11 +176,17 @@ First run shows a **setup page** (income, taxes, contributions); it's kept local
 
 ## Taking one home
 
-Packaged installers are published under **[Releases](../../releases)** (GitHub "Packages" is for npm/Docker registries, not app binaries) — macOS, Windows, and Linux. To cut one, push a version tag; the [release workflow](./.github/workflows/release.yml) builds all three and attaches the installers:
+Packaged installers for macOS, Windows, and Linux live in the public downloads repo, **[skazler/mainspring-releases](https://github.com/skazler/mainspring-releases/releases/latest)** — not here. This repo is private; publishing the binaries separately lets anyone grab an installer without seeing the source. (GitHub "Packages" is for npm/Docker registries, not app binaries.)
+
+To cut a release: land a `chore:` commit bumping the version in the five places that carry it (`package.json`, `apps/desktop/package.json`, `apps/desktop/src-tauri/Cargo.toml`, `apps/desktop/src-tauri/tauri.conf.json`, `Cargo.lock` — `cargo update -p desktop --offline` handles the last), then push the matching tag from `main`:
 
 ```bash
-git tag v1.0.1 && git push origin v1.0.1   # creates a draft Release; publish it to share
+git tag v1.2.1 && git push origin v1.2.1   # → draft release in mainspring-releases; publish it to share
 ```
+
+The [release workflow](./.github/workflows/release.yml) builds all three platforms and attaches every installer to a single **draft** release in the downloads repo. It re-stamps `tauri.conf.json` from the tag, so installer filenames always match the release even if the bump commit is missed — but the other four files are the repo's source of truth and won't fix themselves.
+
+Expect ~15 minutes for the matrix. The draft's URL carries a placeholder slug until you publish it, at which point it becomes the clean `/releases/tag/v1.2.1`.
 
 ### macOS — unsigned, one-time unlock
 There's no Apple Developer cert yet, so macOS quarantines the download and may claim **"MAINSPRING is damaged and can't be opened."** It isn't damaged — that's just Gatekeeper on an unsigned app. Drag it to **/Applications**, then run once in Terminal:
