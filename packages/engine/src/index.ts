@@ -84,6 +84,8 @@ export {
   MIN_TRAILING_DAYS,
 } from "./spending/annualize";
 export type { SpendingEntry } from "./spending/annualize";
+export { monthlyBudget } from "./spending/budget";
+export type { MonthlyBudget } from "./spending/budget";
 
 // savings goals
 export { goalStatus, monthsBetween } from "./goals/goals";

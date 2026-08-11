@@ -1,8 +1,11 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { monthlyBudget } from "@mainspring/engine";
   import { Money } from "@mainspring/schema";
+  import { daysLeftInMonth, localToday } from "$lib/date";
   import { cadenceAbbrev, formatPct, formatUsd } from "$lib/format";
   import { bucketLabel } from "$lib/buckets";
+  import { clock } from "$lib/stores/clock.svelte";
   import { spending } from "$lib/stores/spending.svelte";
   import { recurring } from "$lib/stores/recurring.svelte";
   import { goals } from "$lib/stores/goals.svelte";
@@ -19,16 +22,29 @@
   let showAutos = $state(false);
   const propSlices = $derived(v.whereItGoes.map((s) => ({ label: s.label, amount: Number(s.amount.toString()) })));
 
-  // Cash-flow health, from take-home. Consumption (essentials + spending) is money
-  // that's gone; the rest goes to the future (goals + investing). Spare derives from
-  // the engine's Leftover slice and deficit (F12) — over budget ⟺ deficit > 0.
   const slice = (label: string) => v.whereItGoes.find((s) => s.label === label)?.amount ?? Money.zero();
-  const consumption = $derived(slice("Bills & essentials").add(slice("Spending")));
   const toFuture = $derived(slice("Goals").add(slice("Investing")));
-  const spare = $derived(slice("Leftover").subtract(v.deficit)); // gross − accounted (may be negative)
-  const spareN = $derived(Number(spare.toString()));
-  const deficitN = $derived(Number(v.deficit.toString()));
   const mo = (m: Money) => Number(m.toString()) / 12;
+
+  // THIS MONTH's budget: a fixed allowance (take-home less bills, goals and
+  // contributions) drawn down by what's actually been logged since the 1st. It
+  // resets on the 1st and only falls — never the trailing run-rate, which slides
+  // and would push "left" back up mid-month as old purchases age out.
+  const budget = $derived(monthlyBudget(v.discretionaryAllowance, spending.thisMonthTotal));
+  const allowanceN = $derived(Number(budget.allowance.toString()));
+  const spentN = $derived(Number(budget.spent.toString()));
+  const leftN = $derived(Number(budget.remaining.toString()));
+  // Bar width; overspending pins it full rather than overflowing the track.
+  const usedPct = $derived(Math.min(100, Math.max(0, Number(budget.used) * 100)));
+  // Thin *allowance* (nothing to spend all month) is a different problem from a
+  // thin *remainder* (spent most of it) — 3% of take-home matches the old cutoff.
+  // `<=` so a zero allowance (no income entered yet) reads amber, not a green
+  // "on track" with nothing to spend.
+  const noRoom = $derived(!budget.overCommitted && allowanceN <= mo(v.net) * 0.03);
+  const runningLow = $derived(!noRoom && leftN >= 0 && allowanceN > 0 && leftN < allowanceN * 0.15);
+  const daysLeft = $derived(daysLeftInMonth(clock.today));
+  const dayWord = $derived(daysLeft === 1 ? "day" : "days");
+  const deficitN = $derived(Number(v.deficit.toString()));
 
   // Group logged spending by month (rows already arrive newest-first).
   const months = $derived(
@@ -119,7 +135,9 @@
   const BILL_CATEGORIES = ["rent", "mortgage", "groceries", "utilities", "insurance", "car", "phone", "software dev", "api", "subscription", "loan", "other"];
   const INVEST_CATEGORIES = ["acorns", "robo-advisor", "brokerage", "401k", "ira", "crypto", "other"];
   const CADENCES = ["weekly", "biweekly", "monthly", "quarterly", "annual"] as const;
-  const today = () => new Date().toISOString().slice(0, 10);
+  // Local, not UTC: an evening purchase must not be stamped with tomorrow's date
+  // (which would drop it into next month's budget on the 31st).
+  const today = localToday;
   let draft = $state({ category: "", label: "", amount: 0, date: today() });
   let bill = $state<{ label: string; category: string; amount: number; cadence: (typeof CADENCES)[number] }>({
     label: "",
@@ -200,28 +218,51 @@
     <p class="lede">Everything leaving your account — what's <strong>spent</strong> and what's <strong>kept</strong>. Bills and day-to-day spending feed your total expenses; automatic investments leave your account too, but stay yours and lift your contributions instead.</p>
   {/if}
 
-  <div class="cashflow" class:over={deficitN > 0}>
+  <div class="cashflow" class:over={leftN < 0 || budget.overCommitted}>
     <div class="verdict">
-      {#if deficitN > 0}
+      {#if budget.overCommitted}
+        <span class="tag red">Over-committed</span>
+        <span class="msg">Bills, goals and contributions run <strong>{formatUsd(-allowanceN)}/mo</strong> past your take-home, so there's no spending budget at all. Spending nothing wouldn't close it — trim a bill or a contribution.</span>
+      {:else if leftN < 0}
         <span class="tag red">Over budget</span>
-        <span class="msg">You're spending <strong>{formatUsd(mo(v.deficit))}/mo</strong> more than you take home. Trim spending, bills, or contributions.</span>
-      {:else if mo(spare) < mo(v.net) * 0.03}
+        <span class="msg">You're <strong>{formatUsd(-leftN)}</strong> past this month's <strong>{formatUsd(allowanceN)}</strong> budget, with {daysLeft} {dayWord} still to go.</span>
+      {:else if noRoom}
         <span class="tag amber">Fully allocated</span>
-        <span class="msg">Every dollar is spoken for — about <strong>{formatUsd(mo(spare))}/mo</strong> spare. No cushion for surprises.</span>
+        <span class="msg">Every dollar is spoken for — only <strong>{formatUsd(allowanceN)}/mo</strong> for day-to-day spending. No cushion for surprises.</span>
+      {:else if runningLow}
+        <span class="tag amber">Running low</span>
+        <span class="msg"><strong>{formatUsd(leftN)}</strong> left of this month's {formatUsd(allowanceN)}, with {daysLeft} {dayWord} to go.</span>
       {:else}
-        <span class="tag green">In the black</span>
-        <span class="msg">You live within your means and invest <strong>{formatPct(v.savingsRate)}</strong> of take-home, with <strong>{formatUsd(mo(spare))}/mo</strong> to spare.</span>
+        <span class="tag green">On track</span>
+        <span class="msg"><strong>{formatUsd(leftN)}</strong> left to spend this month, and you invest <strong>{formatPct(v.savingsRate)}</strong> of take-home.</span>
       {/if}
     </div>
+
+    <!-- The allowance: fixed for the whole month, so it's the same figure on the
+         28th as on the 1st. Only the drawdown below it moves. -->
     <div class="flow">
       <span class="item"><span class="k">Take-home</span><span class="mono">{formatUsd(mo(v.net))}/mo</span></span>
       <span class="op">−</span>
-      <span class="item"><span class="k">Essentials + spending</span><span class="mono">{formatUsd(mo(consumption))}/mo</span></span>
+      <span class="item"><span class="k">Bills &amp; essentials</span><span class="mono">{formatUsd(mo(slice("Bills & essentials")))}/mo</span></span>
       <span class="op">−</span>
       <span class="item"><span class="k">Goals + investing</span><span class="mono">{formatUsd(mo(toFuture))}/mo</span></span>
       <span class="op">=</span>
-      <span class="item"><span class="k">Spare</span><span class="mono" class:neg={spareN < 0}>{formatUsd(mo(spare))}/mo</span></span>
+      <span class="item"><span class="k">Monthly budget</span><span class="mono" class:neg={allowanceN < 0}>{formatUsd(allowanceN)}</span></span>
     </div>
+
+    {#if !budget.overCommitted}
+      <div class="flow drawdown">
+        <span class="item"><span class="k">Budget</span><span class="mono">{formatUsd(allowanceN)}</span></span>
+        <span class="op">−</span>
+        <span class="item"><span class="k">Spent since the 1st</span><span class="mono">{formatUsd(spentN)}</span></span>
+        <span class="op">=</span>
+        <span class="item"><span class="k">Left this month</span><span class="mono big" class:neg={leftN < 0}>{formatUsd(leftN)}</span></span>
+      </div>
+      <div class="meter" role="presentation">
+        <div class="fill" class:spent-over={leftN < 0} style="width: {usedPct}%"></div>
+      </div>
+      <p class="meter-note">{formatPct(budget.used)} of this month's budget used · resets in {daysLeft} {dayWord}</p>
+    {/if}
 
     <button class="breakdown-toggle" onclick={() => (showBreakdown = !showBreakdown)}>
       {showBreakdown ? "▾ hide breakdown" : "▸ see where every dollar goes"}
@@ -366,7 +407,7 @@
 
   <h2 class="section">Variable spending</h2>
   {#if hints.show}
-    <p class="hint">Discretionary purchases. The plan uses <strong>this month's</strong> spending projected out, and resets at the start of each month — so one heavy month doesn't haunt your budget forever.</p>
+    <p class="hint">Discretionary purchases. Your <strong>monthly budget</strong> above counts what you've logged since the 1st and resets on the 1st. The <strong>freedom projection</strong> reads the same purchases as a trailing 30-day run-rate instead — a sliding average, so a heavy week doesn't jolt a 30-year forecast.</p>
   {/if}
 
   <form class="add" onsubmit={add}>
@@ -379,8 +420,8 @@
   </form>
 
   <div class="summary">
-    <span>Last {spending.windowDays} days: <strong>{formatUsd(Number(spending.windowTotal.toString()))}</strong> · ~{formatUsd(Number(spending.annualized.toString()))}/yr projected</span>
-    <span class="sub">This month so far: {formatUsd(Number(spending.thisMonthTotal.toString()))}</span>
+    <span>This month: <strong>{formatUsd(spentN)}</strong> of {formatUsd(allowanceN)} budgeted</span>
+    <span class="sub">Last {spending.windowDays} days: {formatUsd(Number(spending.windowTotal.toString()))} · ~{formatUsd(Number(spending.annualized.toString()))}/yr feeds the projection</span>
   </div>
 
   {#if spending.error}<p class="warn">{spending.error}</p>{/if}
@@ -772,6 +813,42 @@
   }
   .flow .neg {
     color: var(--color-oxblood);
+  }
+  /* The drawdown is the live half — set apart from the fixed allowance above it. */
+  .drawdown {
+    margin-top: 0.85rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--color-etch);
+  }
+  .flow .mono.big {
+    font-size: 1.35rem;
+    color: var(--color-gilt);
+    line-height: 1.15;
+  }
+  .flow .mono.big.neg {
+    color: var(--color-oxblood);
+  }
+  .meter {
+    height: 6px;
+    margin-top: 0.85rem;
+    border: 1px solid var(--color-etch);
+    border-radius: 3px;
+    background: var(--color-coal);
+    overflow: hidden;
+  }
+  .meter .fill {
+    height: 100%;
+    background: var(--color-brass);
+    transition: width 240ms ease-out;
+  }
+  .meter .fill.spent-over {
+    background: var(--color-oxblood);
+  }
+  .meter-note {
+    margin: 0.4rem 0 0;
+    color: var(--color-dim);
+    font-family: var(--font-body);
+    font-size: 0.76rem;
   }
   .month {
     border-bottom: 1px solid var(--color-etch);

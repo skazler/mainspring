@@ -91,6 +91,13 @@ export interface RecomputeView {
   whereItGoes: { label: string; amount: Money }[];
   /** Amount the plan over-commits gross, else 0 (F12) — the mirror of clamped Leftover. */
   deficit: Money;
+  /**
+   * Annual room for discretionary spending: gross less taxes, contributions,
+   * goals and bills. Excludes variable spending (it's the pot that spending is
+   * drawn from) and may be negative when the fixed plan outruns income. Feeds
+   * the monthly budget — see `monthlyBudget`.
+   */
+  discretionaryAllowance: Money;
   /** Contributions from your own income (dials + auto-invest), excluding match. */
   ownContributions: Money;
   /** Employer 401(k) match — free money on top of your own contributions. */

@@ -1,20 +1,8 @@
 import { annualizeItem, annualizeRecurring, recurringByCategory, type RecurringItem } from "@mainspring/engine";
 import { Money } from "@mainspring/schema";
 import { deleteRecurring, loadRecurring, saveRecurring, type RecurringRow } from "$lib/db";
+import { endOfThisMonth, localToday } from "$lib/date";
 import { profile } from "./profile.svelte";
-
-/** Local calendar date as YYYY-MM-DD (matches how the plan keys "this month"). */
-function localToday(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-/** Last calendar day of the current month, YYYY-MM-DD. */
-function endOfThisMonth(): string {
-  const d = new Date();
-  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-  return `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, "0")}-${String(last.getDate()).padStart(2, "0")}`;
-}
 
 /** A row still counts if it's active and today is on/before its end date. */
 function isLive(r: RecurringRow): boolean {

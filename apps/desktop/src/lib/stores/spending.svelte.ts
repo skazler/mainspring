@@ -8,22 +8,33 @@ import {
 } from "@mainspring/engine";
 import { Money } from "@mainspring/schema";
 import { deleteSpending, loadSpending, saveSpending, type SpendingRow } from "$lib/db";
+import { localDaysAgo, localToday } from "$lib/date";
+import { clock } from "./clock.svelte";
 import { profile } from "./profile.svelte";
 
 function toEntry(r: SpendingRow): SpendingEntry {
   return { category: r.category, amount: Money.of(r.amount), spentAt: r.spentAt };
 }
 
-const thisMonth = () => new Date().toISOString().slice(0, 7);
-const today = () => new Date().toISOString().slice(0, 10);
+const today = localToday;
 
 /**
- * Variable/discretionary spending. The plan uses a TRAILING 30-DAY run-rate
- * scaled to a year. A calendar month was the obvious choice but reset to ~0 on
- * the 1st, which cut the FI number (expenses ÷ SWR magnifies any change 25×)
- * and inflated savings for the first days of every month — the projection
- * sawtoothed. A sliding window has no boundary to fall off. History is kept in
- * full for the lists and the category breakdown.
+ * Variable/discretionary spending, read two ways on purpose.
+ *
+ * The PROJECTION (FI number, net worth) uses a TRAILING 30-DAY run-rate scaled
+ * to a year. A calendar month was the obvious choice but reset to ~0 on the 1st,
+ * which cut the FI number (expenses ÷ SWR magnifies any change 25×) and inflated
+ * savings for the first days of every month — the projection sawtoothed. A
+ * sliding window has no boundary to fall off.
+ *
+ * The BUDGET uses the calendar month (`thisMonthTotal`). The same sliding window
+ * that smooths the projection is wrong here: purchases age out of it mid-month,
+ * so "remaining" would climb back up on days you spent nothing, and logging a
+ * coffee could raise your budget if something large aged out the same day. A
+ * budget has to reset on the 1st and only fall. See `monthlyBudget` in the
+ * engine.
+ *
+ * History is kept in full for the lists and the category breakdown.
  */
 class SpendingStore {
   readonly windowDays = TRAILING_WINDOW_DAYS;
@@ -39,9 +50,13 @@ class SpendingStore {
   get windowTotal(): Money {
     return trailingTotal(this.rows.map(toEntry), today());
   }
-  /** This month's spending so far (not annualized). Calendar-month readout only. */
+  /**
+   * Spending logged since the 1st — the figure the monthly budget draws down.
+   * Keyed off the reactive clock so it drops to zero the moment the month turns,
+   * app open or not.
+   */
   get thisMonthTotal(): Money {
-    return monthTotal(this.rows.map(toEntry), thisMonth());
+    return monthTotal(this.rows.map(toEntry), clock.month);
   }
   /** All-time totals per category. */
   get byCategory(): { category: string; total: Money }[] {
@@ -69,7 +84,7 @@ class SpendingStore {
    */
   get windowByCategory(): { category: string; total: Money }[] {
     const end = today();
-    const start = new Date(Date.now() - (TRAILING_WINDOW_DAYS - 1) * 86_400_000).toISOString().slice(0, 10);
+    const start = localDaysAgo(TRAILING_WINDOW_DAYS - 1);
     const inWindow = this.rows.filter((r) => {
       const d = String(r.spentAt).slice(0, 10);
       return d >= start && d <= end;
