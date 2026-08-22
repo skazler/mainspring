@@ -15,6 +15,7 @@
   import Proportions from "./Proportions.svelte";
   import ConfirmButton from "./ConfirmButton.svelte";
   import RecurringRemove from "./RecurringRemove.svelte";
+  import RecurringEdit from "./RecurringEdit.svelte";
 
   const v = $derived(view.current);
   let showBreakdown = $state(false);
@@ -215,6 +216,13 @@
   function reclassify(r: (typeof recurring.rows)[number]): void {
     recurring.save({ ...r, kind: r.kind === "bill" ? "investment" : "bill" });
   }
+
+  /** Row being edited in place, by id — null when nothing is open. */
+  let editingId = $state<string | null>(null);
+  function saveEdit(row: (typeof recurring.rows)[number]): void {
+    recurring.save(row);
+    editingId = null;
+  }
 </script>
 
 <section class="spending">
@@ -344,12 +352,17 @@
         <tbody>
           {#each recurring.bills as r (r.id)}
             <tr class:paused={!recurring.live(r)}>
-              <td class="cap">{r.label}<span class="dim"> · {r.category}</span>{#if r.endsOn}<span class="dim"> · ends {r.endsOn.slice(5)}</span>{/if}</td>
-              <td class="mono">{formatUsd(Number(r.amount))}<span class="dim">/{cadenceAbbrev(r.cadence)}</span></td>
-              <td class="mono">{formatUsd(Number(recurring.annual(r).toString()))}<span class="dim">/yr</span></td>
-              <td><button class="link" onclick={() => recurring.toggle(r.id)}>{r.active ? "pause" : "resume"}</button></td>
-              <td><button class="link" title="This is money you keep — move it to Automatic investments" onclick={() => reclassify(r)}>kept?</button></td>
-              <td><RecurringRemove onEndAfterMonth={() => recurring.endAfterThisMonth(r.id)} onRemoveNow={() => recurring.remove(r.id)} title="Remove bill" /></td>
+              {#if editingId === r.id}
+                <RecurringEdit row={r} categories={BILL_CATEGORIES} datalistId="edit-bill-cats" onsave={saveEdit} oncancel={() => (editingId = null)} />
+              {:else}
+                <td class="cap">{r.label}<span class="dim"> · {r.category}</span>{#if r.endsOn}<span class="dim"> · ends {r.endsOn.slice(5)}</span>{/if}</td>
+                <td class="mono">{formatUsd(Number(r.amount))}<span class="dim">/{cadenceAbbrev(r.cadence)}</span></td>
+                <td class="mono">{formatUsd(Number(recurring.annual(r).toString()))}<span class="dim">/yr</span></td>
+                <td><button class="link" onclick={() => (editingId = r.id)}>edit</button></td>
+                <td><button class="link" onclick={() => recurring.toggle(r.id)}>{r.active ? "pause" : "resume"}</button></td>
+                <td><button class="link" title="This is money you keep — move it to Automatic investments" onclick={() => reclassify(r)}>kept?</button></td>
+                <td><RecurringRemove onEndAfterMonth={() => recurring.endAfterThisMonth(r.id)} onRemoveNow={() => recurring.remove(r.id)} title="Remove bill" /></td>
+              {/if}
             </tr>
           {/each}
         </tbody>
@@ -394,12 +407,17 @@
           <tbody>
             {#each recurring.investments as r (r.id)}
               <tr class:paused={!recurring.live(r)}>
-                <td class="cap">{r.label}<span class="dim"> · {r.category}</span>{#if r.endsOn}<span class="dim"> · ends {r.endsOn.slice(5)}</span>{/if}</td>
-                <td class="mono">{formatUsd(Number(r.amount))}<span class="dim">/{cadenceAbbrev(r.cadence)}</span></td>
-                <td class="mono kept">{formatUsd(Number(recurring.annual(r).toString()))}<span class="dim">/yr</span></td>
-                <td><button class="link" onclick={() => recurring.toggle(r.id)}>{r.active ? "pause" : "resume"}</button></td>
-                <td><button class="link" title="This is money you spend — move it to Bills & essentials" onclick={() => reclassify(r)}>spent?</button></td>
-                <td><RecurringRemove onEndAfterMonth={() => recurring.endAfterThisMonth(r.id)} onRemoveNow={() => recurring.remove(r.id)} title="Remove contribution" /></td>
+                {#if editingId === r.id}
+                  <RecurringEdit row={r} categories={INVEST_CATEGORIES} datalistId="edit-invest-cats" onsave={saveEdit} oncancel={() => (editingId = null)} />
+                {:else}
+                  <td class="cap">{r.label}<span class="dim"> · {r.category}</span>{#if r.endsOn}<span class="dim"> · ends {r.endsOn.slice(5)}</span>{/if}</td>
+                  <td class="mono">{formatUsd(Number(r.amount))}<span class="dim">/{cadenceAbbrev(r.cadence)}</span></td>
+                  <td class="mono kept">{formatUsd(Number(recurring.annual(r).toString()))}<span class="dim">/yr</span></td>
+                  <td><button class="link" onclick={() => (editingId = r.id)}>edit</button></td>
+                  <td><button class="link" onclick={() => recurring.toggle(r.id)}>{r.active ? "pause" : "resume"}</button></td>
+                  <td><button class="link" title="This is money you spend — move it to Bills & essentials" onclick={() => reclassify(r)}>spent?</button></td>
+                  <td><RecurringRemove onEndAfterMonth={() => recurring.endAfterThisMonth(r.id)} onRemoveNow={() => recurring.remove(r.id)} title="Remove contribution" /></td>
+                {/if}
               </tr>
             {/each}
           </tbody>
