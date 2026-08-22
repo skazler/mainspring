@@ -118,6 +118,10 @@ jobs:
         with:
           name: installers-${{ matrix.os }}
           if-no-files-found: ignore
+          # These are only a hand-off to the publish job below, which uploads the
+          # real copies to mainspring-releases. Without this they'd sit for the
+          # default 90 days and eat the account-wide Actions storage quota.
+          retention-days: 1
           # target/ is at the CARGO WORKSPACE ROOT, not apps/desktop/src-tauri.
           # macOS universal builds land under target/universal-apple-darwin/;
           # the ** before release/bundle covers both that and plain target/release.
