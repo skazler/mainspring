@@ -51,6 +51,12 @@ export interface SetupForm {
   inflationPct: number;
   /** Employer 401(k) match as a whole-number percent of gross, e.g. 4. */
   employerMatchPercent: number;
+  /**
+   * Health/dental/vision premiums withheld from each paycheck, in dollars per
+   * month. Entered monthly because that's how a pay stub reads, annualized on
+   * the way into the engine.
+   */
+  benefitPremiumsMonthly: number;
   /** The applied asset-class mix driving the forecast's return assumptions. */
   calibre: Calibre;
   contributions: ContributionForm[];
@@ -75,6 +81,7 @@ export function defaultSetupForm(): SetupForm {
     realReturnPercent: 5,
     inflationPct: 2.5,
     employerMatchPercent: 0,
+    benefitPremiumsMonthly: 0,
     calibre: defaultCalibre(),
     contributions: BUCKET_OPTIONS.map(defaultContribution),
   };
@@ -111,6 +118,7 @@ export function buildProfileState(form: SetupForm): ProfileState {
   return {
     incomeSources,
     annualExpenses: Money.of(String(form.annualExpenses || 0)),
+    annualBenefitPremiums: Money.of(new MoneyDecimal(form.benefitPremiumsMonthly || 0).mul(12).toString()),
     taxProfile: { filingStatus: form.filingStatus, state: form.state.toUpperCase(), taxYear: 2026 },
     plan: {
       currentBalance: Money.of(String(form.currentBalance || 0)),
@@ -155,6 +163,7 @@ export function normalizeSetupForm(form: SetupForm): SetupForm {
     swrPercent: form.swrPercent ?? 4,
     realReturnPercent: form.realReturnPercent ?? 5,
     inflationPct: form.inflationPct ?? 2.5,
+    benefitPremiumsMonthly: form.benefitPremiumsMonthly ?? 0,
     calibre: form.calibre ?? defaultCalibre(),
     contributions: BUCKET_OPTIONS.map((o) => ({ ...defaultContribution(o), ...(byBucket.get(o.bucket) ?? {}) })),
   };

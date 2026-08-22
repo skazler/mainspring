@@ -82,7 +82,13 @@
   {/if}
 
   <div class="readouts">
-    <TakeHomeReadout net={v.net} gross={v.gross} tax={v.tax.total} />
+    <TakeHomeReadout
+      cashTakeHome={v.cashTakeHome}
+      gross={v.gross}
+      tax={v.tax.total}
+      payrollContributions={v.payrollContributions}
+      benefitPremiums={v.benefitPremiums}
+    />
     <FireSummary fire={v.fire} savingsRate={v.savingsRate} employerMatch={v.employerMatch} />
   </div>
 

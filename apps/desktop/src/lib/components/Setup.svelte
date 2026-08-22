@@ -88,6 +88,9 @@
         {#each FREQUENCIES as f (f.v)}<option value={f.v}>{f.l}</option>{/each}
       </select>
     </label>
+    <label title="Health, dental and vision withheld from your paycheck. Read it off a pay stub — it never reaches your bank account.">
+      Benefit premiums $/mo<input type="number" min="0" step="5" bind:value={form.benefitPremiumsMonthly} />
+    </label>
   </fieldset>
 
   <fieldset>

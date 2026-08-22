@@ -15,6 +15,14 @@ import type { ProfileState, RecomputeView } from "./types";
 const PRETAX_BUCKETS = new Set<Bucket>(["401k_pretax", "hsa", "ira"]);
 
 /**
+ * Buckets funded by payroll withholding rather than a transfer from your bank
+ * account. These never land in checking, so they come out of `cashTakeHome`.
+ * A traditional/Roth IRA is deliberately absent — you fund those yourself, out
+ * of money you've already received, so they'd be double-counted here.
+ */
+const PAYROLL_BUCKETS = new Set<Bucket>(["401k_pretax", "roth_401k", "hsa"]);
+
+/**
  * The single entry point the UI calls on every dial change. Pure and synchronous:
  * income → pre-tax → tax → net → bucket allocation. No I/O, no clock.
  */
@@ -43,6 +51,18 @@ export function recompute(state: ProfileState): RecomputeView {
   });
   const net = tax.net;
 
+  // 3b. What actually reaches the bank. `net` is gross − tax, so it still holds
+  //     every dollar withheld from the paycheck: pre-tax deferrals (the tax step
+  //     lowers tax, not net), Roth 401(k), HSA, and benefit premiums. Subtract
+  //     them for the figure a human means by "take-home". Kept separate from
+  //     `net` because the savings pool and `savingsRate` are defined against the
+  //     pre-withholding number and would double-count if this replaced it.
+  const payrollContributions = grossAlloc.allocations
+    .filter((a) => PAYROLL_BUCKETS.has(a.bucket))
+    .reduce((sum, a) => sum.add(a.amount), Money.zero());
+  const benefitPremiums = state.annualBenefitPremiums ?? Money.zero();
+  const cashTakeHome = maxMoney(net.subtract(payrollContributions).subtract(benefitPremiums), Money.zero());
+
   // 4. Net-base dials draw straight from take-home.
   const netAlloc = allocateBase(net, "net", state.dials.filter((d) => d.base === "net"));
 
@@ -66,8 +86,16 @@ export function recompute(state: ProfileState): RecomputeView {
     (sum, a) => sum.add(a.amount),
     Money.zero(),
   );
+  // Benefit premiums are withheld before the money is yours, so they claim the
+  // pool exactly like a dial does — leaving them in would hand the plan back
+  // dollars that never arrived.
   const postTaxSavings = maxMoney(
-    net.subtract(priorClaims).subtract(totalExpenses).subtract(goalContributions).subtract(autoInvestments),
+    net
+      .subtract(priorClaims)
+      .subtract(benefitPremiums)
+      .subtract(totalExpenses)
+      .subtract(goalContributions)
+      .subtract(autoInvestments),
     Money.zero(),
   );
   const savingsAlloc = allocateBase(
@@ -92,6 +120,9 @@ export function recompute(state: ProfileState): RecomputeView {
   // Where each gross dollar goes (slices sum to gross; leftover absorbs the rest).
   const whereItGoes: { label: string; amount: Money }[] = [
     { label: "Taxes", amount: tax.total },
+    // Withheld alongside tax, so it belongs beside it — and omitting it inflated
+    // Leftover by the premium, which is the same lie the "Take-home" label told.
+    ...(benefitPremiums.isZero() ? [] : [{ label: "Benefits", amount: benefitPremiums }]),
     { label: "Investing", amount: ownContributions },
     { label: "Goals", amount: goalContributions },
     // Bills & essentials = the baseline living lump + itemized recurring bills.
@@ -129,6 +160,9 @@ export function recompute(state: ProfileState): RecomputeView {
     pretax,
     tax,
     net,
+    benefitPremiums,
+    payrollContributions,
+    cashTakeHome,
     buckets,
     leftover,
     totalExpenses,

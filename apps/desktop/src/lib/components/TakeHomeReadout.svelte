@@ -3,20 +3,32 @@
   import { formatMoney } from "$lib/format";
 
   interface Props {
-    net: Money;
+    /** What reaches the bank: gross − tax − payroll contributions − premiums. */
+    cashTakeHome: Money;
     gross: Money;
     tax: Money;
+    /** 401(k)/Roth 401(k)/HSA withheld from the paycheck. */
+    payrollContributions: Money;
+    /** Health/dental/vision withheld from the paycheck. */
+    benefitPremiums: Money;
   }
-  let { net, gross, tax }: Props = $props();
+  let { cashTakeHome, gross, tax, payrollContributions, benefitPremiums }: Props = $props();
 </script>
 
 <div class="readout">
   <div class="big">
     <span class="k">Take-home</span>
-    <span class="v">{formatMoney(net)}</span>
+    <span class="v">{formatMoney(cashTakeHome)}</span>
+    <span class="hint">what lands in your bank account</span>
   </div>
   <div class="row"><span class="k">Gross</span><span class="v">{formatMoney(gross)}</span></div>
   <div class="row out"><span class="k">Tax</span><span class="v">−{formatMoney(tax)}</span></div>
+  {#if !payrollContributions.isZero()}
+    <div class="row out"><span class="k">Contributions</span><span class="v">−{formatMoney(payrollContributions)}</span></div>
+  {/if}
+  {#if !benefitPremiums.isZero()}
+    <div class="row out"><span class="k">Benefits</span><span class="v">−{formatMoney(benefitPremiums)}</span></div>
+  {/if}
 </div>
 
 <style>
@@ -44,6 +56,12 @@
     color: var(--color-soot);
     font-size: 0.78rem;
     letter-spacing: 0.05em;
+  }
+  .hint {
+    font-family: var(--font-body);
+    color: var(--color-soot);
+    font-size: 0.68rem;
+    margin-top: 0.1rem;
   }
   .row {
     display: flex;

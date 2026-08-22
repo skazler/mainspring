@@ -23,7 +23,12 @@
   const propSlices = $derived(v.whereItGoes.map((s) => ({ label: s.label, amount: Number(s.amount.toString()) })));
 
   const slice = (label: string) => v.whereItGoes.find((s) => s.label === label)?.amount ?? Money.zero();
-  const toFuture = $derived(slice("Goals").add(slice("Investing")));
+  // The flow below starts from cash take-home, which has already had payroll
+  // deferrals and premiums removed. Subtracting the full Investing slice again
+  // would double-count the 401(k), so only the part funded from your bank
+  // account (IRA, brokerage, Acorns) belongs in this line.
+  const investedFromCash = $derived(slice("Investing").subtract(v.payrollContributions));
+  const toFuture = $derived(slice("Goals").add(investedFromCash));
   const mo = (m: Money) => Number(m.toString()) / 12;
 
   // THIS MONTH's budget: a fixed allowance (take-home less bills, goals and
@@ -40,7 +45,7 @@
   // thin *remainder* (spent most of it) — 3% of take-home matches the old cutoff.
   // `<=` so a zero allowance (no income entered yet) reads amber, not a green
   // "on track" with nothing to spend.
-  const noRoom = $derived(!budget.overCommitted && allowanceN <= mo(v.net) * 0.03);
+  const noRoom = $derived(!budget.overCommitted && allowanceN <= mo(v.cashTakeHome) * 0.03);
   const runningLow = $derived(!noRoom && leftN >= 0 && allowanceN > 0 && leftN < allowanceN * 0.15);
   const daysLeft = $derived(daysLeftInMonth(clock.today));
   const dayWord = $derived(daysLeft === 1 ? "day" : "days");
@@ -234,18 +239,18 @@
         <span class="msg"><strong>{formatUsd(leftN)}</strong> left of this month's {formatUsd(allowanceN)}, with {daysLeft} {dayWord} to go.</span>
       {:else}
         <span class="tag green">On track</span>
-        <span class="msg"><strong>{formatUsd(leftN)}</strong> left to spend this month, and you invest <strong>{formatPct(v.savingsRate)}</strong> of take-home.</span>
+        <span class="msg"><strong>{formatUsd(leftN)}</strong> left to spend this month, and you invest <strong>{formatPct(v.savingsRate)}</strong> of after-tax income.</span>
       {/if}
     </div>
 
     <!-- The allowance: fixed for the whole month, so it's the same figure on the
          28th as on the 1st. Only the drawdown below it moves. -->
     <div class="flow">
-      <span class="item"><span class="k">Take-home</span><span class="mono">{formatUsd(mo(v.net))}/mo</span></span>
+      <span class="item" title="What reaches your bank account — after tax, payroll contributions and benefit premiums."><span class="k">Take-home</span><span class="mono">{formatUsd(mo(v.cashTakeHome))}/mo</span></span>
       <span class="op">−</span>
       <span class="item"><span class="k">Bills &amp; essentials</span><span class="mono">{formatUsd(mo(slice("Bills & essentials")))}/mo</span></span>
       <span class="op">−</span>
-      <span class="item"><span class="k">Goals + investing</span><span class="mono">{formatUsd(mo(toFuture))}/mo</span></span>
+      <span class="item" title="Only what you move from your bank account — your 401(k) is already out of take-home above."><span class="k">Goals + investing</span><span class="mono">{formatUsd(mo(toFuture))}/mo</span></span>
       <span class="op">=</span>
       <span class="item"><span class="k">Monthly budget</span><span class="mono" class:neg={allowanceN < 0}>{formatUsd(allowanceN)}</span></span>
     </div>
