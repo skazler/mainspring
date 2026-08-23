@@ -38,7 +38,8 @@ export function scenarioSummary(form: SetupForm): ScenarioSummary {
   const v = recompute(buildProfileState(form));
   const c = calibreStats(form);
   return {
-    takeHome: Number(v.net.toString()),
+    // Cash reaching the bank, not gross−tax: the column is labelled "Take-home".
+    takeHome: Number(v.cashTakeHome.toString()),
     savingsRate: Number(v.savingsRate),
     fiAge: v.fire.fiAge,
     fiNumber: Number(v.fire.fiNumber.toString()),

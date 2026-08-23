@@ -56,6 +56,18 @@ export interface ProfileState {
   annualInvestments?: Money;
   /** Annualized savings-goal contributions (from the goals tracker). Default 0. */
   annualGoalContributions?: Money;
+  /**
+   * Annualized employer benefit premiums withheld from the paycheck — health,
+   * dental, vision. Default 0. These never reach your bank account, so they are
+   * subtracted from `cashTakeHome` but not from `net`.
+   *
+   * Not modelled as a Section 125 pre-tax deduction yet: real premiums usually
+   * escape both income tax and FICA, so a plan carrying them pays slightly less
+   * tax than this engine reports. Treating them as post-tax keeps `tax` exact
+   * for the deferral-only case and errs conservative (understates cash) rather
+   * than optimistic.
+   */
+  annualBenefitPremiums?: Money;
   plan: PlanInput;
 }
 
@@ -75,7 +87,21 @@ export interface RecomputeView {
   /** Pre-tax deferrals fed into the tax step (401k_pretax + hsa + ira). */
   pretax: Money;
   tax: TaxResult;
+  /**
+   * Gross less tax. NOT what lands in your bank account — payroll deferrals and
+   * benefit premiums are still inside it (see `recompute` step 5). Drives the
+   * savings pool and `savingsRate`; show `cashTakeHome` to a human instead.
+   */
   net: Money;
+  /** Payroll-withheld benefit premiums (health/dental/vision). */
+  benefitPremiums: Money;
+  /** Contributions withheld straight from the paycheck (401k/Roth 401k/HSA). */
+  payrollContributions: Money;
+  /**
+   * What actually reaches your bank account: net − payroll contributions −
+   * benefit premiums. This is the figure a human means by "take-home".
+   */
+  cashTakeHome: Money;
   buckets: BucketAllocation[];
   /** Unallocated remainder per base. */
   leftover: Record<DialBase, Money>;

@@ -15,6 +15,7 @@
   import Proportions from "./Proportions.svelte";
   import ConfirmButton from "./ConfirmButton.svelte";
   import RecurringRemove from "./RecurringRemove.svelte";
+  import RecurringEdit from "./RecurringEdit.svelte";
 
   const v = $derived(view.current);
   let showBreakdown = $state(false);
@@ -23,7 +24,12 @@
   const propSlices = $derived(v.whereItGoes.map((s) => ({ label: s.label, amount: Number(s.amount.toString()) })));
 
   const slice = (label: string) => v.whereItGoes.find((s) => s.label === label)?.amount ?? Money.zero();
-  const toFuture = $derived(slice("Goals").add(slice("Investing")));
+  // The flow below starts from cash take-home, which has already had payroll
+  // deferrals and premiums removed. Subtracting the full Investing slice again
+  // would double-count the 401(k), so only the part funded from your bank
+  // account (IRA, brokerage, Acorns) belongs in this line.
+  const investedFromCash = $derived(slice("Investing").subtract(v.payrollContributions));
+  const toFuture = $derived(slice("Goals").add(investedFromCash));
   const mo = (m: Money) => Number(m.toString()) / 12;
 
   // THIS MONTH's budget: a fixed allowance (take-home less bills, goals and
@@ -40,7 +46,7 @@
   // thin *remainder* (spent most of it) — 3% of take-home matches the old cutoff.
   // `<=` so a zero allowance (no income entered yet) reads amber, not a green
   // "on track" with nothing to spend.
-  const noRoom = $derived(!budget.overCommitted && allowanceN <= mo(v.net) * 0.03);
+  const noRoom = $derived(!budget.overCommitted && allowanceN <= mo(v.cashTakeHome) * 0.03);
   const runningLow = $derived(!noRoom && leftN >= 0 && allowanceN > 0 && leftN < allowanceN * 0.15);
   const daysLeft = $derived(daysLeftInMonth(clock.today));
   const dayWord = $derived(daysLeft === 1 ? "day" : "days");
@@ -210,6 +216,13 @@
   function reclassify(r: (typeof recurring.rows)[number]): void {
     recurring.save({ ...r, kind: r.kind === "bill" ? "investment" : "bill" });
   }
+
+  /** Row being edited in place, by id — null when nothing is open. */
+  let editingId = $state<string | null>(null);
+  function saveEdit(row: (typeof recurring.rows)[number]): void {
+    recurring.save(row);
+    editingId = null;
+  }
 </script>
 
 <section class="spending">
@@ -234,18 +247,18 @@
         <span class="msg"><strong>{formatUsd(leftN)}</strong> left of this month's {formatUsd(allowanceN)}, with {daysLeft} {dayWord} to go.</span>
       {:else}
         <span class="tag green">On track</span>
-        <span class="msg"><strong>{formatUsd(leftN)}</strong> left to spend this month, and you invest <strong>{formatPct(v.savingsRate)}</strong> of take-home.</span>
+        <span class="msg"><strong>{formatUsd(leftN)}</strong> left to spend this month, and you invest <strong>{formatPct(v.savingsRate)}</strong> of after-tax income.</span>
       {/if}
     </div>
 
     <!-- The allowance: fixed for the whole month, so it's the same figure on the
          28th as on the 1st. Only the drawdown below it moves. -->
     <div class="flow">
-      <span class="item"><span class="k">Take-home</span><span class="mono">{formatUsd(mo(v.net))}/mo</span></span>
+      <span class="item" title="What reaches your bank account — after tax, payroll contributions and benefit premiums."><span class="k">Take-home</span><span class="mono">{formatUsd(mo(v.cashTakeHome))}/mo</span></span>
       <span class="op">−</span>
       <span class="item"><span class="k">Bills &amp; essentials</span><span class="mono">{formatUsd(mo(slice("Bills & essentials")))}/mo</span></span>
       <span class="op">−</span>
-      <span class="item"><span class="k">Goals + investing</span><span class="mono">{formatUsd(mo(toFuture))}/mo</span></span>
+      <span class="item" title="Only what you move from your bank account — your 401(k) is already out of take-home above."><span class="k">Goals + investing</span><span class="mono">{formatUsd(mo(toFuture))}/mo</span></span>
       <span class="op">=</span>
       <span class="item"><span class="k">Monthly budget</span><span class="mono" class:neg={allowanceN < 0}>{formatUsd(allowanceN)}</span></span>
     </div>
@@ -339,12 +352,17 @@
         <tbody>
           {#each recurring.bills as r (r.id)}
             <tr class:paused={!recurring.live(r)}>
-              <td class="cap">{r.label}<span class="dim"> · {r.category}</span>{#if r.endsOn}<span class="dim"> · ends {r.endsOn.slice(5)}</span>{/if}</td>
-              <td class="mono">{formatUsd(Number(r.amount))}<span class="dim">/{cadenceAbbrev(r.cadence)}</span></td>
-              <td class="mono">{formatUsd(Number(recurring.annual(r).toString()))}<span class="dim">/yr</span></td>
-              <td><button class="link" onclick={() => recurring.toggle(r.id)}>{r.active ? "pause" : "resume"}</button></td>
-              <td><button class="link" title="This is money you keep — move it to Automatic investments" onclick={() => reclassify(r)}>kept?</button></td>
-              <td><RecurringRemove onEndAfterMonth={() => recurring.endAfterThisMonth(r.id)} onRemoveNow={() => recurring.remove(r.id)} title="Remove bill" /></td>
+              {#if editingId === r.id}
+                <RecurringEdit row={r} categories={BILL_CATEGORIES} datalistId="edit-bill-cats" onsave={saveEdit} oncancel={() => (editingId = null)} />
+              {:else}
+                <td class="cap">{r.label}<span class="dim"> · {r.category}</span>{#if r.endsOn}<span class="dim"> · ends {r.endsOn.slice(5)}</span>{/if}</td>
+                <td class="mono">{formatUsd(Number(r.amount))}<span class="dim">/{cadenceAbbrev(r.cadence)}</span></td>
+                <td class="mono">{formatUsd(Number(recurring.annual(r).toString()))}<span class="dim">/yr</span></td>
+                <td><button class="link" onclick={() => (editingId = r.id)}>edit</button></td>
+                <td><button class="link" onclick={() => recurring.toggle(r.id)}>{r.active ? "pause" : "resume"}</button></td>
+                <td><button class="link" title="This is money you keep — move it to Automatic investments" onclick={() => reclassify(r)}>kept?</button></td>
+                <td><RecurringRemove onEndAfterMonth={() => recurring.endAfterThisMonth(r.id)} onRemoveNow={() => recurring.remove(r.id)} title="Remove bill" /></td>
+              {/if}
             </tr>
           {/each}
         </tbody>
@@ -389,12 +407,17 @@
           <tbody>
             {#each recurring.investments as r (r.id)}
               <tr class:paused={!recurring.live(r)}>
-                <td class="cap">{r.label}<span class="dim"> · {r.category}</span>{#if r.endsOn}<span class="dim"> · ends {r.endsOn.slice(5)}</span>{/if}</td>
-                <td class="mono">{formatUsd(Number(r.amount))}<span class="dim">/{cadenceAbbrev(r.cadence)}</span></td>
-                <td class="mono kept">{formatUsd(Number(recurring.annual(r).toString()))}<span class="dim">/yr</span></td>
-                <td><button class="link" onclick={() => recurring.toggle(r.id)}>{r.active ? "pause" : "resume"}</button></td>
-                <td><button class="link" title="This is money you spend — move it to Bills & essentials" onclick={() => reclassify(r)}>spent?</button></td>
-                <td><RecurringRemove onEndAfterMonth={() => recurring.endAfterThisMonth(r.id)} onRemoveNow={() => recurring.remove(r.id)} title="Remove contribution" /></td>
+                {#if editingId === r.id}
+                  <RecurringEdit row={r} categories={INVEST_CATEGORIES} datalistId="edit-invest-cats" onsave={saveEdit} oncancel={() => (editingId = null)} />
+                {:else}
+                  <td class="cap">{r.label}<span class="dim"> · {r.category}</span>{#if r.endsOn}<span class="dim"> · ends {r.endsOn.slice(5)}</span>{/if}</td>
+                  <td class="mono">{formatUsd(Number(r.amount))}<span class="dim">/{cadenceAbbrev(r.cadence)}</span></td>
+                  <td class="mono kept">{formatUsd(Number(recurring.annual(r).toString()))}<span class="dim">/yr</span></td>
+                  <td><button class="link" onclick={() => (editingId = r.id)}>edit</button></td>
+                  <td><button class="link" onclick={() => recurring.toggle(r.id)}>{r.active ? "pause" : "resume"}</button></td>
+                  <td><button class="link" title="This is money you spend — move it to Bills & essentials" onclick={() => reclassify(r)}>spent?</button></td>
+                  <td><RecurringRemove onEndAfterMonth={() => recurring.endAfterThisMonth(r.id)} onRemoveNow={() => recurring.remove(r.id)} title="Remove contribution" /></td>
+                {/if}
               </tr>
             {/each}
           </tbody>

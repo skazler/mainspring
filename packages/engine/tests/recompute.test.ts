@@ -287,4 +287,53 @@ describe("recompute — income → pre-tax → tax → net → buckets", () => {
       expect(r.deficit.toString()).toBe(r.discretionaryAllowance.multiply("-1").toString());
     });
   });
+
+  describe("cashTakeHome — what actually reaches the bank", () => {
+    /** $105k, 16% pre-tax 401(k), $300/mo Roth IRA funded from checking, TX single. */
+    const base = (annualBenefitPremiums?: Money): ProfileState => ({
+      incomeSources: [{ grossAmount: Money.of("105000"), frequency: "annual" }],
+      annualExpenses: Money.zero(),
+      ...(annualBenefitPremiums ? { annualBenefitPremiums } : {}),
+      taxProfile: { filingStatus: "single", state: "TX", taxYear: 2026 },
+      plan: { currentBalance: Money.zero(), swr: "0.04", realReturn: "0.05", currentAge: 27, targetRetireAge: 50 },
+      dials: [
+        { bucket: "401k_pretax", base: "gross", pct: "0.16", priority: 1, annualCap: Money.of("24500") },
+        { bucket: "roth_ira", base: "gross", pct: bps(343), priority: 2, annualCap: Money.of("7500") },
+      ],
+    });
+
+    it("subtracts payroll withholding that `net` still contains", () => {
+      const r = recompute(base(Money.of("1993")));
+
+      // `net` is gross − tax and deliberately still holds the 401(k).
+      expect(r.net.toString()).toBe("86393.5000");
+      expect(r.payrollContributions.toString()).toBe("16800.0000");
+      expect(r.benefitPremiums.toString()).toBe("1993.0000");
+
+      // The figure a human means by "take-home": 86,393.50 − 16,800 − 1,993.
+      expect(r.cashTakeHome.toString()).toBe("67600.5000");
+      expect(r.cashTakeHome.compare(r.net)).toBeLessThan(0);
+    });
+
+    it("excludes an IRA — you fund that yourself, out of money already received", () => {
+      const r = recompute(base());
+      // Only the 401(k) is withheld; the Roth IRA dial must not be counted again.
+      expect(r.payrollContributions.toString()).toBe("16800.0000");
+      expect(r.cashTakeHome.toString()).toBe("69593.5000");
+    });
+
+    it("premiums claim the savings pool and appear in the breakdown", () => {
+      const withOut = recompute(base());
+      const withIn = recompute(base(Money.of("1993")));
+
+      const slice = withIn.whereItGoes.find((s) => s.label === "Benefits");
+      expect(slice?.amount.toString()).toBe("1993.0000");
+      expect(withOut.whereItGoes.some((s) => s.label === "Benefits")).toBe(false);
+
+      // A premium is money that never arrived: it shrinks the discretionary
+      // allowance one-for-one rather than quietly inflating Leftover.
+      const delta = withOut.discretionaryAllowance.subtract(withIn.discretionaryAllowance);
+      expect(delta.toString()).toBe("1993.0000");
+    });
+  });
 });
