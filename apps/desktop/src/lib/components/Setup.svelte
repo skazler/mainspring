@@ -82,14 +82,14 @@
 
   <fieldset>
     <legend>Income</legend>
-    <label>Gross income<input type="number" min="0" step="1000" bind:value={form.grossAmount} /></label>
+    <label>Gross income<input type="number" min="0" step="any" bind:value={form.grossAmount} /></label>
     <label>Frequency
       <select bind:value={form.frequency}>
         {#each FREQUENCIES as f (f.v)}<option value={f.v}>{f.l}</option>{/each}
       </select>
     </label>
     <label title="Health, dental and vision withheld from your paycheck. Read it off a pay stub — it never reaches your bank account.">
-      Benefit premiums $/mo<input type="number" min="0" step="5" bind:value={form.benefitPremiumsMonthly} />
+      Benefit premiums $/mo<input type="number" min="0" step="any" bind:value={form.benefitPremiumsMonthly} />
     </label>
   </fieldset>
 
@@ -112,10 +112,10 @@
     <legend>You</legend>
     <label>Current age<input type="number" min="0" max="100" bind:value={form.currentAge} /></label>
     <label>Target retire age<input type="number" min="0" max="100" bind:value={form.targetRetireAge} /></label>
-    <label>Invested assets today<input type="number" min="0" step="1000" bind:value={form.currentBalance} /></label>
-    <label>Withdrawal rate %<input type="number" min="1" max="10" step="0.1" bind:value={form.swrPercent} /></label>
-    <label>Assumed real return %<input type="number" min="0" max="15" step="0.1" bind:value={form.realReturnPercent} /></label>
-    <label title="Deflates nominal market returns into real ones for the forecast.">Assumed inflation %<input type="number" min="0" max="15" step="0.1" bind:value={form.inflationPct} /></label>
+    <label>Invested assets today<input type="number" min="0" step="any" bind:value={form.currentBalance} /></label>
+    <label>Withdrawal rate %<input type="number" min="1" max="10" step="any" bind:value={form.swrPercent} /></label>
+    <label>Assumed real return %<input type="number" min="0" max="15" step="any" bind:value={form.realReturnPercent} /></label>
+    <label title="Deflates nominal market returns into real ones for the forecast.">Assumed inflation %<input type="number" min="0" max="15" step="any" bind:value={form.inflationPct} /></label>
   </fieldset>
 
   <fieldset class="contributions">
@@ -147,7 +147,7 @@
     <div class="contrib match on">
       <span class="toggle" title="The percent of your salary your employer adds to your 401(k). Free money — it grows your net worth but isn't taken from your paycheck.">Employer 401(k) match</span>
       <label class="pct">
-        <input type="number" min="0" max="25" step="0.1" bind:value={form.employerMatchPercent} /> %
+        <input type="number" min="0" max="25" step="any" bind:value={form.employerMatchPercent} /> %
       </label>
       <span class="cap">of gross</span>
     </div>
