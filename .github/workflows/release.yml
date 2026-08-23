@@ -8,22 +8,69 @@ name: Release
 #
 #   git tag v1.0.1 && git push origin v1.0.1
 #
-# How it works: the `build` job (matrix) compiles the installers on each OS and
-# uploads them as workflow artifacts; the `publish` job then attaches all of
-# them to ONE release in the public repo, using the MAINSPRING_RELEASES_REPO_TOKEN
-# secret (a fine-grained PAT scoped to skazler/mainspring-releases with
-# Contents: read/write).
+# How it works: `create` opens an empty DRAFT release in the public repo, then
+# each `build` job compiles on its own OS and uploads its installers straight
+# onto that draft. Review it in the public repo, then hit Publish to go live.
 #
-# The release is created as a DRAFT — review it in the public repo, then hit
-# Publish to make the downloads live. Builds are UNSIGNED (no Apple/Windows cert
-# wired in); on macOS, first launch: right-click → Open.
+# Installers are NOT passed through Actions artifacts. They used to be — build
+# uploaded, publish downloaded — which cost a full round trip through the
+# account-wide artifact storage quota. v1.3.0 failed on exactly that: all three
+# platforms compiled, then every upload was rejected with "Artifact storage
+# quota has been hit", and publish was skipped. That quota is shared across all
+# repos and only recalculates every 6-12 hours, so a build here could be broken
+# by an unrelated repo and stay broken for half a day. Uploading to the release
+# directly removes the dependency rather than shrinking it (`retention-days: 1`
+# was the earlier, weaker attempt at the same problem).
+#
+# Builds are UNSIGNED (no Apple/Windows cert wired in); on macOS, first launch:
+# right-click -> Open.
 
 on:
   push:
     tags: ["v*"]
 
+# One release at a time. Two tags pushed together would otherwise race on
+# creating the same draft and interleave their uploads onto it.
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  RELEASES_REPO: skazler/mainspring-releases
+
 jobs:
+  # Open the draft first so the build jobs have somewhere to upload to. Creating
+  # it from three parallel jobs instead would race.
+  create:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create draft release in the public downloads repo
+        env:
+          GH_TOKEN: ${{ secrets.MAINSPRING_RELEASES_REPO_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          # Idempotent: re-running a failed release must not fall over on an
+          # existing draft, and must not clobber assets already uploaded.
+          if gh release view "$TAG" --repo "$RELEASES_REPO" >/dev/null 2>&1; then
+            echo "Draft $TAG already exists — reusing it."
+            exit 0
+          fi
+          cat > notes.md <<'EOF'
+          Local-first planner for financial independence — your data stays on your machine. Download the installer for your OS below.
+
+          **Builds are unsigned.**
+          - **macOS:** it may say *"MAINSPRING is damaged and can't be opened"* — it isn't. Move it to `/Applications`, then run once: `xattr -cr /Applications/MAINSPRING.app` and open it normally.
+          - **Windows:** SmartScreen → **More info → Run anyway**.
+          EOF
+          gh release create "$TAG" \
+            --repo "$RELEASES_REPO" \
+            --title "MAINSPRING $TAG" \
+            --notes-file notes.md \
+            --draft
+
   build:
+    needs: create
     strategy:
       fail-fast: false
       matrix:
@@ -110,51 +157,37 @@ jobs:
           projectPath: apps/desktop
           args: ${{ matrix.args }}
 
-      # Collect the installers this OS produced. Globs cover every Tauri bundle
-      # type; if-no-files-found: ignore so a platform that skips a format (e.g.
-      # no .rpm) doesn't fail the job. REPLACE/trim these globs as needed.
-      - name: Stage installers
-        uses: actions/upload-artifact@v4
-        with:
-          name: installers-${{ matrix.os }}
-          if-no-files-found: ignore
-          # These are only a hand-off to the publish job below, which uploads the
-          # real copies to mainspring-releases. Without this they'd sit for the
-          # default 90 days and eat the account-wide Actions storage quota.
-          retention-days: 1
-          # target/ is at the CARGO WORKSPACE ROOT, not apps/desktop/src-tauri.
-          # macOS universal builds land under target/universal-apple-darwin/;
-          # the ** before release/bundle covers both that and plain target/release.
-          path: |
-            target/**/release/bundle/**/*.dmg
-            target/**/release/bundle/**/*.msi
-            target/**/release/bundle/**/*.exe
-            target/**/release/bundle/**/*.AppImage
-            target/**/release/bundle/**/*.deb
-
-  publish:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download all installers
-        uses: actions/download-artifact@v4
-        with:
-          path: dist
-          merge-multiple: true
-
-      - name: Publish release to public downloads repo
-        uses: softprops/action-gh-release@v2
-        with:
-          repository: skazler/mainspring-releases
-          token: ${{ secrets.MAINSPRING_RELEASES_REPO_TOKEN }}
-          tag_name: ${{ github.ref_name }}
-          name: "MAINSPRING ${{ github.ref_name }}"
-          draft: true
-          prerelease: false
-          files: dist/**/*
-          body: |
-            Local-first planner for financial independence — your data stays on your machine. Download the installer for your OS below.
-
-            **Builds are unsigned.**
-            - **macOS:** it may say *"MAINSPRING is damaged and can't be opened"* — it isn't. Move it to `/Applications`, then run once: `xattr -cr /Applications/MAINSPRING.app` and open it normally.
-            - **Windows:** SmartScreen → **More info → Run anyway**.
+      # Upload straight onto the draft — no artifact round trip, so the
+      # account-wide artifact quota can't fail a release again.
+      #
+      # target/ is at the CARGO WORKSPACE ROOT, not apps/desktop/src-tauri.
+      # macOS universal builds land under target/universal-apple-darwin/; the
+      # ** before release/bundle covers both that and plain target/release.
+      - name: Upload installers to the draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.MAINSPRING_RELEASES_REPO_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          # `find`, not a `**` glob: macOS runners still ship bash 3.2, which has
+          # neither globstar nor mapfile. The read loop is the portable way to
+          # fill an array on 3.2 and stays correct for paths containing spaces.
+          files=()
+          while IFS= read -r f; do files+=("$f"); done < <(
+            find target -type f -path '*/release/bundle/*' \
+              \( -name '*.dmg' -o -name '*.msi' -o -name '*.exe' \
+                 -o -name '*.AppImage' -o -name '*.deb' \)
+          )
+          # A platform legitimately skips formats it doesn't build (no .deb on
+          # Windows), so per-extension misses are fine — but producing NOTHING
+          # means this OS silently contributed no installer, which would ship a
+          # release missing a platform. Fail loudly instead.
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error::No installers found for ${{ matrix.os }} under target/**/release/bundle/"
+            exit 1
+          fi
+          printf 'uploading: %s\n' "${files[@]}"
+          # --clobber so re-running a partially-failed release replaces its own
+          # assets instead of erroring on names that are already there.
+          gh release upload "$TAG" "${files[@]}" --repo "$RELEASES_REPO" --clobber
