@@ -181,12 +181,14 @@ Packaged installers for macOS, Windows, and Linux live in the public downloads r
 To cut a release: land a `chore:` commit bumping the version in the five places that carry it (`package.json`, `apps/desktop/package.json`, `apps/desktop/src-tauri/Cargo.toml`, `apps/desktop/src-tauri/tauri.conf.json`, `Cargo.lock` — `cargo update -p desktop --offline` handles the last), then push the matching tag from `main`:
 
 ```bash
-git tag v1.2.1 && git push origin v1.2.1   # → draft release in mainspring-releases; publish it to share
+git tag v1.3.1 && git push origin v1.3.1   # → draft release in mainspring-releases; publish it to share
 ```
 
-The [release workflow](./.github/workflows/release.yml) builds all three platforms and attaches every installer to a single **draft** release in the downloads repo. It re-stamps `tauri.conf.json` from the tag, so installer filenames always match the release even if the bump commit is missed — but the other four files are the repo's source of truth and won't fix themselves.
+The [release workflow](./.github/workflows/release.yml) builds all three platforms and attaches every installer to a single **draft** release in the downloads repo. It re-stamps `tauri.conf.json` from the tag, so installer filenames always match the release even if the bump commit is missed — but the other four files are the repo's source of truth and won't fix themselves. Each build job uploads straight onto the draft rather than passing installers through Actions artifacts, so the account-wide artifact quota can't fail a release; re-running a partially-failed one is safe, since the draft is reused and assets are replaced rather than duplicated.
 
-Expect ~15 minutes for the matrix. The draft's URL carries a placeholder slug until you publish it, at which point it becomes the clean `/releases/tag/v1.2.1`.
+Expect ~15 minutes for the matrix. The draft's URL carries a placeholder slug until you publish it, at which point it becomes the clean `/releases/tag/v1.3.1`.
+
+Publishing the draft is the last manual step: the downloads repo rewrites its own README from the release's actual assets on `release: published`, so the direct download links there never need touching by hand.
 
 ### macOS — unsigned, one-time unlock
 There's no Apple Developer cert yet, so macOS quarantines the download and may claim **"MAINSPRING is damaged and can't be opened."** It isn't damaged — that's just Gatekeeper on an unsigned app. Drag it to **/Applications**, then run once in Terminal:
