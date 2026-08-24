@@ -176,7 +176,7 @@ First run shows a **setup page** (income, taxes, contributions); it's kept local
 
 ## Taking one home
 
-Packaged installers for macOS, Windows, and Linux live in the public downloads repo, **[skazler/mainspring-releases](https://github.com/skazler/mainspring-releases/releases/latest)** — not here. This repo is private; publishing the binaries separately lets anyone grab an installer without seeing the source. (GitHub "Packages" is for npm/Docker registries, not app binaries.)
+Packaged installers for macOS, Windows, and Linux live in the downloads repo, **[skazler/mainspring-releases](https://github.com/skazler/mainspring-releases/releases/latest)** — not here. Keeping binaries out of the source repo means a release is a publish step rather than a commit, and someone who only wants the app never has to clone this. (GitHub "Packages" is for npm/Docker registries, not app binaries.)
 
 To cut a release: land a `chore:` commit bumping the version in the five places that carry it (`package.json`, `apps/desktop/package.json`, `apps/desktop/src-tauri/Cargo.toml`, `apps/desktop/src-tauri/tauri.conf.json`, `Cargo.lock` — `cargo update -p desktop --offline` handles the last), then push the matching tag from `main`:
 
