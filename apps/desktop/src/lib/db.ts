@@ -59,10 +59,25 @@ async function open() {
       monthly_contribution numeric(18, 4),
       contribution_cadence text NOT NULL DEFAULT 'monthly',
       sort_order integer NOT NULL DEFAULT 0,
+      active boolean NOT NULL DEFAULT true,
       created_at timestamptz NOT NULL DEFAULT now()
     );
     ALTER TABLE goals ADD COLUMN IF NOT EXISTS sort_order integer NOT NULL DEFAULT 0;
     ALTER TABLE goals ADD COLUMN IF NOT EXISTS contribution_cadence text NOT NULL DEFAULT 'monthly';
+    -- Goals used to fund strictly one at a time (the first unfinished one). Now
+    -- each carries its own active flag, so an existing database is backfilled to
+    -- exactly the plan it had: the goal that *was* the active one stays active,
+    -- everything else starts paused. Guarded by the column check so the backfill
+    -- runs once and never re-pauses goals the user has since switched on.
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'goals' AND column_name = 'active') THEN
+        ALTER TABLE goals ADD COLUMN active boolean NOT NULL DEFAULT false;
+        UPDATE goals SET active = true WHERE id = (
+          SELECT id FROM goals WHERE saved_amount < target_amount ORDER BY sort_order, created_at LIMIT 1
+        );
+      END IF;
+    END $$;
     CREATE TABLE IF NOT EXISTS recurring (
       id text PRIMARY KEY,
       label text NOT NULL,
@@ -267,7 +282,7 @@ export async function deleteSpending(id: string): Promise<void> {
 
 /**
  * A savings goal (money as exact strings). `contribution` is the amount set aside
- * per `cadence`; `sortOrder` sequences the checklist. (The physical column is still
+ * per `cadence`; `sortOrder` is display sequence. (The physical column is still
  * `monthly_contribution` for back-compat, but the value is per-cadence now.)
  */
 export interface GoalRow {
@@ -279,6 +294,8 @@ export interface GoalRow {
   contribution: string | null;
   cadence: "weekly" | "biweekly" | "monthly" | "quarterly" | "annual";
   sortOrder: number;
+  /** Whether this goal currently claims its contribution from the plan. */
+  active: boolean;
 }
 
 export async function loadGoals(): Promise<GoalRow[]> {
@@ -293,8 +310,9 @@ export async function loadGoals(): Promise<GoalRow[]> {
     monthly_contribution: string | null;
     contribution_cadence: GoalRow["cadence"];
     sort_order: number;
+    active: boolean;
   }>(
-    "SELECT id, name, target_amount, saved_amount, target_date::text AS target_date, monthly_contribution, contribution_cadence, sort_order, created_at FROM goals ORDER BY sort_order, created_at;",
+    "SELECT id, name, target_amount, saved_amount, target_date::text AS target_date, monthly_contribution, contribution_cadence, sort_order, active, created_at FROM goals ORDER BY sort_order, created_at;",
   );
   return res.rows.map((r) => ({
     id: r.id,
@@ -305,6 +323,7 @@ export async function loadGoals(): Promise<GoalRow[]> {
     contribution: r.monthly_contribution,
     cadence: r.contribution_cadence,
     sortOrder: r.sort_order,
+    active: r.active,
   }));
 }
 
@@ -312,11 +331,11 @@ export async function saveGoal(g: GoalRow): Promise<void> {
   if (!browser) return;
   const d = await db();
   await d.query(
-    `INSERT INTO goals (id, name, target_amount, saved_amount, target_date, monthly_contribution, contribution_cadence, sort_order)
-     VALUES ($1, $2, $3::numeric, $4::numeric, $5, $6, $7, $8)
+    `INSERT INTO goals (id, name, target_amount, saved_amount, target_date, monthly_contribution, contribution_cadence, sort_order, active)
+     VALUES ($1, $2, $3::numeric, $4::numeric, $5, $6, $7, $8, $9)
      ON CONFLICT (id) DO UPDATE SET
-       name = $2, target_amount = $3::numeric, saved_amount = $4::numeric, target_date = $5, monthly_contribution = $6, contribution_cadence = $7, sort_order = $8;`,
-    [g.id, g.name, g.targetAmount, g.savedAmount, g.targetDate, g.contribution, g.cadence, g.sortOrder],
+       name = $2, target_amount = $3::numeric, saved_amount = $4::numeric, target_date = $5, monthly_contribution = $6, contribution_cadence = $7, sort_order = $8, active = $9;`,
+    [g.id, g.name, g.targetAmount, g.savedAmount, g.targetDate, g.contribution, g.cadence, g.sortOrder, g.active],
   );
 }
 
@@ -431,7 +450,8 @@ export interface BackupData {
   setup: SetupForm | null;
   spending: SpendingRow[];
   recurring: RecurringRow[];
-  goals: GoalRow[];
+  /** `active` is optional: backups written before goals could run side by side omit it. */
+  goals: (Omit<GoalRow, "active"> & { active?: boolean })[];
   lots: LotRow[];
   scenarios: Scenario[];
   /** The Registers' ticker → asset-class map (added in backup v2). */
@@ -472,7 +492,14 @@ export async function importAll(data: BackupData): Promise<void> {
   if (data.setup) await saveSetupForm(data.setup);
   for (const r of data.spending) await saveSpending(r);
   for (const r of data.recurring ?? []) await saveRecurring(r);
-  for (const g of data.goals ?? []) await saveGoal(g);
+  // Goals in a backup written before goals could run side by side carry no
+  // `active` flag. Restoring them all as funded would silently multiply the
+  // claim on the plan, so rebuild the plan the file was actually describing:
+  // the first unfinished goal funded, the rest paused.
+  const legacyActive = (data.goals ?? []).find((g) => g.active === undefined && Number(g.savedAmount) < Number(g.targetAmount));
+  for (const g of data.goals ?? []) {
+    await saveGoal({ ...g, active: g.active ?? g.id === legacyActive?.id });
+  }
   for (const l of data.lots ?? []) await saveLot(l);
   for (const s of data.scenarios ?? []) await saveScenario(s);
   // v2 backups carry the ticker → asset-class map; older files simply omit it.

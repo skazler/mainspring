@@ -10,13 +10,14 @@ function annualContribution(g: GoalRow): Money {
   return g.contribution ? annualizeItem({ amount: Money.of(g.contribution), cadence: g.cadence }) : Money.zero();
 }
 
-/** Which stage a goal is at in the checklist. */
-export type GoalPhase = "done" | "active" | "planned";
+/** Which stage a goal is at. */
+export type GoalPhase = "done" | "active" | "paused";
 
 /**
- * Savings goals as an ordered checklist. Goals fund one at a time: the first
- * incomplete goal (by sort order) is "active" and its monthly contribution flows
- * into the plan; later goals are "planned" (queued, not yet claiming the pool).
+ * Savings goals as a list of sinking funds. Any number can be funded at once:
+ * each goal carries its own `active` flag, and every active, incomplete goal's
+ * contribution flows into the plan. Pausing one keeps its target and progress
+ * but stops it claiming the pool. Sort order is display sequence only.
  * Optimistic writes so it works even if the DB is slow.
  */
 class GoalsStore {
@@ -47,24 +48,34 @@ class GoalsStore {
     return Money.of(g.savedAmount).compare(Money.of(g.targetAmount)) >= 0;
   }
 
-  /** The first incomplete goal in order — the one currently being funded. */
-  get activeId(): string | null {
-    return this.rows.find((g) => !this.complete(g))?.id ?? null;
+  /** Every goal currently funded — active, switched on, and not yet reached. */
+  get activeGoals(): GoalRow[] {
+    return this.rows.filter((g) => g.active && !this.complete(g));
   }
 
   phase(g: GoalRow): GoalPhase {
     if (this.complete(g)) return "done";
-    return g.id === this.activeId ? "active" : "planned";
+    return g.active ? "active" : "paused";
+  }
+
+  /** Switch a goal's funding on or off. A reached goal claims nothing either way. */
+  toggleActive(id: string): void {
+    const g = this.rows.find((r) => r.id === id);
+    if (g) this.save({ ...g, active: !g.active });
   }
 
   private fail(e: unknown): void {
     this.error = `Couldn't reach local storage — changes stay in memory this session. (${e instanceof Error ? e.message : String(e)})`;
   }
 
-  /** Only the active goal claims the savings pool; planned goals wait their turn. */
+  /**
+   * Every active goal claims the savings pool at once. Nothing is capped here:
+   * if the total outruns what's left after bills, the plan goes negative and the
+   * budget's over-committed path says so — the app reports what you've committed
+   * to rather than quietly shrinking a contribution you entered.
+   */
   private syncPlan(): void {
-    const active = this.rows.find((g) => g.id === this.activeId);
-    profile.annualGoalContributions = active ? annualContribution(active) : Money.zero();
+    profile.annualGoalContributions = this.activeGoals.reduce((sum, g) => sum.add(annualContribution(g)), Money.zero());
   }
 
   async load(): Promise<void> {
@@ -92,12 +103,12 @@ class GoalsStore {
     deleteGoal(id).catch((e) => this.fail(e));
   }
 
-  /** The next sort_order for a new goal (append to the end of the checklist). */
+  /** The next sort_order for a new goal (append to the end of the list). */
   get nextOrder(): number {
     return this.rows.reduce((max, g) => Math.max(max, g.sortOrder), -1) + 1;
   }
 
-  /** Move a goal up (-1) or down (+1) in the checklist. */
+  /** Move a goal up (-1) or down (+1) in the list. */
   reorder(id: string, dir: -1 | 1): void {
     const i = this.rows.findIndex((r) => r.id === id);
     const j = i + dir;

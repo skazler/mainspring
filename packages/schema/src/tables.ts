@@ -199,7 +199,8 @@ export const goals = pgTable("goals", {
   targetDate: date("target_date"),
   contribution: money("monthly_contribution"), // amount set aside per `cadence`
   contributionCadence: text("contribution_cadence").notNull().default("monthly"),
-  sortOrder: integer("sort_order").notNull().default(0), // checklist sequence
+  sortOrder: integer("sort_order").notNull().default(0), // display sequence
+  active: boolean("active").notNull().default(true), // claims the savings pool while true
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

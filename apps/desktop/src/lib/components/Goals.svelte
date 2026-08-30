@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { formatUsd } from "$lib/format";
   import { goals } from "$lib/stores/goals.svelte";
+  import { view } from "$lib/stores/derived.svelte";
   import { hints } from "$lib/stores/hints.svelte";
   import type { GoalRow } from "$lib/db";
   import ConfirmButton from "./ConfirmButton.svelte";
@@ -16,6 +17,14 @@
     date: "",
   });
   let contribInput = $state<Record<string, number>>({});
+
+  // Several goals can be funded at once, so the combined claim is worth stating
+  // outright — one goal at a time made it self-evident, a handful doesn't.
+  const committedMo = $derived(goals.activeGoals.reduce((sum, g) => sum + Number(goals.annual(g).toString()) / 12, 0));
+  // Contributions aren't capped (a goal you committed to is shown as committed),
+  // so the plan can be pushed under water. Say so here rather than leaving the
+  // negative budget to be discovered over in Outflows.
+  const allowanceMo = $derived(Number(view.current.discretionaryAllowance.toString()) / 12);
 
   onMount(() => {
     void goals.load();
@@ -33,6 +42,7 @@
       contribution: draft.amount > 0 ? String(draft.amount) : null,
       cadence: draft.cadence,
       sortOrder: goals.nextOrder,
+      active: true,
     });
     draft = { name: "", target: 0, saved: 0, amount: 0, cadence: draft.cadence, date: "" };
   }
@@ -83,7 +93,7 @@
 <section class="goals">
   <header class="title">Savings goals</header>
   {#if hints.show}
-    <p class="lede">An ordered checklist of sinking funds. Goals fund <strong>one at a time</strong> — the top unfinished goal is active and claims its contribution from your plan; the rest are planned and wait their turn. Reorder with ▲▼.</p>
+    <p class="lede">Sinking funds you can run <strong>side by side</strong>. Click a goal's badge to switch its funding on or off — every <strong>active</strong> goal claims its contribution from your plan at once, a <strong>paused</strong> one keeps its progress and claims nothing. Reorder with ▲▼.</p>
   {/if}
 
   <form class="add" onsubmit={add}>
@@ -98,6 +108,13 @@
     <button type="submit">Add goal</button>
   </form>
 
+  {#if goals.activeGoals.length > 0}
+    <p class="committed" class:over={allowanceMo < 0}>
+      Funding {goals.activeGoals.length} goal{goals.activeGoals.length === 1 ? "" : "s"} ·
+      <strong class="mono">{formatUsd(committedMo)}/mo</strong> committed{#if allowanceMo < 0} — {formatUsd(-allowanceMo)}/mo more than your plan has left after bills. Pause one, or trim a contribution.{/if}
+    </p>
+  {/if}
+
   {#if goals.error}<p class="warn">{goals.error}</p>{/if}
 
   {#if goals.rows.length === 0}
@@ -108,10 +125,19 @@
         {@const s = goals.status(g)}
         {@const phase = goals.phase(g)}
         {@const pct = Math.min(100, Math.round(Number(s.progress) * 100))}
-        <div class="card" class:done={phase === "done"} class:active={phase === "active"} class:planned={phase === "planned"}>
+        <div class="card" class:done={phase === "done"} class:active={phase === "active"} class:paused={phase === "paused"}>
           <div class="head">
             <span class="name">
-              {#if phase === "done"}<span class="badge done">✓</span>{:else if phase === "active"}<span class="badge active">active</span>{:else}<span class="badge planned">planned</span>{/if}
+              {#if phase === "done"}
+                <span class="badge done" title="Target reached — this goal no longer claims your plan">✓</span>
+              {:else}
+                <button
+                  class="badge toggle {phase}"
+                  title={phase === "active" ? "Funded now — click to pause" : "Paused — click to fund it"}
+                  aria-pressed={phase === "active"}
+                  onclick={() => goals.toggleActive(g.id)}
+                >{phase}</button>
+              {/if}
               {#if editingId === g.id}
                 <!-- svelte-ignore a11y_autofocus -->
                 <input
@@ -190,6 +216,26 @@
     color: var(--color-gilt);
     font-weight: 400;
   }
+  .committed {
+    text-align: center;
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    color: var(--color-soot);
+    margin-bottom: 1rem;
+  }
+  .committed strong {
+    color: var(--color-brass);
+    font-weight: 400;
+  }
+  .committed.over {
+    color: var(--color-oxblood);
+  }
+  .committed.over strong {
+    color: var(--color-oxblood);
+  }
+  .mono {
+    font-family: var(--font-mono);
+  }
   .add {
     display: flex;
     gap: 0.5rem;
@@ -264,7 +310,7 @@
     border-color: var(--color-brass);
     box-shadow: var(--bevel), 0 0 0 1px var(--color-brass);
   }
-  .card.planned {
+  .card.paused {
     opacity: 0.62;
   }
   .badge {
@@ -285,9 +331,22 @@
     background: var(--color-brass);
     color: var(--color-coal);
   }
-  .badge.planned {
+  .badge.paused {
     border: 1px solid var(--color-etch);
+    background: transparent;
     color: var(--color-soot);
+  }
+  .badge.toggle {
+    cursor: pointer;
+    border: 1px solid transparent;
+    font-family: var(--font-body);
+  }
+  .badge.toggle:hover {
+    filter: brightness(1.15);
+  }
+  .badge.paused:hover {
+    color: var(--color-brass);
+    border-color: var(--color-brass);
   }
   .controls {
     display: inline-flex;
