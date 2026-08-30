@@ -5,6 +5,7 @@
   import { daysLeftInMonth, localToday } from "$lib/date";
   import { cadenceAbbrev, formatPct, formatUsd } from "$lib/format";
   import { bucketLabel } from "$lib/buckets";
+  import { subColors } from "$lib/subcolors";
   import { clock } from "$lib/stores/clock.svelte";
   import { spending } from "$lib/stores/spending.svelte";
   import { recurring } from "$lib/stores/recurring.svelte";
@@ -13,6 +14,7 @@
   import { hints } from "$lib/stores/hints.svelte";
   import Donut from "./Donut.svelte";
   import Proportions from "./Proportions.svelte";
+  import SubBar from "./SubBar.svelte";
   import ConfirmButton from "./ConfirmButton.svelte";
   import RecurringRemove from "./RecurringRemove.svelte";
   import RecurringEdit from "./RecurringEdit.svelte";
@@ -100,7 +102,13 @@
   const lineOpen = (l: string) => openLines[l] ?? false;
   const toggleLine = (l: string) => (openLines[l] = !lineOpen(l));
 
+  // Parts of a breakdown line, largest first — the bar above them reads
+  // left-to-right by weight, and the rows below repeat that order.
   function detailsFor(label: string): { name: string; amount: number }[] {
+    return partsOf(label).sort((a, b) => b.amount - a.amount);
+  }
+
+  function partsOf(label: string): { name: string; amount: number }[] {
     switch (label) {
       case "Taxes":
         return [
@@ -119,10 +127,11 @@
         return recurring.bills
           .filter((r) => recurring.live(r))
           .map((r) => ({ name: r.label, amount: Number(recurring.annual(r).toString()) }));
-      case "Goals": {
-        const active = goals.rows.find((g) => g.id === goals.activeId);
-        return active?.contribution ? [{ name: active.name, amount: Number(goals.annual(active).toString()) }] : [];
-      }
+      case "Goals":
+        // Every goal switched on claims the pool at once, so each is a part here.
+        return goals.activeGoals
+          .map((g) => ({ name: g.name, amount: Number(goals.annual(g).toString()) }))
+          .filter((d) => d.amount > 0);
       case "Spending": {
         // Annualize each category proportionally so the parts match the slice total.
         // Uses the trailing window's mix — the same rows the slice itself annualizes.
@@ -299,12 +308,18 @@
                   <td class="mono muted">{Math.round((Number(s.amount.toString()) / Number(v.gross.toString())) * 100)}%</td>
                 </tr>
                 {#if lineOpen(s.label)}
+                  {@const cols = subColors(dets.map((d) => d.name))}
+                  {#if dets.length > 1}
+                    <tr class="detail barrow">
+                      <td colspan="4"><SubBar slices={dets} colors={cols} /></td>
+                    </tr>
+                  {/if}
                   {#each dets as d (d.name)}
                     <tr class="detail">
-                      <td class="cap sub">{d.name}</td>
+                      <td class="cap sub"><span class="dot" style="background:{cols[d.name]}"></span>{d.name}</td>
                       <td class="mono muted">{formatUsd(d.amount / 12)}/mo</td>
                       <td class="mono muted">{formatUsd(d.amount)}/yr</td>
-                      <td></td>
+                      <td class="mono muted">{Math.round((d.amount / Number(s.amount.toString())) * 100)}%</td>
                     </tr>
                   {/each}
                 {/if}
@@ -992,6 +1007,20 @@
   .detail .sub {
     padding-left: 1.2rem;
     text-transform: capitalize;
+  }
+  .detail .dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    margin-right: 0.45rem;
+    vertical-align: baseline;
+  }
+  /* The bar spans the row, so it gets no rule under it — it belongs to the
+     detail rows beneath rather than reading as an entry of its own. */
+  .barrow td {
+    border-bottom: none;
+    padding: 0.45rem 0.5rem 0.3rem 1.2rem;
   }
   .detail .muted {
     color: var(--color-soot);
