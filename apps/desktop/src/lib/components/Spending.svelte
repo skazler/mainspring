@@ -146,9 +146,11 @@
     }
   }
 
-  const CATEGORIES = ["software dev", "dining", "groceries", "clothes", "entertainment", "transport", "subscriptions", "other"];
-  const BILL_CATEGORIES = ["rent", "mortgage", "groceries", "utilities", "insurance", "car", "phone", "software dev", "api", "subscription", "loan", "other"];
-  const INVEST_CATEGORIES = ["acorns", "robo-advisor", "brokerage", "401k", "ira", "crypto", "other"];
+  // Suggestion lists for the category inputs. Alphabetical so a category is
+  // findable by its first letter, with the "other" catch-all pinned last.
+  const CATEGORIES = ["clothes", "dining", "entertainment", "groceries", "living", "software dev", "subscriptions", "transport", "other"];
+  const BILL_CATEGORIES = ["api", "car", "groceries", "insurance", "loan", "mortgage", "phone", "rent", "software dev", "subscription", "utilities", "other"];
+  const INVEST_CATEGORIES = ["401k", "acorns", "brokerage", "crypto", "ira", "robo-advisor", "other"];
   const CADENCES = ["weekly", "biweekly", "monthly", "quarterly", "annual"] as const;
   // Local, not UTC: an evening purchase must not be stamped with tomorrow's date
   // (which would drop it into next month's budget on the 31st).
@@ -203,9 +205,8 @@
 
   // Same record as a bill — one `recurring` table, differing only by `kind`.
   // "investment" routes the money to contributions instead of expenses, which is
-  // why the two live side by side here: the kept-vs-spent choice is the whole
-  // difference, and making it by picking a form is harder to get wrong than
-  // remembering a dropdown.
+  // why the two live side by side here: picking the form you add under is harder
+  // to get wrong than remembering a dropdown.
   function addAuto(e: Event) {
     e.preventDefault();
     if (!auto.label.trim() || auto.amount <= 0) return;
@@ -219,11 +220,6 @@
       active: true,
     });
     auto = { label: "", category: "", amount: 0, cadence: auto.cadence };
-  }
-
-  /** Flip a misfiled row between spent and kept without losing its history. */
-  function reclassify(r: (typeof recurring.rows)[number]): void {
-    recurring.save({ ...r, kind: r.kind === "bill" ? "investment" : "bill" });
   }
 
   /** Row being edited in place, by id — null when nothing is open. */
@@ -375,7 +371,6 @@
                 <td class="mono">{formatUsd(Number(recurring.annual(r).toString()))}<span class="dim">/yr</span></td>
                 <td><button class="link" onclick={() => (editingId = r.id)}>edit</button></td>
                 <td><button class="link" onclick={() => recurring.toggle(r.id)}>{r.active ? "pause" : "resume"}</button></td>
-                <td><button class="link" title="This is money you keep — move it to Automatic investments" onclick={() => reclassify(r)}>kept?</button></td>
                 <td><RecurringRemove onEndAfterMonth={() => recurring.endAfterThisMonth(r.id)} onRemoveNow={() => recurring.remove(r.id)} title="Remove bill" /></td>
               {/if}
             </tr>
@@ -430,7 +425,6 @@
                   <td class="mono kept">{formatUsd(Number(recurring.annual(r).toString()))}<span class="dim">/yr</span></td>
                   <td><button class="link" onclick={() => (editingId = r.id)}>edit</button></td>
                   <td><button class="link" onclick={() => recurring.toggle(r.id)}>{r.active ? "pause" : "resume"}</button></td>
-                  <td><button class="link" title="This is money you spend — move it to Bills & essentials" onclick={() => reclassify(r)}>spent?</button></td>
                   <td><RecurringRemove onEndAfterMonth={() => recurring.endAfterThisMonth(r.id)} onRemoveNow={() => recurring.remove(r.id)} title="Remove contribution" /></td>
                 {/if}
               </tr>
