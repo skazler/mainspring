@@ -1,4 +1,5 @@
 import {
+  annualizeMonth,
   annualizeTrailing,
   monthTotal,
   spendingByCategory,
@@ -8,7 +9,7 @@ import {
 } from "@mainspring/engine";
 import { Money } from "@mainspring/schema";
 import { deleteSpending, loadSpending, saveSpending, type SpendingRow } from "$lib/db";
-import { localDaysAgo, localToday } from "$lib/date";
+import { localToday } from "$lib/date";
 import { clock } from "./clock.svelte";
 import { profile } from "./profile.svelte";
 
@@ -58,9 +59,25 @@ class SpendingStore {
   get thisMonthTotal(): Money {
     return monthTotal(this.rows.map(toEntry), clock.month);
   }
+  /**
+   * This month's spending scaled to a year — what the BREAKDOWN reads.
+   * Resets to zero on the 1st and fills in as the month runs, so "where every
+   * dollar goes" answers for the month you're actually in. Deliberately not
+   * `annualized`: that one has to slide, this one has to reset.
+   */
+  get thisMonthAnnualized(): Money {
+    return annualizeMonth(this.rows.map(toEntry), clock.month);
+  }
   /** All-time totals per category. */
   get byCategory(): { category: string; total: Money }[] {
     return spendingByCategory(this.rows.map(toEntry));
+  }
+  /**
+   * Category totals for this calendar month — the mix the breakdown drill-down
+   * splits by, matching the month-scale figure the Spending slice now shows.
+   */
+  get monthByCategory(): { category: string; total: Money }[] {
+    return spendingByCategory(this.rowsIn(clock.month).map(toEntry));
   }
 
   /** Rows for one calendar month (YYYY-MM), or all rows when month is null. */
@@ -77,28 +94,15 @@ class SpendingStore {
     return spendingByCategory(this.rowsIn(month).map(toEntry));
   }
 
-  /**
-   * Category totals over the trailing window — the same rows the plan annualizes.
-   * The budget drill-down splits the annualized Spending slice proportionally, so
-   * it has to use the window's mix, not an all-time one that no longer matches.
-   */
-  get windowByCategory(): { category: string; total: Money }[] {
-    const end = today();
-    const start = localDaysAgo(TRAILING_WINDOW_DAYS - 1);
-    const inWindow = this.rows.filter((r) => {
-      const d = String(r.spentAt).slice(0, 10);
-      return d >= start && d <= end;
-    });
-    return spendingByCategory(inWindow.map(toEntry));
-  }
-
   /** The months present in the log, newest first (YYYY-MM). */
   get loggedMonths(): string[] {
     return [...new Set(this.rows.map((r) => String(r.spentAt).slice(0, 7)))].sort((a, b) => b.localeCompare(a));
   }
 
-  private sync(): void {
+  /** Push both spending figures into the profile the engine reads. */
+  sync(): void {
     profile.variableAnnualSpending = this.annualized;
+    profile.breakdownAnnualSpending = this.thisMonthAnnualized;
   }
 
   private fail(e: unknown): void {
@@ -139,3 +143,15 @@ class SpendingStore {
 }
 
 export const spending = new SpendingStore();
+
+// The date is an input, not a snapshot. `sync()` only runs when a row changes,
+// so on a machine left open past midnight on the 1st the breakdown would keep
+// showing last month's spending until the user happened to log something. The
+// month-to-date figure reads `clock.month`, so tracking it here re-syncs the
+// profile the moment the month turns. (Same reasoning as clock.svelte.ts.)
+$effect.root(() => {
+  $effect(() => {
+    void clock.month;
+    spending.sync();
+  });
+});

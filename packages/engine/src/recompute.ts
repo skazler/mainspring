@@ -71,6 +71,12 @@ export function recompute(state: ProfileState): RecomputeView {
   const commitments = state.annualCommitments ?? Money.zero();
   const variableSpending = state.variableAnnualSpending ?? Money.zero();
   const totalExpenses = state.annualExpenses.add(commitments).add(variableSpending);
+  // The breakdown below reads a different spending figure on purpose: it resets
+  // on the 1st, where `variableSpending` rides a trailing window so the FI
+  // projection stays smooth across the boundary. Only the breakdown (and the
+  // Leftover/deficit that fall out of it) uses this one — `totalExpenses` above,
+  // and therefore every projected number, does not.
+  const breakdownSpending = state.breakdownAnnualSpending ?? variableSpending;
   const goalContributions = state.annualGoalContributions ?? Money.zero();
   // Recurring auto-invest (e.g. Acorns) is a contribution: it claims the pool
   // before dials, then folds back into total contributions below.
@@ -127,7 +133,7 @@ export function recompute(state: ProfileState): RecomputeView {
     { label: "Goals", amount: goalContributions },
     // Bills & essentials = the baseline living lump + itemized recurring bills.
     { label: "Bills & essentials", amount: state.annualExpenses.add(commitments) },
-    { label: "Spending", amount: variableSpending },
+    { label: "Spending", amount: breakdownSpending },
   ];
   const accounted = whereItGoes.reduce((sum, s) => sum.add(s.amount), Money.zero());
   whereItGoes.push({ label: "Leftover", amount: maxMoney(gross.subtract(accounted), Money.zero()) });
@@ -143,7 +149,7 @@ export function recompute(state: ProfileState): RecomputeView {
   // spending and is NOT clamped at 0 — it's the size of the pot, not what's left
   // in it, so the budget readout has a fixed figure to spend down and a negative
   // one still reads as "the plan itself doesn't fit."
-  const discretionaryAllowance = gross.subtract(accounted.subtract(variableSpending));
+  const discretionaryAllowance = gross.subtract(accounted.subtract(breakdownSpending));
 
   const fire = fireMetrics({
     currentBalance: state.plan.currentBalance,
