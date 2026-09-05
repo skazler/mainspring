@@ -155,7 +155,7 @@
 
   // Suggestion lists for the category inputs. Alphabetical so a category is
   // findable by its first letter, with the "other" catch-all pinned last.
-  const CATEGORIES = ["clothes", "dining", "entertainment", "groceries", "living", "software dev", "subscriptions", "transport", "other"];
+  const CATEGORIES = ["clothes", "dining", "entertainment", "groceries", "learning", "living", "software dev", "subscriptions", "transport", "other"];
   const BILL_CATEGORIES = ["api", "car", "groceries", "insurance", "loan", "mortgage", "phone", "rent", "software dev", "subscription", "utilities", "other"];
   const INVEST_CATEGORIES = ["401k", "acorns", "brokerage", "crypto", "ira", "robo-advisor", "other"];
   const CADENCES = ["weekly", "biweekly", "monthly", "quarterly", "annual"] as const;
