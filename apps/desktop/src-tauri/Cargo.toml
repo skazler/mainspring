@@ -1,6 +1,6 @@
 [package]
 name = "desktop"
-version = "1.4.0"
+version = "1.4.1"
 description = "MAINSPRING — a private, offline-first planner for financial independence."
 authors = ["skazler"]
 edition = "2021"

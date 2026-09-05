@@ -50,6 +50,17 @@ export interface ProfileState {
   annualExpenses: Money;
   /** Annualized variable/discretionary spending (from the spending tracker). Default 0. */
   variableAnnualSpending?: Money;
+  /**
+   * Variable spending for the "where every dollar goes" breakdown, annual-scale.
+   * Falls back to `variableAnnualSpending` when absent.
+   *
+   * Deliberately a second figure. The breakdown answers "where is THIS MONTH's
+   * money going", so the UI passes this month's logged spending × 12: it resets
+   * on the 1st and fills in as the month runs, matching the budget readout
+   * beside it. `variableAnnualSpending` stays the trailing-30-day run-rate,
+   * because the FI projection must not sawtooth every 1st (see annualize.ts).
+   */
+  breakdownAnnualSpending?: Money;
   /** Annualized recurring commitments — insurance, car, subscriptions, API costs. Default 0. */
   annualCommitments?: Money;
   /** Annualized recurring auto-invest contributions (e.g. $50/wk into Acorns). Default 0. */

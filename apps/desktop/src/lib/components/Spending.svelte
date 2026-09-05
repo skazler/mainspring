@@ -108,6 +108,12 @@
     return partsOf(label).sort((a, b) => b.amount - a.amount);
   }
 
+  // Spending is the one line here measured from what you logged rather than set
+  // by the plan, and it resets on the 1st — so say so, since the columns beside
+  // it are annual.
+  const lineTitle = (label: string) =>
+    label === "Spending" ? `What you've logged since the 1st, scaled to a year. Resets each month — the freedom projection reads the trailing ${spending.windowDays} days instead.` : undefined;
+
   function partsOf(label: string): { name: string; amount: number }[] {
     switch (label) {
       case "Taxes":
@@ -134,8 +140,9 @@
           .filter((d) => d.amount > 0);
       case "Spending": {
         // Annualize each category proportionally so the parts match the slice total.
-        // Uses the trailing window's mix — the same rows the slice itself annualizes.
-        const raw = spending.windowByCategory;
+        // Uses THIS MONTH's mix — the slice is this month's spending, so a
+        // trailing-window mix would split it by rows it doesn't contain.
+        const raw = spending.monthByCategory;
         const rawTotal = raw.reduce((s, c) => s + Number(c.total.toString()), 0);
         const annual = Number(slice("Spending").toString());
         if (rawTotal <= 0) return [];
@@ -146,9 +153,11 @@
     }
   }
 
-  const CATEGORIES = ["software dev", "dining", "groceries", "clothes", "entertainment", "transport", "subscriptions", "other"];
-  const BILL_CATEGORIES = ["rent", "mortgage", "groceries", "utilities", "insurance", "car", "phone", "software dev", "api", "subscription", "loan", "other"];
-  const INVEST_CATEGORIES = ["acorns", "robo-advisor", "brokerage", "401k", "ira", "crypto", "other"];
+  // Suggestion lists for the category inputs. Alphabetical so a category is
+  // findable by its first letter, with the "other" catch-all pinned last.
+  const CATEGORIES = ["clothes", "dining", "entertainment", "groceries", "learning", "living", "software dev", "subscriptions", "transport", "other"];
+  const BILL_CATEGORIES = ["api", "car", "groceries", "insurance", "loan", "mortgage", "phone", "rent", "software dev", "subscription", "utilities", "other"];
+  const INVEST_CATEGORIES = ["401k", "acorns", "brokerage", "crypto", "ira", "robo-advisor", "other"];
   const CADENCES = ["weekly", "biweekly", "monthly", "quarterly", "annual"] as const;
   // Local, not UTC: an evening purchase must not be stamped with tomorrow's date
   // (which would drop it into next month's budget on the 31st).
@@ -203,9 +212,8 @@
 
   // Same record as a bill — one `recurring` table, differing only by `kind`.
   // "investment" routes the money to contributions instead of expenses, which is
-  // why the two live side by side here: the kept-vs-spent choice is the whole
-  // difference, and making it by picking a form is harder to get wrong than
-  // remembering a dropdown.
+  // why the two live side by side here: picking the form you add under is harder
+  // to get wrong than remembering a dropdown.
   function addAuto(e: Event) {
     e.preventDefault();
     if (!auto.label.trim() || auto.amount <= 0) return;
@@ -219,11 +227,6 @@
       active: true,
     });
     auto = { label: "", category: "", amount: 0, cadence: auto.cadence };
-  }
-
-  /** Flip a misfiled row between spent and kept without losing its history. */
-  function reclassify(r: (typeof recurring.rows)[number]): void {
-    recurring.save({ ...r, kind: r.kind === "bill" ? "investment" : "bill" });
   }
 
   /** Row being edited in place, by id — null when nothing is open. */
@@ -300,8 +303,8 @@
                 <tr>
                   <td class="cap">
                     {#if dets.length > 0}
-                      <button class="expand" onclick={() => toggleLine(s.label)}>{lineOpen(s.label) ? "▾" : "▸"} {s.label}</button>
-                    {:else}<span class="noexp">{s.label}</span>{/if}
+                      <button class="expand" title={lineTitle(s.label)} onclick={() => toggleLine(s.label)}>{lineOpen(s.label) ? "▾" : "▸"} {s.label}</button>
+                    {:else}<span class="noexp" title={lineTitle(s.label)}>{s.label}</span>{/if}
                   </td>
                   <td class="mono">{formatUsd(mo(s.amount))}/mo</td>
                   <td class="mono muted">{formatUsd(Number(s.amount.toString()))}/yr</td>
@@ -375,7 +378,6 @@
                 <td class="mono">{formatUsd(Number(recurring.annual(r).toString()))}<span class="dim">/yr</span></td>
                 <td><button class="link" onclick={() => (editingId = r.id)}>edit</button></td>
                 <td><button class="link" onclick={() => recurring.toggle(r.id)}>{r.active ? "pause" : "resume"}</button></td>
-                <td><button class="link" title="This is money you keep — move it to Automatic investments" onclick={() => reclassify(r)}>kept?</button></td>
                 <td><RecurringRemove onEndAfterMonth={() => recurring.endAfterThisMonth(r.id)} onRemoveNow={() => recurring.remove(r.id)} title="Remove bill" /></td>
               {/if}
             </tr>
@@ -430,7 +432,6 @@
                   <td class="mono kept">{formatUsd(Number(recurring.annual(r).toString()))}<span class="dim">/yr</span></td>
                   <td><button class="link" onclick={() => (editingId = r.id)}>edit</button></td>
                   <td><button class="link" onclick={() => recurring.toggle(r.id)}>{r.active ? "pause" : "resume"}</button></td>
-                  <td><button class="link" title="This is money you spend — move it to Bills & essentials" onclick={() => reclassify(r)}>spent?</button></td>
                   <td><RecurringRemove onEndAfterMonth={() => recurring.endAfterThisMonth(r.id)} onRemoveNow={() => recurring.remove(r.id)} title="Remove contribution" /></td>
                 {/if}
               </tr>

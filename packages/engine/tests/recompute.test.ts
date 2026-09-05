@@ -288,6 +288,76 @@ describe("recompute — income → pre-tax → tax → net → buckets", () => {
     });
   });
 
+  describe("breakdownAnnualSpending — the breakdown resets, the projection doesn't", () => {
+    const base: ProfileState = {
+      incomeSources: [{ grossAmount: Money.of("120000"), frequency: "annual" }],
+      annualExpenses: Money.of("36000"),
+      taxProfile: { filingStatus: "single", state: "TX", taxYear: 2026 },
+      plan: { currentBalance: Money.of("0"), swr: "0.04", realReturn: "0.05", currentAge: 35, targetRetireAge: 65 },
+      dials: [],
+    };
+    const spendingSlice = (r: ReturnType<typeof recompute>) =>
+      r.whereItGoes.find((s) => s.label === "Spending")!.amount;
+
+    it("falls back to variableAnnualSpending when absent", () => {
+      const r = recompute({ ...base, variableAnnualSpending: Money.of("24000") });
+      expect(spendingSlice(r).toString()).toBe("24000.0000");
+    });
+
+    it("drives the breakdown slice while the projection keeps the run-rate", () => {
+      // Early in the month: $2k logged so far (×12), against a $26k/yr run-rate.
+      const r = recompute({
+        ...base,
+        variableAnnualSpending: Money.of("26000"),
+        breakdownAnnualSpending: Money.of("24000"),
+      });
+      expect(spendingSlice(r).toString()).toBe("24000.0000");
+      // totalExpenses feeds the FI number — it must not see the monthly figure.
+      expect(r.totalExpenses.toString()).toBe(Money.of("36000").add(Money.of("26000")).toString());
+    });
+
+    it("leaves the FI projection untouched as the month-to-date figure grows", () => {
+      const withState = (breakdown: string) =>
+        recompute({
+          ...base,
+          variableAnnualSpending: Money.of("26000"),
+          breakdownAnnualSpending: Money.of(breakdown),
+        });
+      // The 1st (nothing logged yet) vs. the 28th — same projection, both times.
+      const first = withState("0");
+      const late = withState("25000");
+      expect(late.fire.fiNumber.toString()).toBe(first.fire.fiNumber.toString());
+      expect(late.totalExpenses.toString()).toBe(first.totalExpenses.toString());
+      expect(spendingSlice(late).compare(spendingSlice(first))).toBe(1);
+    });
+
+    it("keeps the allowance spending-invariant and whereItGoes summing to gross", () => {
+      const quiet = recompute({ ...base, breakdownAnnualSpending: Money.zero() });
+      const heavy = recompute({ ...base, breakdownAnnualSpending: Money.of("18000") });
+      expect(heavy.discretionaryAllowance.toString()).toBe(quiet.discretionaryAllowance.toString());
+      for (const r of [quiet, heavy]) {
+        const sum = r.whereItGoes.reduce((a, x) => a.add(x.amount), Money.zero());
+        expect(sum.toString()).toBe(r.gross.toString());
+      }
+    });
+
+    it("only reports a deficit once the month's own spending crosses the line", () => {
+      // A run-rate that overruns gross must not show as over-budget on the 1st.
+      const overcommitted: ProfileState = { ...base, annualCommitments: Money.of("60000") };
+      const onTheFirst = recompute({
+        ...overcommitted,
+        variableAnnualSpending: Money.of("40000"),
+        breakdownAnnualSpending: Money.zero(),
+      });
+      const lateInMonth = recompute({
+        ...overcommitted,
+        variableAnnualSpending: Money.of("40000"),
+        breakdownAnnualSpending: Money.of("40000"),
+      });
+      expect(Number(lateInMonth.deficit.toString())).toBeGreaterThan(Number(onTheFirst.deficit.toString()));
+    });
+  });
+
   describe("cashTakeHome — what actually reaches the bank", () => {
     /** $105k, 16% pre-tax 401(k), $300/mo Roth IRA funded from checking, TX single. */
     const base = (annualBenefitPremiums?: Money): ProfileState => ({
