@@ -55,7 +55,7 @@ async function open() {
       name text NOT NULL,
       target_amount numeric(18, 4) NOT NULL,
       saved_amount numeric(18, 4) NOT NULL DEFAULT 0,
-      target_date date,
+      target_months integer,
       monthly_contribution numeric(18, 4),
       contribution_cadence text NOT NULL DEFAULT 'monthly',
       sort_order integer NOT NULL DEFAULT 0,
@@ -76,6 +76,26 @@ async function open() {
         UPDATE goals SET active = true WHERE id = (
           SELECT id FROM goals WHERE saved_amount < target_amount ORDER BY sort_order, created_at LIMIT 1
         );
+      END IF;
+    END $$;
+    -- Goals moved from a deadline (target_date) to a timeline (target_months):
+    -- a date silently became a different plan every day it went unread, and it
+    -- couldn't be edited from the card. Existing deadlines are converted once,
+    -- counting calendar-month boundaries the way monthsBetween did, floored at
+    -- 1 so a deadline already in the past becomes "1 month" rather than a
+    -- division by zero. target_date is left in place, unread, so a database
+    -- written by an older build still opens.
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'goals' AND column_name = 'target_months') THEN
+        ALTER TABLE goals ADD COLUMN target_months integer;
+        UPDATE goals
+           SET target_months = GREATEST(
+                 1,
+                 (EXTRACT(YEAR FROM target_date) * 12 + EXTRACT(MONTH FROM target_date))::int
+                   - (EXTRACT(YEAR FROM CURRENT_DATE) * 12 + EXTRACT(MONTH FROM CURRENT_DATE))::int
+               )
+         WHERE target_date IS NOT NULL;
       END IF;
     END $$;
     CREATE TABLE IF NOT EXISTS recurring (
@@ -290,7 +310,8 @@ export interface GoalRow {
   name: string;
   targetAmount: string;
   savedAmount: string;
-  targetDate: string | null;
+  /** Timeline in months ("reach it in 25 months"), or null for no timeline. */
+  targetMonths: number | null;
   contribution: string | null;
   cadence: "weekly" | "biweekly" | "monthly" | "quarterly" | "annual";
   sortOrder: number;
@@ -306,20 +327,20 @@ export async function loadGoals(): Promise<GoalRow[]> {
     name: string;
     target_amount: string;
     saved_amount: string;
-    target_date: string | null;
+    target_months: number | null;
     monthly_contribution: string | null;
     contribution_cadence: GoalRow["cadence"];
     sort_order: number;
     active: boolean;
   }>(
-    "SELECT id, name, target_amount, saved_amount, target_date::text AS target_date, monthly_contribution, contribution_cadence, sort_order, active, created_at FROM goals ORDER BY sort_order, created_at;",
+    "SELECT id, name, target_amount, saved_amount, target_months, monthly_contribution, contribution_cadence, sort_order, active, created_at FROM goals ORDER BY sort_order, created_at;",
   );
   return res.rows.map((r) => ({
     id: r.id,
     name: r.name,
     targetAmount: r.target_amount,
     savedAmount: r.saved_amount,
-    targetDate: r.target_date,
+    targetMonths: r.target_months,
     contribution: r.monthly_contribution,
     cadence: r.contribution_cadence,
     sortOrder: r.sort_order,
@@ -331,11 +352,11 @@ export async function saveGoal(g: GoalRow): Promise<void> {
   if (!browser) return;
   const d = await db();
   await d.query(
-    `INSERT INTO goals (id, name, target_amount, saved_amount, target_date, monthly_contribution, contribution_cadence, sort_order, active)
+    `INSERT INTO goals (id, name, target_amount, saved_amount, target_months, monthly_contribution, contribution_cadence, sort_order, active)
      VALUES ($1, $2, $3::numeric, $4::numeric, $5, $6, $7, $8, $9)
      ON CONFLICT (id) DO UPDATE SET
-       name = $2, target_amount = $3::numeric, saved_amount = $4::numeric, target_date = $5, monthly_contribution = $6, contribution_cadence = $7, sort_order = $8, active = $9;`,
-    [g.id, g.name, g.targetAmount, g.savedAmount, g.targetDate, g.contribution, g.cadence, g.sortOrder, g.active],
+       name = $2, target_amount = $3::numeric, saved_amount = $4::numeric, target_months = $5, monthly_contribution = $6, contribution_cadence = $7, sort_order = $8, active = $9;`,
+    [g.id, g.name, g.targetAmount, g.savedAmount, g.targetMonths, g.contribution, g.cadence, g.sortOrder, g.active],
   );
 }
 

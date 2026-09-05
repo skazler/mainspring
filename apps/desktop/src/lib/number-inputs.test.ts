@@ -12,13 +12,14 @@ import { describe, expect, it } from "vitest";
  * have rejected a $14,971 balance. Both are figures a user copies verbatim
  * from a statement, and neither is round.
  *
- * So: money and rate inputs take step="any". Counts (age) may keep an integer
- * step, since a fractional age is genuinely invalid rather than merely unround.
+ * So: money and rate inputs take step="any". Counts (age, a goal's timeline in
+ * months) may keep an integer step, since half a month is genuinely invalid
+ * rather than merely unround.
  */
 const COMPONENTS = join(__dirname, "components");
 
 /** Fields where a non-round value is normal and must be accepted verbatim. */
-const INTEGER_ONLY = /currentAge|targetRetireAge/;
+const INTEGER_ONLY = /currentAge|targetRetireAge|targetMonths|draft\.months/;
 
 function svelteFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((e) =>

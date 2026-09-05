@@ -196,7 +196,10 @@ export const goals = pgTable("goals", {
   name: text("name").notNull(),
   targetAmount: money("target_amount").notNull(),
   savedAmount: money("saved_amount").notNull().default(sql`0`),
-  targetDate: date("target_date"),
+  // How many months you want to reach it in — a span the user edits, not a
+  // deadline that re-prices itself daily. Replaces `target_date`, which a
+  // pre-existing local DB still carries (unread) so it keeps opening.
+  targetMonths: integer("target_months"),
   contribution: money("monthly_contribution"), // amount set aside per `cadence`
   contributionCadence: text("contribution_cadence").notNull().default("monthly"),
   sortOrder: integer("sort_order").notNull().default(0), // display sequence
