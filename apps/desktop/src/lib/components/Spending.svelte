@@ -97,6 +97,38 @@
   const toggleCat = (c: string) => (openCats[c] = !catOpen(c));
   const itemsOf = (c: string) => spending.rowsIn(activePeriod).filter((r) => r.category === c);
 
+  // Bills grouped by category, largest first. A flat list stopped being readable
+  // once there were more than a dozen commitments; the category is the unit you
+  // actually reason about ("what am I paying for insurance?").
+  //
+  // Paused rows stay in their group — you have to be able to see one to resume
+  // it — but only live rows count toward a group's total, so the totals here add
+  // up to the block total and to what the plan charges you.
+  const billGroups = $derived(
+    (() => {
+      const map = new Map<string, { category: string; rows: typeof recurring.bills; annual: number; live: number }>();
+      for (const r of recurring.bills) {
+        const key = r.category || "other";
+        let g = map.get(key);
+        if (!g) {
+          g = { category: key, rows: [], annual: 0, live: 0 };
+          map.set(key, g);
+        }
+        g.rows.push(r);
+        if (recurring.live(r)) {
+          g.annual += Number(recurring.annual(r).toString());
+          g.live += 1;
+        }
+      }
+      return [...map.values()].sort((a, b) => b.annual - a.annual);
+    })(),
+  );
+  // Largest category open by default, the rest collapsed — the same "newest/first
+  // one open" default the History column uses. Overrides track user toggles.
+  let openBillCats = $state<Record<string, boolean>>({});
+  const billCatOpen = (c: string, i: number) => openBillCats[c] ?? i === 0;
+  const toggleBillCat = (c: string, i: number) => (openBillCats[c] = !billCatOpen(c, i));
+
   // Expand a budget line to the pieces that make it up.
   let openLines = $state<Record<string, boolean>>({});
   const lineOpen = (l: string) => openLines[l] ?? false;
@@ -366,24 +398,37 @@
     {#if recurring.error}<p class="warn">{recurring.error}</p>{/if}
 
     {#if recurring.bills.length > 0}
-      <table class="bills">
-        <tbody>
-          {#each recurring.bills as r (r.id)}
-            <tr class:paused={!recurring.live(r)}>
-              {#if editingId === r.id}
-                <RecurringEdit row={r} categories={BILL_CATEGORIES} datalistId="edit-bill-cats" onsave={saveEdit} oncancel={() => (editingId = null)} />
-              {:else}
-                <td class="cap">{r.label}<span class="dim"> · {r.category}</span>{#if r.endsOn}<span class="dim"> · ends {r.endsOn.slice(5)}</span>{/if}</td>
-                <td class="mono">{formatUsd(Number(r.amount))}<span class="dim">/{cadenceAbbrev(r.cadence)}</span></td>
-                <td class="mono">{formatUsd(Number(recurring.annual(r).toString()))}<span class="dim">/yr</span></td>
-                <td><button class="link" onclick={() => (editingId = r.id)}>edit</button></td>
-                <td><button class="link" onclick={() => recurring.toggle(r.id)}>{r.active ? "pause" : "resume"}</button></td>
-                <td><RecurringRemove onEndAfterMonth={() => recurring.endAfterThisMonth(r.id)} onRemoveNow={() => recurring.remove(r.id)} title="Remove bill" /></td>
-              {/if}
-            </tr>
-          {/each}
-        </tbody>
-      </table>
+      {#each billGroups as g, gi (g.category)}
+        <div class="catgroup">
+          <button class="cathead" onclick={() => toggleBillCat(g.category, gi)}>
+            <span class="caret">{billCatOpen(g.category, gi) ? "▾" : "▸"}</span>
+            <span class="catname">{g.category}</span>
+            <span class="count">{g.rows.length}{#if g.live < g.rows.length}<span class="dim"> · {g.rows.length - g.live} paused</span>{/if}</span>
+            <span class="mono cattotal">{formatUsd(g.annual)}<span class="dim">/yr</span></span>
+          </button>
+          {#if billCatOpen(g.category, gi)}
+            <table class="bills">
+              <tbody>
+                {#each g.rows as r (r.id)}
+                  <tr class:paused={!recurring.live(r)}>
+                    {#if editingId === r.id}
+                      <RecurringEdit row={r} categories={BILL_CATEGORIES} datalistId="edit-bill-cats" onsave={saveEdit} oncancel={() => (editingId = null)} />
+                    {:else}
+                      <!-- The category is the heading above, so the row drops it. -->
+                      <td class="cap">{r.label}{#if r.endsOn}<span class="dim"> · ends {r.endsOn.slice(5)}</span>{/if}</td>
+                      <td class="mono">{formatUsd(Number(r.amount))}<span class="dim">/{cadenceAbbrev(r.cadence)}</span></td>
+                      <td class="mono">{formatUsd(Number(recurring.annual(r).toString()))}<span class="dim">/yr</span></td>
+                      <td><button class="link" onclick={() => (editingId = r.id)}>edit</button></td>
+                      <td><button class="link" onclick={() => recurring.toggle(r.id)}>{r.active ? "pause" : "resume"}</button></td>
+                      <td><RecurringRemove onEndAfterMonth={() => recurring.endAfterThisMonth(r.id)} onRemoveNow={() => recurring.remove(r.id)} title="Remove bill" /></td>
+                    {/if}
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          {/if}
+        </div>
+      {/each}
 
       {#if recurring.billsByCategory.length > 1}
         <h3 class="compare-title">By category</h3>
@@ -921,6 +966,38 @@
     font-size: 0.78rem;
   }
   .mtotal {
+    color: var(--color-copper);
+    font-family: var(--font-meter);
+  }
+  /* Bills grouped by category. Same shape as a History month-head so the two
+     collapsible lists on this page read as one control, not two. */
+  .catgroup {
+    border-bottom: 1px solid var(--color-etch);
+  }
+  .catgroup:last-of-type {
+    border-bottom: none;
+  }
+  .cathead {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem 0.2rem;
+    color: var(--color-parchment);
+    font-family: var(--font-body);
+  }
+  .cathead:hover {
+    color: var(--color-gilt);
+  }
+  .catname {
+    flex: 1;
+    text-align: left;
+    text-transform: capitalize;
+  }
+  .cattotal {
     color: var(--color-copper);
     font-family: var(--font-meter);
   }
