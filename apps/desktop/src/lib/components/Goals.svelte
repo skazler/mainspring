@@ -8,13 +8,13 @@
   import ConfirmButton from "./ConfirmButton.svelte";
 
   const CADENCES = ["weekly", "biweekly", "monthly", "quarterly", "annual"] as const;
-  let draft = $state<{ name: string; target: number; saved: number; amount: number; cadence: (typeof CADENCES)[number]; date: string }>({
+  let draft = $state<{ name: string; target: number; saved: number; amount: number; cadence: (typeof CADENCES)[number]; months: number | null }>({
     name: "",
     target: 0,
     saved: 0,
     amount: 0,
     cadence: "monthly",
-    date: "",
+    months: null,
   });
   let contribInput = $state<Record<string, number>>({});
 
@@ -38,13 +38,13 @@
       name: draft.name.trim(),
       targetAmount: String(draft.target),
       savedAmount: String(draft.saved || 0),
-      targetDate: draft.date || null,
+      targetMonths: draft.months && draft.months >= 1 ? Math.round(draft.months) : null,
       contribution: draft.amount > 0 ? String(draft.amount) : null,
       cadence: draft.cadence,
       sortOrder: goals.nextOrder,
       active: true,
     });
-    draft = { name: "", target: 0, saved: 0, amount: 0, cadence: draft.cadence, date: "" };
+    draft = { name: "", target: 0, saved: 0, amount: 0, cadence: draft.cadence, months: null };
   }
 
   function setAmount(g: GoalRow, value: string): void {
@@ -80,6 +80,11 @@
     }
   }
 
+  /** "25 months" / "1 month" — the timeline as the user set it, not a date. */
+  function monthsLabel(months: number | null): string {
+    return months === 1 ? "1 month" : `${months} months`;
+  }
+
   function etaLabel(months: number | null): string {
     if (months === null) return "set a contribution for an ETA";
     if (months === 0) return "reached 🎉";
@@ -104,7 +109,7 @@
     <select bind:value={draft.cadence} title="How often you contribute">
       {#each CADENCES as c (c)}<option value={c}>{c}</option>{/each}
     </select>
-    <input type="date" bind:value={draft.date} title="Optional deadline" />
+    <input class="mos" type="number" min="1" step="1" placeholder="In ? months" bind:value={draft.months} title="Optional timeline — how many months you want to reach it in" />
     <button type="submit">Add goal</button>
   </form>
 
@@ -164,7 +169,7 @@
           </div>
           <div class="meta">
             <span>{etaLabel(s.monthsToGoal)}</span>
-            {#if s.requiredMonthly}<span class="req">need {formatUsd(Number(s.requiredMonthly.toString()))}/mo{#if g.targetDate} by {g.targetDate}{/if}</span>{/if}
+            {#if s.requiredMonthly}<span class="req">need {formatUsd(Number(s.requiredMonthly.toString()))}/mo to finish in {monthsLabel(g.targetMonths)}</span>{/if}
           </div>
           {#if !s.complete}
             <div class="plan-row" title="How much you set aside for this goal, and how often">
@@ -173,6 +178,19 @@
               <select onchange={(e) => setCadence(g, e.currentTarget.value)}>
                 {#each CADENCES as c (c)}<option value={c} selected={c === g.cadence}>{c}</option>{/each}
               </select>
+            </div>
+            <div class="plan-row" title="How many months you want to reach it in. Leave blank for no timeline.">
+              <span class="plan-lbl">Timeline</span>
+              <input
+                class="amt"
+                type="number"
+                min="1"
+                step="1"
+                placeholder="—"
+                value={g.targetMonths ?? ""}
+                onchange={(e) => goals.setTimeline(g.id, e.currentTarget.value === "" ? null : Number(e.currentTarget.value))}
+              />
+              <span class="plan-unit">months</span>
             </div>
           {/if}
           {#if !s.complete}
@@ -254,6 +272,10 @@
   .nm {
     width: 14rem;
   }
+  /* Wide enough for the "In ? months" placeholder to read in full. */
+  .mos {
+    width: 8rem;
+  }
   select {
     background: var(--color-coal);
     border: 1px solid var(--color-etch);
@@ -280,6 +302,11 @@
   .plan-row select {
     padding: 0.35rem 0.5rem;
     font-size: 0.85rem;
+  }
+  .plan-unit {
+    font-family: var(--font-body);
+    color: var(--color-soot);
+    font-size: 0.82rem;
   }
   .add button,
   .contrib button {

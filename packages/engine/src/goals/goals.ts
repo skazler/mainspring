@@ -6,8 +6,12 @@ export interface GoalInput {
   saved: Money;
   /** Amount set aside per month toward this goal. */
   monthlyContribution?: Money;
-  /** Optional deadline (ISO date). */
-  targetDate?: string;
+  /**
+   * Optional timeline: how many months you want to reach it in. A horizon you
+   * set and edit, not a date — "in 25 months" survives being read six weeks
+   * later, where a deadline silently becomes a different plan every day.
+   */
+  targetMonths?: number;
 }
 
 export interface GoalStatus {
@@ -18,12 +22,16 @@ export interface GoalStatus {
   complete: boolean;
   /** Months to reach the target at the current contribution; null if none/zero. 0 if complete. */
   monthsToGoal: number | null;
-  /** Contribution needed each month to hit the deadline; null if no date or already met. */
+  /** Contribution needed each month to finish inside the timeline; null if no timeline or already met. */
   requiredMonthly: Money | null;
 }
 
-/** Progress, ETA, and required monthly for a savings goal. Pure; `asOf` is the clock. */
-export function goalStatus(goal: GoalInput, asOf: string): GoalStatus {
+/**
+ * Progress, ETA, and required monthly for a savings goal. Pure — and now
+ * clock-free: the timeline is a span the user owns, so nothing here depends on
+ * today's date.
+ */
+export function goalStatus(goal: GoalInput): GoalStatus {
   const remaining = maxMoney(goal.target.subtract(goal.saved), Money.zero());
   const complete = remaining.isZero();
   const rawProgress = goal.target.isZero() ? "1" : goal.saved.ratioTo(goal.target, 4);
@@ -36,9 +44,9 @@ export function goalStatus(goal: GoalInput, asOf: string): GoalStatus {
   }
 
   let requiredMonthly: Money | null = null;
-  if (goal.targetDate && !complete) {
-    const months = monthsBetween(asOf, goal.targetDate);
-    if (months > 0) requiredMonthly = remaining.multiply(new MoneyDecimal(1).div(months));
+  const months = goal.targetMonths;
+  if (months !== undefined && months > 0 && !complete) {
+    requiredMonthly = remaining.multiply(new MoneyDecimal(1).div(months));
   }
 
   return { progress, remaining, complete, monthsToGoal, requiredMonthly };

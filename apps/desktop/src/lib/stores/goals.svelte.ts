@@ -3,8 +3,6 @@ import { Money, MoneyDecimal } from "@mainspring/schema";
 import { deleteGoal, loadGoals, saveGoal, type GoalRow } from "$lib/db";
 import { profile } from "./profile.svelte";
 
-const today = () => new Date().toISOString().slice(0, 10);
-
 /** Annual amount a goal's contribution adds up to (0 if none). */
 function annualContribution(g: GoalRow): Money {
   return g.contribution ? annualizeItem({ amount: Money.of(g.contribution), cadence: g.cadence }) : Money.zero();
@@ -28,15 +26,24 @@ class GoalsStore {
     // The engine works in months; convert whatever cadence to a monthly figure.
     // Pass the exact Decimal 1/12 — never String(1 / 12) (a float artifact, F5).
     const monthly = g.contribution ? annualContribution(g).multiply(new MoneyDecimal(1).div(12)) : null;
-    return goalStatus(
-      {
-        target: Money.of(g.targetAmount),
-        saved: Money.of(g.savedAmount),
-        ...(monthly ? { monthlyContribution: monthly } : {}),
-        ...(g.targetDate ? { targetDate: g.targetDate } : {}),
-      },
-      today(),
-    );
+    return goalStatus({
+      target: Money.of(g.targetAmount),
+      saved: Money.of(g.savedAmount),
+      ...(monthly ? { monthlyContribution: monthly } : {}),
+      ...(g.targetMonths ? { targetMonths: g.targetMonths } : {}),
+    });
+  }
+
+  /**
+   * Set (or clear) a goal's timeline. Whole months only, and never zero — a
+   * zero-month timeline has no meaningful required contribution, so an empty or
+   * junk box clears the timeline instead of storing one.
+   */
+  setTimeline(id: string, months: number | null): void {
+    const g = this.rows.find((r) => r.id === id);
+    if (!g) return;
+    const clean = months !== null && Number.isFinite(months) && months >= 1 ? Math.round(months) : null;
+    this.save({ ...g, targetMonths: clean });
   }
 
   /** Annualized contribution for a goal (for readouts and the budget drill-down). */
