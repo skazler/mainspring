@@ -123,11 +123,14 @@
       return [...map.values()].sort((a, b) => b.annual - a.annual);
     })(),
   );
-  // Largest category open by default, the rest collapsed — the same "newest/first
-  // one open" default the History column uses. Overrides track user toggles.
+  // All categories start collapsed, so opening the block lands on a summary —
+  // every category with its count and annual total — rather than one group's
+  // rows. Deliberately NOT History's "first one open" default: a History month
+  // can be collapsed without hiding anything, since its entries also show in the
+  // By-category column beside it, where these rows appear nowhere else.
   let openBillCats = $state<Record<string, boolean>>({});
-  const billCatOpen = (c: string, i: number) => openBillCats[c] ?? i === 0;
-  const toggleBillCat = (c: string, i: number) => (openBillCats[c] = !billCatOpen(c, i));
+  const billCatOpen = (c: string) => openBillCats[c] ?? false;
+  const toggleBillCat = (c: string) => (openBillCats[c] = !billCatOpen(c));
 
   // Expand a budget line to the pieces that make it up.
   let openLines = $state<Record<string, boolean>>({});
@@ -398,15 +401,15 @@
     {#if recurring.error}<p class="warn">{recurring.error}</p>{/if}
 
     {#if recurring.bills.length > 0}
-      {#each billGroups as g, gi (g.category)}
+      {#each billGroups as g (g.category)}
         <div class="catgroup">
-          <button class="cathead" onclick={() => toggleBillCat(g.category, gi)}>
-            <span class="caret">{billCatOpen(g.category, gi) ? "▾" : "▸"}</span>
+          <button class="cathead" onclick={() => toggleBillCat(g.category)}>
+            <span class="caret">{billCatOpen(g.category) ? "▾" : "▸"}</span>
             <span class="catname">{g.category}</span>
             <span class="count">{g.rows.length}{#if g.live < g.rows.length}<span class="dim"> · {g.rows.length - g.live} paused</span>{/if}</span>
             <span class="mono cattotal">{formatUsd(g.annual)}<span class="dim">/yr</span></span>
           </button>
-          {#if billCatOpen(g.category, gi)}
+          {#if billCatOpen(g.category)}
             <table class="bills">
               <tbody>
                 {#each g.rows as r (r.id)}
