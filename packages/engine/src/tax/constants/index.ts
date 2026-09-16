@@ -16,6 +16,13 @@ export interface FicaConstants {
   medicareRate: string;
   additionalMedicareRate: string;
   additionalMedicareThreshold: Record<FilingStatus, Money>;
+  /**
+   * Share of self-employment profit that counts as "net earnings" for SE tax —
+   * the stand-in for the employer half of FICA an employee never sees (Sch. SE).
+   */
+  selfEmploymentEarningsFactor: string;
+  /** Net SE earnings below this owe no SE tax at all. */
+  selfEmploymentMinimum: Money;
 }
 
 export interface NiitConstants {

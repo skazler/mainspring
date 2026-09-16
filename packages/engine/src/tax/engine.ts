@@ -4,7 +4,7 @@ import { addRates, maxMoney } from "../money-util";
 import { applyBrackets, marginalBracketRate } from "./brackets";
 import { computeCapitalGainsTax } from "./capgains";
 import { getTaxConstants } from "./constants";
-import { computeFica } from "./fica";
+import { computeFica, computeSelfEmploymentTax } from "./fica";
 import { computeStateTax, stateMarginalRate } from "./state";
 
 export interface TaxInput {
@@ -21,6 +21,8 @@ export interface TaxInput {
   shortTermGains?: Money;
   /** Realized long-term gains + qualified dividends (preferential rates). Default 0. */
   longTermGains?: Money;
+  /** Annual self-employment / 1099 profit — income tax plus SE tax. Default 0. */
+  selfEmploymentIncome?: Money;
 }
 
 export interface TaxResult {
@@ -28,7 +30,12 @@ export interface TaxResult {
   federal: Money;
   socialSecurity: Money;
   medicare: Money;
+  /** FICA on W-2 wages only; self-employment tax is `selfEmployment`. */
   fica: Money;
+  /** Self-employment tax (both halves of FICA) on 1099 profit. */
+  selfEmployment: Money;
+  /** Half of SE tax, deducted from taxable income. */
+  selfEmploymentDeduction: Money;
   state: Money;
   /** Tax on long-term gains at preferential rates. */
   longTermCapGainsTax: Money;
@@ -37,9 +44,9 @@ export interface TaxResult {
   /** longTermCapGainsTax + niit. */
   capitalGains: Money;
   total: Money;
-  /** (wages + realized gains) − total tax. */
+  /** (wages + SE income + realized gains) − total tax. */
   net: Money;
-  /** total / (wages + realized gains). */
+  /** total / (wages + SE income + realized gains). */
   effectiveRate: string;
   /** Rate the next dollar of ordinary taxable income hits (federal + state marginal). */
   marginalRate: string;
@@ -60,10 +67,14 @@ export function computeTax(input: TaxInput): TaxResult {
 
   const stGains = input.shortTermGains ?? Money.zero();
   const ltGains = input.longTermGains ?? Money.zero();
+  const seIncome = input.selfEmploymentIncome ?? Money.zero();
 
-  // Short-term gains are ordinary income.
+  // SE tax first: half of it is deducted before the bracket pass.
+  const se = computeSelfEmploymentTax(seIncome, input.grossWages, input.filingStatus, c.fica);
+
+  // Short-term gains and SE profit are ordinary income.
   const taxableIncome = maxMoney(
-    input.grossWages.add(stGains).subtract(input.pretax).subtract(stdDeduction),
+    input.grossWages.add(stGains).add(seIncome).subtract(se.deduction).subtract(input.pretax).subtract(stdDeduction),
     Money.zero(),
   );
 
@@ -71,7 +82,12 @@ export function computeTax(input: TaxInput): TaxResult {
   const fica = computeFica(input.grossWages, input.filingStatus, c.fica);
   const state = computeStateTax(taxableIncome, input.state);
 
-  const modifiedAGI = input.grossWages.subtract(input.pretax).add(stGains).add(ltGains);
+  const modifiedAGI = input.grossWages
+    .add(seIncome)
+    .subtract(se.deduction)
+    .subtract(input.pretax)
+    .add(stGains)
+    .add(ltGains);
   const cg = computeCapitalGainsTax({
     ordinaryTaxableIncome: taxableIncome,
     longTermGains: ltGains,
@@ -81,8 +97,8 @@ export function computeTax(input: TaxInput): TaxResult {
     taxYear: input.taxYear,
   });
 
-  const total = federal.add(fica.total).add(state).add(cg.total);
-  const totalIncome = input.grossWages.add(stGains).add(ltGains);
+  const total = federal.add(fica.total).add(se.total).add(state).add(cg.total);
+  const totalIncome = input.grossWages.add(seIncome).add(stGains).add(ltGains);
   const net = totalIncome.subtract(total);
 
   const marginalRate = addRates(
@@ -96,6 +112,8 @@ export function computeTax(input: TaxInput): TaxResult {
     socialSecurity: fica.socialSecurity,
     medicare: fica.medicare,
     fica: fica.total,
+    selfEmployment: se.total,
+    selfEmploymentDeduction: se.deduction,
     state,
     longTermCapGainsTax: cg.longTermTax,
     niit: cg.niit,

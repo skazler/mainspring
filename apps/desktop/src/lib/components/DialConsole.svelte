@@ -77,7 +77,7 @@
   {#if empty}
     <div class="welcome">
       <strong>Welcome — let's wind it up.</strong>
-      Start in <button class="inline" onclick={() => (session.configured = false)}>Edit setup</button> with your income and assumptions, then log your bills in <button class="inline" onclick={() => (session.tab = "spending")}>Outflows</button>. Your freedom date, forecast, and dials fill in as you go.
+      Start in <button class="inline" onclick={() => (session.configured = false)}>Edit setup</button> with your income and assumptions, then log your bills in <button class="inline" onclick={() => (session.tab = "spending")}>Cashflow</button>. Your freedom date, forecast, and dials fill in as you go.
     </div>
   {/if}
 
@@ -117,7 +117,7 @@
 
   <h3 class="flow-title">Post-tax distribution</h3>
   {#if hints.show}
-    <p class="flow-sub">Where your take-home pay lands after taxes — as a share of net income. Read-only; adjust the levers above or in Outflows.</p>
+    <p class="flow-sub">Where your take-home pay lands after taxes — as a share of net income. Read-only; adjust the levers above or in Cashflow.</p>
   {/if}
   <div class="gauges flow-gauges">
     {#each distribution as f (f.label)}

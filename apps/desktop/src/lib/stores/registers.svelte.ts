@@ -115,9 +115,13 @@ class RegistersStore {
     const tax = estimateRebalanceTax({
       realized,
       ordinaryTaxableIncome: t.taxableIncome,
-      // MAGI proxy: gross wages + realized gains (understates only true above-the-
-      // line add-backs; a planning estimate, flagged as such in the UI).
-      modifiedAGI: view.current.gross.add(realized.shortTerm).add(realized.longTerm),
+      // MAGI proxy: taxable gross (wages + side income, not gifts) + realized
+      // gains (understates only true above-the-line add-backs; a planning
+      // estimate, flagged as such in the UI).
+      modifiedAGI: view.current.gross
+        .subtract(profile.irregularIncome?.untaxed ?? Money.zero())
+        .add(realized.shortTerm)
+        .add(realized.longTerm),
       marginalOrdinaryRate: t.marginalRate,
       filingStatus: profile.taxProfile.filingStatus,
       taxYear: profile.taxProfile.taxYear,

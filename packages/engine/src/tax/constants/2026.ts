@@ -74,6 +74,9 @@ export const fica2026: FicaConstants = {
     mfs: m("125000"),
     hoh: m("200000"),
   },
+  // Statutory (Schedule SE) — not inflation-adjusted.
+  selfEmploymentEarningsFactor: "0.9235",
+  selfEmploymentMinimum: m("400"),
 };
 
 /**

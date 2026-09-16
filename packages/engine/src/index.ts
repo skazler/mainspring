@@ -24,8 +24,8 @@ export { computeTax } from "./tax/engine";
 export type { TaxInput, TaxResult } from "./tax/engine";
 export { applyBrackets, marginalBracketRate } from "./tax/brackets";
 export type { Bracket } from "./tax/brackets";
-export { computeFica } from "./tax/fica";
-export type { FicaBreakdown } from "./tax/fica";
+export { computeFica, computeSelfEmploymentTax } from "./tax/fica";
+export type { FicaBreakdown, SelfEmploymentTax } from "./tax/fica";
 export { computeStateTax, stateMarginalRate } from "./tax/state";
 export { computeCapitalGainsTax } from "./tax/capgains";
 export type { CapitalGainsInput, CapitalGainsResult } from "./tax/capgains";
@@ -85,6 +85,10 @@ export {
 } from "./spending/annualize";
 export type { SpendingEntry } from "./spending/annualize";
 export { monthlyBudget } from "./spending/budget";
+
+// irregular income (gigs, gifts, windfalls)
+export { trailingIncome, budgetIncomeIn, INCOME_WINDOW_DAYS } from "./income/irregular";
+export type { IncomeEntry, IncomeSplit } from "./income/irregular";
 export type { MonthlyBudget } from "./spending/budget";
 
 // savings goals

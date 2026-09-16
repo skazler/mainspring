@@ -27,11 +27,17 @@ const PAYROLL_BUCKETS = new Set<Bucket>(["401k_pretax", "roth_401k", "hsa"]);
  * income → pre-tax → tax → net → bucket allocation. No I/O, no clock.
  */
 export function recompute(state: ProfileState): RecomputeView {
-  const gross = annualizeIncome(state.incomeSources);
+  const wages = annualizeIncome(state.incomeSources);
+  const seIncome = state.irregularIncome?.selfEmployed ?? Money.zero();
+  const untaxedIncome = state.irregularIncome?.untaxed ?? Money.zero();
+  const irregularIncome = seIncome.add(untaxedIncome);
+  const gross = wages.add(irregularIncome);
 
-  // 1. Gross-base dials (incl. pre-tax buckets) — independent of tax.
+  // 1. Gross-base dials (incl. pre-tax buckets) — independent of tax. These are
+  //    payroll deferrals, so they read wages: a 401(k) can't be funded from a
+  //    gig payout or a gift.
   const grossAlloc = allocateBase(
-    gross,
+    wages,
     "gross",
     state.dials.filter((d) => d.base === "gross"),
   );
@@ -42,14 +48,27 @@ export function recompute(state: ProfileState): RecomputeView {
     .reduce((sum, a) => sum.add(a.amount), Money.zero());
 
   // 3. Tax → net.
-  const tax = computeTax({
-    grossWages: gross,
+  const taxBase = {
+    grossWages: wages,
     pretax,
     filingStatus: state.taxProfile.filingStatus,
     state: state.taxProfile.state,
     taxYear: state.taxProfile.taxYear,
-  });
-  const net = tax.net;
+  };
+  const tax = computeTax({ ...taxBase, selfEmploymentIncome: seIncome });
+  // tax.net covers wages + SE income; untaxed income (gifts) passes straight through.
+  const net = tax.net.add(untaxedIncome);
+
+  // 3a. Budget-bound income is taxed ON TOP of everything above — its tax is the
+  //     difference it makes, so a payout that crosses a bracket (or clears the
+  //     SE-tax minimum) is charged what it really costs.
+  const budgetSe = state.budgetIncome?.selfEmployed ?? Money.zero();
+  const budgetUntaxed = state.budgetIncome?.untaxed ?? Money.zero();
+  const budgetIncome = budgetSe.isZero()
+    ? budgetUntaxed
+    : budgetSe
+        .subtract(computeTax({ ...taxBase, selfEmploymentIncome: seIncome.add(budgetSe) }).total.subtract(tax.total))
+        .add(budgetUntaxed);
 
   // 3b. What actually reaches the bank. `net` is gross − tax, so it still holds
   //     every dollar withheld from the paycheck: pre-tax deferrals (the tax step
@@ -120,7 +139,7 @@ export function recompute(state: ProfileState): RecomputeView {
   // free money on top — it grows net worth but isn't part of your paycheck, so
   // it stays out of the "where every dollar goes" breakdown.
   const ownContributions = buckets.reduce((sum, b) => sum.add(b.amount), autoInvestments);
-  const employerMatch = state.plan.employerMatchPercent ? gross.multiply(state.plan.employerMatchPercent) : Money.zero();
+  const employerMatch = state.plan.employerMatchPercent ? wages.multiply(state.plan.employerMatchPercent) : Money.zero();
   const totalContributions = ownContributions.add(employerMatch);
 
   // Where each gross dollar goes (slices sum to gross; leftover absorbs the rest).
@@ -163,6 +182,9 @@ export function recompute(state: ProfileState): RecomputeView {
 
   return {
     gross,
+    wages,
+    irregularIncome,
+    budgetIncome,
     pretax,
     tax,
     net,
