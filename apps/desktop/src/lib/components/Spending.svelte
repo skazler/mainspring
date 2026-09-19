@@ -9,6 +9,7 @@
   import { clock } from "$lib/stores/clock.svelte";
   import { spending } from "$lib/stores/spending.svelte";
   import { recurring } from "$lib/stores/recurring.svelte";
+  import { income } from "$lib/stores/income.svelte";
   import { goals } from "$lib/stores/goals.svelte";
   import { view } from "$lib/stores/derived.svelte";
   import { hints } from "$lib/stores/hints.svelte";
@@ -23,6 +24,7 @@
   let showBreakdown = $state(false);
   let showBills = $state(false);
   let showAutos = $state(false);
+  let showIncome = $state(false);
   const propSlices = $derived(v.whereItGoes.map((s) => ({ label: s.label, amount: Number(s.amount.toString()) })));
 
   const slice = (label: string) => v.whereItGoes.find((s) => s.label === label)?.amount ?? Money.zero();
@@ -38,7 +40,9 @@
   // contributions) drawn down by what's actually been logged since the 1st. It
   // resets on the 1st and only falls — never the trailing run-rate, which slides
   // and would push "left" back up mid-month as old purchases age out.
-  const budget = $derived(monthlyBudget(v.discretionaryAllowance, spending.thisMonthTotal));
+  // Income marked "add to this month's budget" lands whole, after tax, on top.
+  const budget = $derived(monthlyBudget(v.discretionaryAllowance, spending.thisMonthTotal, v.budgetIncome));
+  const extraN = $derived(Number(budget.extra.toString()));
   const allowanceN = $derived(Number(budget.allowance.toString()));
   const spentN = $derived(Number(budget.spent.toString()));
   const leftN = $derived(Number(budget.remaining.toString()));
@@ -155,6 +159,7 @@
         return [
           { name: "Federal", amount: Number(v.tax.federal.toString()) },
           { name: "FICA (Social Security + Medicare)", amount: Number(v.tax.fica.toString()) },
+          { name: "Self-employment tax", amount: Number(v.tax.selfEmployment.toString()) },
           { name: "State", amount: Number(v.tax.state.toString()) },
           { name: "Capital gains", amount: Number(v.tax.capitalGains.toString()) },
         ].filter((d) => d.amount > 0);
@@ -211,10 +216,32 @@
     cadence: "monthly",
   });
 
+  let gig = $state({ label: "", amount: 0, date: today(), selfEmployed: true, toBudget: false });
+
   onMount(() => {
     void spending.load();
     void recurring.load();
+    void income.load();
   });
+
+  function addIncome(e: Event) {
+    e.preventDefault();
+    if (!gig.label.trim() || gig.amount <= 0) return;
+    income.add({
+      id: crypto.randomUUID(),
+      label: gig.label.trim(),
+      amount: String(gig.amount),
+      receivedAt: gig.date,
+      selfEmployed: gig.selfEmployed,
+      toBudget: gig.toBudget,
+    });
+    // Keep the two switches: the next entry is usually the same kind of money.
+    gig = { label: "", amount: 0, date: today(), selfEmployed: gig.selfEmployed, toBudget: gig.toBudget };
+  }
+
+  // A budget-bound entry only lifts the month it arrived in — say so on old rows.
+  const incomeRoute = (r: (typeof income.rows)[number]) =>
+    !r.toBudget ? "plan" : String(r.receivedAt).slice(0, 7) === clock.month ? "this month" : "spent";
 
   async function add(e: Event) {
     e.preventDefault();
@@ -273,9 +300,9 @@
 </script>
 
 <section class="spending">
-  <header class="title">Outflows</header>
+  <header class="title">Cashflow</header>
   {#if hints.show}
-    <p class="lede">Everything leaving your account — what's <strong>spent</strong> and what's <strong>kept</strong>. Bills and day-to-day spending feed your total expenses; automatic investments leave your account too, but stay yours and lift your contributions instead.</p>
+    <p class="lede">Money in and money out. Extra income tops up your plan or this month's budget. Bills and day-to-day spending feed your total expenses; automatic investments leave your account too, but stay yours and lift your contributions instead.</p>
   {/if}
 
   <div class="cashflow" class:over={leftN < 0 || budget.overCommitted}>
@@ -306,6 +333,10 @@
       <span class="item"><span class="k">Bills &amp; essentials</span><span class="mono">{formatUsd(mo(slice("Bills & essentials")))}/mo</span></span>
       <span class="op">−</span>
       <span class="item" title="Only what you move from your bank account — your 401(k) is already out of take-home above."><span class="k">Goals + investing</span><span class="mono">{formatUsd(mo(toFuture))}/mo</span></span>
+      {#if extraN > 0}
+        <span class="op">+</span>
+        <span class="item" title="Income you added to this month's budget, after tax. This month only."><span class="k">Extra income</span><span class="mono kept">{formatUsd(extraN)}</span></span>
+      {/if}
       <span class="op">=</span>
       <span class="item"><span class="k">Monthly budget</span><span class="mono" class:neg={allowanceN < 0}>{formatUsd(allowanceN)}</span></span>
     </div>
@@ -374,6 +405,52 @@
           </tbody>
         </table>
       </div>
+    {/if}
+  </div>
+
+  <div class="block">
+    <button class="block-head" onclick={() => (showIncome = !showIncome)}>
+      <span class="block-title">{showIncome ? "▾" : "▸"} Extra income</span>
+      <span class="block-total kept">{formatUsd(Number(income.planTotal.toString()))}<span class="dim">&nbsp;last 12 mo · {income.rows.length}</span></span>
+    </button>
+    {#if showIncome}
+      {#if hints.show}
+        <p class="hint">Money that doesn't arrive on a schedule — a gig payout, freelance work, a gift. By default it counts toward your plan as the <strong>last 12 months' total</strong>, so a one-off never reads as a raise. Tick <strong>this month's budget</strong> to spend it instead: it adds to this month's budget after tax and stays out of your projection. Untick <strong>self-employment tax</strong> for money that isn't taxed, like a gift.</p>
+      {/if}
+
+      <form class="add" onsubmit={addIncome}>
+        <input class="lbl" placeholder="What was it? (e.g. Uber, Gift)" bind:value={gig.label} />
+        <input type="number" min="0" step="any" placeholder="Amount" bind:value={gig.amount} />
+        <input type="date" bind:value={gig.date} />
+        <label class="check" title="Income tax plus self-employment tax (15.3% on 92.35%). Untick for gifts and reimbursements."><input type="checkbox" bind:checked={gig.selfEmployed} /> Self-employment tax</label>
+        <label class="check" title="Add it to this month's budget, after tax, instead of your 12-month plan."><input type="checkbox" bind:checked={gig.toBudget} /> This month's budget</label>
+        <button type="submit">Log</button>
+      </form>
+
+      {#if income.error}<p class="warn">{income.error}</p>{/if}
+
+      {#if income.rows.length > 0}
+        <p class="meter-note center">
+          {formatUsd(Number(income.planTotal.toString()))} over the last 12 months counts toward your plan{#if v.tax.selfEmployment.compare(Money.zero()) > 0}, costing {formatUsd(Number(v.tax.selfEmployment.toString()))} in self-employment tax{/if}.
+          {#if extraN > 0}This month's budget gets {formatUsd(extraN)} after tax.{/if}
+        </p>
+        <table class="bills">
+          <tbody>
+            {#each income.rows as r (r.id)}
+              <tr class:paused={incomeRoute(r) === "spent"}>
+                <td class="mono date nowrap">{String(r.receivedAt).slice(0, 10)}</td>
+                <td class="cap income-label">{r.label}</td>
+                <td class="mono kept">{formatUsd(Number(r.amount))}</td>
+                <td class="nowrap"><button class="link" title="Toggle self-employment tax" onclick={() => income.update({ ...r, selfEmployed: !r.selfEmployed })}>{r.selfEmployed ? "SE tax" : "untaxed"}</button></td>
+                <td class="nowrap"><button class="link" title="Switch between your 12-month plan and that month's budget" onclick={() => income.update({ ...r, toBudget: !r.toBudget })}>{incomeRoute(r)}</button></td>
+                <td><ConfirmButton onconfirm={() => income.remove(r.id)} title="Delete entry" /></td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      {:else}
+        <p class="empty">No extra income yet — log a payout above.</p>
+      {/if}
     {/if}
   </div>
 
@@ -930,6 +1007,35 @@
   }
   .meter .fill.spent-over {
     background: var(--color-oxblood);
+  }
+  /* Space the add form off a block's header, which it otherwise butts against
+     whenever the hint between them is hidden. */
+  .block-head + .add {
+    margin-top: 1rem;
+  }
+  .nowrap {
+    white-space: nowrap;
+  }
+  .bills td.income-label {
+    text-align: left;
+    width: 100%;
+    font-family: var(--font-body);
+  }
+  .check {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: var(--color-soot);
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    cursor: pointer;
+  }
+  .check input {
+    accent-color: var(--color-brass);
+  }
+  .center {
+    text-align: center;
+    margin-bottom: 0.6rem;
   }
   .meter-note {
     margin: 0.4rem 0 0;

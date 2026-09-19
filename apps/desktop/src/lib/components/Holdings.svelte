@@ -145,7 +145,7 @@
   <div class="block">
     <h2 class="section">Recurring contributions</h2>
     <p class="moved">
-      Auto-invest transfers now live under <strong>Outflows → Automatic investments</strong>, beside the recurring
+      Auto-invest transfers now live under <strong>Cashflow → Automatic investments</strong>, beside the recurring
       bills they share a shape with.
       {#if Number(recurring.investmentsAnnual.toString()) > 0}
         Currently <strong class="kept">{formatUsd(Number(recurring.investmentsAnnual.toString()))}/yr</strong> across

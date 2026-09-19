@@ -44,6 +44,14 @@ async function open() {
       amount numeric(18, 4) NOT NULL,
       spent_at date NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS income_entries (
+      id text PRIMARY KEY,
+      label text NOT NULL,
+      amount numeric(18, 4) NOT NULL,
+      received_at date NOT NULL,
+      self_employed boolean NOT NULL DEFAULT true,
+      to_budget boolean NOT NULL DEFAULT false
+    );
     CREATE TABLE IF NOT EXISTS net_worth_snapshots (
       id text PRIMARY KEY,
       captured_at timestamptz NOT NULL DEFAULT now(),
@@ -300,6 +308,51 @@ export async function deleteSpending(id: string): Promise<void> {
   await d.query("DELETE FROM spending WHERE id = $1;", [id]);
 }
 
+/** An irregular-income entry (amount as an exact string). */
+export interface IncomeRow {
+  id: string;
+  label: string;
+  amount: string;
+  receivedAt: string;
+  /** Income tax + self-employment tax. False = untaxed (gift, reimbursement). */
+  selfEmployed: boolean;
+  /** Spend it this month rather than spreading it across the plan. */
+  toBudget: boolean;
+}
+
+export async function loadIncome(): Promise<IncomeRow[]> {
+  if (!browser) return [];
+  const d = await db();
+  const res = await d.query<{ id: string; label: string; amount: string; received_at: string; self_employed: boolean; to_budget: boolean }>(
+    "SELECT id, label, amount, received_at::text AS received_at, self_employed, to_budget FROM income_entries ORDER BY received_at DESC, id;",
+  );
+  return res.rows.map((r) => ({
+    id: r.id,
+    label: r.label,
+    amount: r.amount,
+    receivedAt: r.received_at,
+    selfEmployed: r.self_employed,
+    toBudget: r.to_budget,
+  }));
+}
+
+export async function saveIncome(row: IncomeRow): Promise<void> {
+  if (!browser) return;
+  const d = await db();
+  await d.query(
+    `INSERT INTO income_entries (id, label, amount, received_at, self_employed, to_budget)
+     VALUES ($1, $2, $3::numeric, $4, $5, $6)
+     ON CONFLICT (id) DO UPDATE SET label = $2, amount = $3::numeric, received_at = $4, self_employed = $5, to_budget = $6;`,
+    [row.id, row.label, row.amount, row.receivedAt, row.selfEmployed, row.toBudget],
+  );
+}
+
+export async function deleteIncome(id: string): Promise<void> {
+  if (!browser) return;
+  const d = await db();
+  await d.query("DELETE FROM income_entries WHERE id = $1;", [id]);
+}
+
 /**
  * A savings goal (money as exact strings). `contribution` is the amount set aside
  * per `cadence`; `sortOrder` is display sequence. (The physical column is still
@@ -477,11 +530,13 @@ export interface BackupData {
   scenarios: Scenario[];
   /** The Registers' ticker → asset-class map (added in backup v2). */
   tickerClasses: Record<string, string>;
+  /** Irregular income (added in backup v3; older files omit it). */
+  income?: IncomeRow[];
 }
 
 /** Gather all user-entered data into a single portable object. */
 export async function exportAll(): Promise<BackupData> {
-  const [setup, spending, recurring, goals, lots, scenarios, tickerClasses] = await Promise.all([
+  const [setup, spending, recurring, goals, lots, scenarios, tickerClasses, income] = await Promise.all([
     loadSetupForm(),
     loadSpending(),
     loadRecurring(),
@@ -489,10 +544,11 @@ export async function exportAll(): Promise<BackupData> {
     loadLots(),
     listScenarios(),
     loadTickerClasses(),
+    loadIncome(),
   ]);
   return {
     app: "mainspring",
-    version: 2,
+    version: 3,
     exportedAt: new Date().toISOString(),
     setup,
     spending,
@@ -501,6 +557,7 @@ export async function exportAll(): Promise<BackupData> {
     lots,
     scenarios,
     tickerClasses,
+    income,
   };
 }
 
@@ -513,6 +570,7 @@ export async function importAll(data: BackupData): Promise<void> {
   if (data.setup) await saveSetupForm(data.setup);
   for (const r of data.spending) await saveSpending(r);
   for (const r of data.recurring ?? []) await saveRecurring(r);
+  for (const r of data.income ?? []) await saveIncome(r);
   // Goals in a backup written before goals could run side by side carry no
   // `active` flag. Restoring them all as funded would silently multiply the
   // claim on the plan, so rebuild the plan the file was actually describing:

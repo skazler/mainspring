@@ -25,7 +25,7 @@
       <button class:active={session.tab === "plan"} onclick={() => (session.tab = "plan")}>Plan</button>
       <button class:active={session.tab === "calibre"} onclick={() => (session.tab = "calibre")}>Calibre</button>
       <button class:active={session.tab === "holdings"} onclick={() => (session.tab = "holdings")}>Registers</button>
-      <button class:active={session.tab === "spending"} onclick={() => (session.tab = "spending")}>Outflows</button>
+      <button class:active={session.tab === "spending"} onclick={() => (session.tab = "spending")}>Cashflow</button>
       <button class:active={session.tab === "goals"} onclick={() => (session.tab = "goals")}>Goals</button>
     </nav>
     <div class="tools">

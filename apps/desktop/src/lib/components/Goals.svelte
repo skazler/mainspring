@@ -23,7 +23,7 @@
   const committedMo = $derived(goals.activeGoals.reduce((sum, g) => sum + Number(goals.annual(g).toString()) / 12, 0));
   // Contributions aren't capped (a goal you committed to is shown as committed),
   // so the plan can be pushed under water. Say so here rather than leaving the
-  // negative budget to be discovered over in Outflows.
+  // negative budget to be discovered over in Cashflow.
   const allowanceMo = $derived(Number(view.current.discretionaryAllowance.toString()) / 12);
 
   onMount(() => {

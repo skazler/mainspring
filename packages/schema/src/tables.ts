@@ -173,6 +173,20 @@ export const spending = pgTable("spending", {
   spentAt: date("spent_at").notNull(),
 });
 
+// Irregular income (gig payouts, gifts, windfalls), logged as it arrives. The
+// trailing year feeds gross; `to_budget` rows go to that month's budget instead.
+export const incomeEntries = pgTable("income_entries", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  profileId: uuid("profile_id")
+    .notNull()
+    .references(() => profiles.id, { onDelete: "cascade" }),
+  label: text("label").notNull(),
+  amount: money("amount").notNull(),
+  receivedAt: date("received_at").notNull(),
+  selfEmployed: boolean("self_employed").notNull(), // false => untaxed (gift, reimbursement)
+  toBudget: boolean("to_budget").notNull(),
+});
+
 // Point-in-time net-worth captures → the historical net-worth line.
 export const netWorthSnapshots = pgTable("net_worth_snapshots", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -246,6 +260,7 @@ export const schema = {
   forecasts,
   marketBars,
   spending,
+  incomeEntries,
   netWorthSnapshots,
   goals,
   recurring,

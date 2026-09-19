@@ -130,6 +130,16 @@ export const spendingInsert = z.object({
   spentAt: z.string(), // ISO date
 });
 
+export const incomeEntryInsert = z.object({
+  id: z.string().uuid().optional(),
+  profileId: z.string().uuid(),
+  label: z.string().min(1),
+  amount: zMoney,
+  receivedAt: z.string(), // ISO date
+  selfEmployed: z.boolean(),
+  toBudget: z.boolean(),
+});
+
 export const holdingInsert = z.object({
   id: z.string().uuid().optional(),
   accountId: z.string().uuid(),

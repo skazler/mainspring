@@ -2,6 +2,7 @@ import type { Money } from "@mainspring/schema";
 import type { Bucket, DialBase, FilingStatus, Frequency } from "@mainspring/schema";
 import type { TaxResult } from "./tax/engine";
 import type { FireMetrics } from "./fire/metrics";
+import type { IncomeSplit } from "./income/irregular";
 
 // ── engine inputs (clean value objects, not DB rows) ──────────────
 export interface IncomeSourceInput {
@@ -44,6 +45,19 @@ export interface PlanInput {
 
 export interface ProfileState {
   incomeSources: IncomeSourceInput[];
+  /**
+   * Irregular income the plan counts — the trailing year of logged one-offs,
+   * split by tax treatment (see `trailingIncome`). Default 0. Adds to gross and
+   * take-home, but not to the base of gross-based (payroll) dials or the
+   * employer match: a 401(k) can only be deferred out of a W-2 paycheck.
+   */
+  irregularIncome?: IncomeSplit;
+  /**
+   * Income marked "add to this month's budget", received this calendar month.
+   * Stays out of gross/FI entirely; only its after-tax amount comes back, as
+   * `budgetIncome`, for the monthly budget. Default 0.
+   */
+  budgetIncome?: IncomeSplit;
   dials: DialInput[];
   taxProfile: TaxProfileInput;
   /** Fixed/essential annual expenses. */
@@ -94,7 +108,18 @@ export interface BucketAllocation {
 }
 
 export interface RecomputeView {
+  /** Wages + irregular income the plan counts. */
   gross: Money;
+  /** Annualized W-2 wages alone — the base gross-based dials and the match read. */
+  wages: Money;
+  /** Irregular income in the plan (trailing year, pre-tax). */
+  irregularIncome: Money;
+  /**
+   * After-tax value of this month's budget-bound income: the amount less the
+   * extra tax it adds on top of the plan's income. Add it to the month's
+   * allowance (see `monthlyBudget`).
+   */
+  budgetIncome: Money;
   /** Pre-tax deferrals fed into the tax step (401k_pretax + hsa + ira). */
   pretax: Money;
   tax: TaxResult;
